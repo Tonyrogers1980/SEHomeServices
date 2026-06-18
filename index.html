@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearRound</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+:root{--sky:#0EA5E9;--sky-dark:#0284C7;--sky-light:#E0F2FE;--slate:#0F172A;--slate-mid:#334155;--slate-soft:#64748B;--border:#E2E8F0;--surface:#F8FAFC;--white:#FFFFFF;--done:#10B981;--done-light:#D1FAE5;--warn:#F59E0B;--warn-light:#FEF3C7;--danger:#EF4444;--danger-light:#FEE2E2;--radius:12px;--radius-sm:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--slate);min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--sky);letter-spacing:-0.3px;}
+.topbar-logo span{color:var(--slate);}
+.topbar-user{width:32px;height:32px;background:var(--sky-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--sky-dark);cursor:pointer;}
+.nav{background:var(--white);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;padding:0 16px;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;color:var(--slate-soft);font-size:12px;font-weight:500;transition:color .15s,border-color .15s;text-decoration:none;}
+.nav-item svg{width:20px;height:20px;}
+.nav-item.active{color:var(--sky);border-bottom-color:var(--sky);}
+.nav-item:hover:not(.active){color:var(--slate-mid);}
+.main{flex:1;padding:20px 16px;max-width:900px;width:100%;margin:0 auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.page-title{font-size:20px;font-weight:600;}
+.page-sub{font-size:13px;color:var(--slate-soft);margin-top:2px;}
+.search-wrap{position:relative;margin-bottom:16px;}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--slate-soft);}
+.search-input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;background:var(--white);color:var(--slate);outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:var(--sky);}
+.customer-list{display:flex;flex-direction:column;gap:8px;}
+.customer-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s,box-shadow .15s;}
+.customer-card:hover{border-color:var(--sky);box-shadow:0 2px 8px rgba(14,165,233,.08);}
+.customer-avatar{width:40px;height:40px;border-radius:10px;background:var(--sky-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--sky-dark);flex-shrink:0;}
+.customer-info{flex:1;min-width:0;}
+.customer-name{font-size:14px;font-weight:600;}
+.customer-address{font-size:12px;color:var(--slate-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+.badge-done{background:var(--done-light);color:#065F46;}
+.badge-scheduled{background:var(--sky-light);color:var(--sky-dark);}
+.badge-skipped{background:var(--warn-light);color:#92400E;}
+.badge-cant{background:var(--danger-light);color:#991B1B;}
+.empty{text-align:center;padding:60px 20px;color:var(--slate-soft);}
+.empty svg{width:48px;height:48px;margin-bottom:12px;opacity:.3;}
+.empty-title{font-size:15px;font-weight:600;color:var(--slate-mid);margin-bottom:6px;}
+.empty-sub{font-size:13px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-sm);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;border:none;outline:none;transition:background .15s,opacity .15s;}
+.btn-primary{background:var(--sky);color:var(--white);}
+.btn-primary:hover{background:var(--sky-dark);}
+.btn-ghost{background:transparent;color:var(--slate-mid);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface);}
+.btn-danger{background:var(--danger);color:var(--white);}
+.btn-done{background:var(--done);color:var(--white);}
+.btn-sm{padding:6px 12px;font-size:13px;}
+.btn svg{width:16px;height:16px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+@media(min-width:640px){.modal-overlay{align-items:center;justify-content:center;}}
+.modal{background:var(--white);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-height:92vh;overflow-y:auto;transform:translateY(20px);transition:transform .2s;padding:24px 20px;}
+.modal-overlay.open .modal{transform:translateY(0);}
+@media(min-width:640px){.modal{border-radius:var(--radius);max-width:520px;max-height:85vh;}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.modal-title{font-size:17px;font-weight:600;}
+.modal-close{width:32px;height:32px;border-radius:8px;background:var(--surface);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--slate-soft);}
+.modal-close:hover{background:var(--border);}
+.modal-close svg{width:16px;height:16px;}
+.form-grid{display:flex;flex-direction:column;gap:14px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;font-weight:500;color:var(--slate-mid);}
+.field input,.field select,.field textarea{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--slate);background:var(--white);outline:none;transition:border-color .15s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--sky);}
+.field textarea{resize:vertical;min-height:72px;}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.detail-section{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;}
+.detail-section-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--slate-soft);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;}
+.detail-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-label{color:var(--slate-soft);}
+.detail-value{font-weight:500;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--sky);cursor:pointer;background:none;border:none;padding:0;margin-bottom:16px;}
+.back-btn svg{width:16px;height:16px;}
+.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.date-nav-btn{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--white);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--slate-mid);flex-shrink:0;}
+.date-nav-btn:hover{border-color:var(--sky);color:var(--sky);}
+.date-nav-btn svg{width:16px;height:16px;}
+.date-display{flex:1;text-align:center;font-size:15px;font-weight:600;}
+.date-today-btn{font-size:12px;font-weight:500;color:var(--sky);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;white-space:nowrap;}
+.date-today-btn:hover{background:var(--sky-light);}
+.round-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
+.round-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
+.round-stat-val{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;}
+.round-stat-label{font-size:10px;color:var(--slate-soft);margin-top:2px;}
+.round-list{display:flex;flex-direction:column;gap:8px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--slate);color:var(--white);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:999;transition:transform .25s ease;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:var(--done);}
+.toast.error{background:var(--danger);}
+.loading{display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--slate-soft);font-size:14px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--sky);border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.coming-soon{text-align:center;padding:80px 20px;}
+.coming-soon-icon{width:64px;height:64px;background:var(--sky-light);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.coming-soon-icon svg{width:32px;height:32px;color:var(--sky);}
+.coming-soon h2{font-size:18px;font-weight:600;margin-bottom:8px;}
+.coming-soon p{font-size:14px;color:var(--slate-soft);}
+@media(min-width:640px){.main{padding:28px 24px;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-logo">clear<span>round</span></div>
+  <div class="topbar-user">T</div>
+</div>
+<nav class="nav">
+  <a class="nav-item active" data-page="customers" onclick="navigate('customers')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    Customers
+  </a>
+  <a class="nav-item" data-page="round" onclick="navigate('round')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+    Today's Round
+  </a>
+  <a class="nav-item" data-page="quotes" onclick="navigate('quotes')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    Quotes
+  </a>
+  <a class="nav-item" data-page="invoices" onclick="navigate('invoices')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Invoices
+  </a>
+</nav>
+<main class="main" id="mainContent"></main>
+
+<!-- CUSTOMER MODAL -->
+<div class="modal-overlay" id="customerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="customerModalTitle">Add customer</div>
+      <button class="modal-close" onclick="closeModal('customerModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Full name *</label><input type="text" id="f-name" placeholder="Jane Smith"></div>
+      <div class="field"><label>Address *</label><input type="text" id="f-address" placeholder="12 High Street"></div>
+      <div class="form-row">
+        <div class="field"><label>Postcode *</label><input type="text" id="f-postcode" placeholder="AB1 2CD"></div>
+        <div class="field"><label>Phone</label><input type="tel" id="f-phone" placeholder="07700 900000"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>WhatsApp</label><input type="tel" id="f-whatsapp" placeholder="447700900000"></div>
+        <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="jane@example.com"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Gate code, dog in garden, key safe..."></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('customerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCustomer()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Save customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- JOB MODAL -->
+<div class="modal-overlay" id="jobModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Schedule job</div>
+      <button class="modal-close" onclick="closeModal('jobModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="field"><label>Price (£) *</label><input type="number" id="j-price" placeholder="12.00" step="0.50" min="0"></div>
+        <div class="field"><label>Frequency *</label>
+          <select id="j-frequency">
+            <option value="one-off">One-off</option>
+            <option value="weekly">Weekly</option>
+            <option value="fortnightly" selected>Fortnightly</option>
+            <option value="4-weekly">4-weekly</option>
+            <option value="8-weekly">8-weekly</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>First job date *</label><input type="date" id="j-date"></div>
+      <div class="field"><label>Assign to</label><select id="j-assigned"><option value="">Unassigned</option></select></div>
+      <div class="field"><label>Notes</label><textarea id="j-notes" placeholder="Any special instructions..."></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('jobModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveJob()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Schedule job</button>
+    </div>
+  </div>
+</div>
+
+<!-- SKIP MODAL -->
+<div class="modal-overlay" id="skipModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="skipModalTitle">Skip job</div>
+      <button class="modal-close" onclick="closeModal('skipModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Reason (optional)</label><textarea id="skip-notes" placeholder="Customer away, bad weather..."></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('skipModal')">Cancel</button>
+      <button class="btn btn-primary" id="skipConfirmBtn" onclick="confirmSkip()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://uetdrzzgydintdscvckn.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVldGRyenpneWRpbnRkc2N2Y2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MjA5NTYsImV4cCI6MjA1ODM5Njk1Nn0.9HFHBwqFNdoWE7-6O0GXxJECVpJm4_G6XxG0UXsAFDc';
+const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
+
+const sb=async(path,opts={})=>{
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+    headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':opts.prefer||'',...opts.headers},...opts
+  });
+  if(!res.ok&&res.status!==204){const e=await res.json().catch(()=>({}));throw new Error(e.message||'Request failed');}
+  if(res.status===204)return null;
+  return res.json();
+};
+
+let currentPage='customers',customers=[],wcUsers=[],editingCustomerId=null,jobCustomerId=null;
+let roundDate=todayStr(),skipJobId=null,skipStatus=null;
+
+function esc(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function todayStr(){return new Date().toLocaleDateString('en-CA');}
+function fmtDate(d){if(!d)return'-';return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
+function fmtShort(d){if(!d)return'-';return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
+function shiftDay(d,n){const dt=new Date(d+'T00:00:00');dt.setDate(dt.getDate()+n);return dt.toLocaleDateString('en-CA');}
+function badgeClass(s){return{done:'badge-done',scheduled:'badge-scheduled',skipped:'badge-skipped','cant-access':'badge-cant'}[s]||'';}
+function statusLabel(s){return{done:'Done',scheduled:'Scheduled',skipped:'Skipped','cant-access':"Can't access"}[s]||s;}
+
+let toastT;
+function showToast(msg,type=''){
+  const el=document.getElementById('toast');el.textContent=msg;el.className=`toast ${type} show`;
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function navigate(page){
+  currentPage=page;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
+  render();
+}
+function render(){({customers:renderCustomers,round:renderRound,quotes:renderQuotes,invoices:renderInvoices}[currentPage]||renderCustomers)();}
+
+async function loadUsers(){
+  try{wcUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){wcUsers=[];}
+}
+
+// ===== CUSTOMERS =====
+async function renderCustomers(){
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading customers...</div>';
+  try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load customers</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  el.innerHTML=`
+    <div class="page-header">
+      <div><div class="page-title">Customers</div><div class="page-sub">${customers.length} active</div></div>
+      <button class="btn btn-primary" onclick="openAddCustomer()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Add</button>
+    </div>
+    <div class="search-wrap">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input class="search-input" placeholder="Search name, address or postcode..." oninput="filterCustomers(this.value)">
+    </div>
+    <div class="customer-list" id="customerList">${customerCards(customers)}</div>`;
+}
+
+function customerCards(list){
+  if(!list.length)return'<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg><div class="empty-title">No customers yet</div><div class="empty-sub">Tap Add to create your first customer.</div></div>';
+  return list.map(c=>`<div class="customer-card" onclick="showCustomer('${c.id}')"><div class="customer-avatar">${c.name.charAt(0).toUpperCase()}</div><div class="customer-info"><div class="customer-name">${esc(c.name)}</div><div class="customer-address">${esc(c.address)}, ${esc(c.postcode)}</div></div>${c.phone?`<div style="font-size:12px;color:var(--slate-soft);flex-shrink:0">${esc(c.phone)}</div>`:''}</div>`).join('');
+}
+
+function filterCustomers(q){
+  const l=q.toLowerCase();
+  document.getElementById('customerList').innerHTML=customerCards(customers.filter(c=>c.name.toLowerCase().includes(l)||c.address.toLowerCase().includes(l)||c.postcode.toLowerCase().includes(l)));
+}
+
+async function showCustomer(id){
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading...</div>';
+  let c=customers.find(x=>x.id===id);
+  if(!c){try{[c]=await sb(`wc_customers?id=eq.${id}`);}catch(e){}}
+  if(!c){el.innerHTML='<div class="empty"><div class="empty-title">Customer not found</div></div>';return;}
+  el.innerHTML=`
+    <button class="back-btn" onclick="renderCustomers()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Customers</button>
+    <div class="page-header">
+      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${esc(c.address)}, ${esc(c.postcode)}</div></div>
+      <button class="btn btn-ghost" onclick="openEditCustomer('${c.id}')">Edit</button>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-header">Contact</div>
+      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.phone)}</span></div>`:''}
+      ${c.whatsapp_number?`<div class="detail-row"><span class="detail-label">WhatsApp</span><span class="detail-value">${esc(c.whatsapp_number)}</span></div>`:''}
+      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${esc(c.email)}</span></div>`:''}
+      ${!c.phone&&!c.whatsapp_number&&!c.email?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No contact details</span></div>':''}
+    </div>
+    ${c.notes?`<div class="detail-section"><div class="detail-section-header">Notes</div><div class="detail-row"><span>${esc(c.notes)}</span></div></div>`:''}
+    <div class="detail-section">
+      <div class="detail-section-header">Jobs<button class="btn btn-primary btn-sm" onclick="openAddJob('${c.id}')">+ Schedule job</button></div>
+      <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-danger" onclick="archiveCustomer('${c.id}')">Archive customer</button>
+    </div>`;
+  loadCustomerJobs(id);
+}
+
+async function loadCustomerJobs(customerId){
+  try{
+    const jobs=await sb(`wc_jobs?customer_id=eq.${customerId}&order=scheduled_date.desc&limit=20`);
+    const el=document.getElementById('customerJobs');if(!el)return;
+    if(!jobs.length){el.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic">No jobs yet - tap Schedule job to add one.</span></div>';return;}
+    el.innerHTML=jobs.map(j=>`<div class="detail-row"><div><div style="font-size:14px;font-weight:500">${fmtShort(j.scheduled_date)}</div><div style="font-size:12px;color:var(--slate-soft)">${j.frequency}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:'DM Mono',monospace;font-size:13px">£${parseFloat(j.price).toFixed(2)}</span><span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span></div></div>`).join('');
+  }catch(e){}
+}
+
+function openAddCustomer(){
+  editingCustomerId=null;
+  document.getElementById('customerModalTitle').textContent='Add customer';
+  ['name','address','postcode','phone','whatsapp','email','notes'].forEach(f=>document.getElementById('f-'+f).value='');
+  document.getElementById('customerModal').classList.add('open');
+}
+function openEditCustomer(id){
+  const c=customers.find(x=>x.id===id);if(!c)return;
+  editingCustomerId=id;
+  document.getElementById('customerModalTitle').textContent='Edit customer';
+  document.getElementById('f-name').value=c.name||'';
+  document.getElementById('f-address').value=c.address||'';
+  document.getElementById('f-postcode').value=c.postcode||'';
+  document.getElementById('f-phone').value=c.phone||'';
+  document.getElementById('f-whatsapp').value=c.whatsapp_number||'';
+  document.getElementById('f-email').value=c.email||'';
+  document.getElementById('f-notes').value=c.notes||'';
+  document.getElementById('customerModal').classList.add('open');
+}
+async function saveCustomer(){
+  const name=document.getElementById('f-name').value.trim();
+  const address=document.getElementById('f-address').value.trim();
+  const postcode=document.getElementById('f-postcode').value.trim();
+  if(!name||!address||!postcode){showToast('Name, address and postcode are required','error');return;}
+  const payload={name,address,postcode,phone:document.getElementById('f-phone').value.trim()||null,whatsapp_number:document.getElementById('f-whatsapp').value.trim()||null,email:document.getElementById('f-email').value.trim()||null,notes:document.getElementById('f-notes').value.trim()||null};
+  try{
+    if(editingCustomerId){await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});showToast('Customer updated','success');}
+    else{await sb('wc_customers',{method:'POST',body:JSON.stringify({...payload,active:true,business_id:BUSINESS_ID}),prefer:'return=minimal'});showToast('Customer added','success');}
+    closeModal('customerModal');renderCustomers();
+  }catch(e){showToast(e.message,'error');}
+}
+async function archiveCustomer(id){
+  if(!confirm("Archive this customer? They won't appear in the active list."))return;
+  try{await sb(`wc_customers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:false}),prefer:'return=minimal'});showToast('Customer archived','success');renderCustomers();}
+  catch(e){showToast(e.message,'error');}
+}
+
+// ===== JOB MODAL =====
+async function openAddJob(customerId){
+  jobCustomerId=customerId;
+  document.getElementById('j-price').value='';
+  document.getElementById('j-frequency').value='fortnightly';
+  document.getElementById('j-date').value=todayStr();
+  document.getElementById('j-notes').value='';
+  await loadUsers();
+  const sel=document.getElementById('j-assigned');
+  sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  document.getElementById('jobModal').classList.add('open');
+}
+async function saveJob(){
+  const price=parseFloat(document.getElementById('j-price').value);
+  const frequency=document.getElementById('j-frequency').value;
+  const date=document.getElementById('j-date').value;
+  const assigned=document.getElementById('j-assigned').value||null;
+  const notes=document.getElementById('j-notes').value.trim()||null;
+  if(!price||price<=0){showToast('Enter a valid price','error');return;}
+  if(!date){showToast('Select a date','error');return;}
+  try{
+    await sb('wc_jobs',{method:'POST',body:JSON.stringify({customer_id:jobCustomerId,business_id:BUSINESS_ID,price,frequency,scheduled_date:date,assigned_to:assigned,notes,status:'scheduled',round_order:0}),prefer:'return=minimal'});
+    showToast('Job scheduled','success');closeModal('jobModal');loadCustomerJobs(jobCustomerId);
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ===== TODAY'S ROUND =====
+async function renderRound(){
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading round...</div>';
+  let jobs=[];
+  try{jobs=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&business_id=eq.${BUSINESS_ID}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load round</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  const done=jobs.filter(j=>j.status==='done').length;
+  const skipped=jobs.filter(j=>j.status==='skipped').length;
+  const remaining=jobs.filter(j=>j.status==='scheduled').length;
+  const earned=jobs.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price),0);
+  const isToday=roundDate===todayStr();
+
+  el.innerHTML=`
+    <div class="page-header"><div class="page-title">Round</div><div style="font-size:13px;color:var(--slate-soft)">${jobs.length} job${jobs.length!==1?'s':''}</div></div>
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="date-display">${fmtDate(roundDate)}</div>
+      ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:52px"></div>'}
+      <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="round-summary">
+      <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="font-size:13px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
+    </div>
+    <div class="round-list">${jobs.length?jobs.map((j,i)=>roundCard(j,i+1)).join(''):`<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Schedule jobs from a customer profile to see them here.</div></div>`}</div>`;
+}
+
+function roundCard(j,num){
+  const c=j.wc_customers||{};
+  const isSched=j.status==='scheduled',isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access';
+  const bStyle=isDone?'border-color:var(--done);opacity:.78':isSkip?'border-color:var(--warn);opacity:.78':isCant?'border-color:var(--danger);opacity:.78':'';
+  const nStyle=isDone?'background:var(--done-light);border-color:var(--done);color:#065F46':'';
+  const actions=isSched?`<div style="display:flex;gap:6px;padding:0 16px 14px">
+    <button class="btn btn-done btn-sm" style="flex:1;justify-content:center" onclick="markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
+    <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="openSkip('${j.id}','skipped')">Skip</button>
+    <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;color:var(--danger);border-color:var(--danger-light)" onclick="openSkip('${j.id}','cant-access')">No access</button>
+  </div>`:`<div style="padding:0 16px 14px"><button class="btn btn-ghost btn-sm" onclick="undoStatus('${j.id}')">Undo</button></div>`;
+  return`<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;${bStyle}">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:var(--slate-soft);flex-shrink:0;${nStyle}">${isDone?'&#10003;':num}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600">${esc(c.name||'Unknown')}</div>
+        <div style="font-size:12px;color:var(--slate-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+        ${c.notes?`<div style="font-size:11px;color:var(--warn);margin-top:3px;font-weight:500">&#9888; ${esc(c.notes)}</div>`:''}
+        ${j.notes?`<div style="font-size:11px;color:var(--slate-soft);margin-top:2px">&#128221; ${esc(j.notes)}</div>`:''}
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;flex-shrink:0">£${parseFloat(j.price).toFixed(2)}</div>
+    </div>${actions}</div>`;
+}
+
+function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
+
+async function markDone(id){
+  try{await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',completed_at:new Date().toISOString()}),prefer:'return=minimal'});showToast('Marked as done','success');renderRound();}
+  catch(e){showToast(e.message,'error');}
+}
+function openSkip(id,status){
+  skipJobId=id;skipStatus=status;
+  document.getElementById('skipModalTitle').textContent=status==='skipped'?'Skip job':"Can't access";
+  document.getElementById('skip-notes').value='';
+  document.getElementById('skipConfirmBtn').textContent=status==='skipped'?'Skip job':"Can't access";
+  document.getElementById('skipModal').classList.add('open');
+}
+async function confirmSkip(){
+  const notes=document.getElementById('skip-notes').value.trim()||null;
+  try{
+    await sb(`wc_jobs?id=eq.${skipJobId}`,{method:'PATCH',body:JSON.stringify({status:skipStatus,notes}),prefer:'return=minimal'});
+    showToast(skipStatus==='skipped'?'Job skipped':"Marked no access",'success');closeModal('skipModal');renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+async function undoStatus(id){
+  try{await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'scheduled',completed_at:null,notes:null}),prefer:'return=minimal'});showToast('Status reset','success');renderRound();}
+  catch(e){showToast(e.message,'error');}
+}
+
+// ===== COMING SOON =====
+function renderQuotes(){document.getElementById('mainContent').innerHTML='<div class="coming-soon"><div class="coming-soon-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><h2>Quotes</h2><p>Coming in Sprint 4 - send quotes that auto-convert to jobs on acceptance.</p></div>';}
+function renderInvoices(){document.getElementById('mainContent').innerHTML='<div class="coming-soon"><div class="coming-soon-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><h2>Invoices</h2><p>Coming in Sprint 5 - Stripe payment links sent automatically on job completion.</p></div>';}
+
+['customerModal','jobModal','skipModal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
+});
+
+render();
+</script>
+</body>
+</html>
