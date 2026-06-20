@@ -208,10 +208,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--slat
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js"></script>
 <script>
-// Credentials loaded from config.js
-// SUPABASE_URL, SUPABASE_KEY and BUSINESS_ID defined there
+const SUPABASE_URL='https://uetdrzzgydintdscvckn.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVldGRyenpneWRpbnRkc2N2Y2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MjA5NTYsImV4cCI6MjA1ODM5Njk1Nn0.9HFHBwqFNdoWE7-6O0GXxJECVpJm4_G6XxG0UXsAFDc';
+const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 
 const sb=async(path,opts={})=>{
   const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
