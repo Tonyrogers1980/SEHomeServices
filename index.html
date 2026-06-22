@@ -1099,7 +1099,8 @@ async function renderInvoices(){
 
   const counts={all:invoices.length,draft:0,sent:0,paid:0,void:0};
   invoices.forEach(i=>{ if(counts[i.status]!==undefined) counts[i.status]++; });
-  const filtered=invoiceFilter==='all'?invoices:invoices.filter(i=>i.status===invoiceFilter);
+  const overdueCount=invoices.filter(i=>isOverdue(i)).length;
+  const filtered=invoiceFilter==='all'?invoices:invoiceFilter==='overdue'?invoices.filter(i=>isOverdue(i)):invoices.filter(i=>i.status===invoiceFilter);
   const totalEarned=invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   const totalOutstanding=invoices.filter(i=>i.status==='sent').reduce((s,i)=>s+parseFloat(i.amount||0),0);
 
@@ -1111,30 +1112,40 @@ async function renderInvoices(){
       <button class="btn btn-primary" onclick="openNewInvoice()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>New invoice</button>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-      ${['all','draft','sent','paid','void'].map(f=>`
-        <button onclick="invoiceFilter='${f}';renderInvoices()" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${invoiceFilter===f?'var(--gold)':'var(--navy-800)'};color:${invoiceFilter===f?'var(--navy-900)':'var(--text-soft)'}">
-          ${f.charAt(0).toUpperCase()+f.slice(1)} (${counts[f]||0})
-        </button>`).join('')}
+      ${['all','overdue','draft','sent','paid','void'].map(f=>{
+        const cnt=f==='overdue'?overdueCount:f==='all'?counts.all:(counts[f]||0);
+        const isActive=invoiceFilter===f;
+        const isDanger=f==='overdue'&&cnt>0;
+        return`<button onclick="invoiceFilter='${f}';renderInvoices()" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid ${isDanger&&!isActive?'var(--danger)':'var(--border)'};background:${isActive?(isDanger?'var(--danger)':'var(--gold)'):'var(--navy-800)'};color:${isActive?(isDanger?'var(--white)':'var(--navy-900)'):(isDanger?'var(--danger)':'var(--text-soft)')}">
+          ${f.charAt(0).toUpperCase()+f.slice(1)} (${cnt})
+        </button>`;}).join('')}
     </div>
     <div class="card-list">${filtered.length ? filtered.map(i=>invoiceCard(i)).join('') : '<div class="empty"><div class="empty-title">No invoices</div><div class="empty-sub">Create your first invoice with the button above.</div></div>'}</div>`;
 }
 
+function isOverdue(inv){
+  return inv.status==='sent' && inv.due_date && inv.due_date < todayStr();
+}
+
 function invoiceCard(inv){
   const c=inv.wc_customers||{};
-  const statusColors={draft:'var(--text-muted)',sent:'var(--navy-400)',paid:'var(--done)',void:'var(--danger)'};
-  const statusBg={draft:'rgba(90,122,158,.15)',sent:'rgba(74,122,181,.2)',paid:'var(--done-light)',void:'var(--danger-light)'};
+  const overdue=isOverdue(inv);
+  const statusColors={draft:'var(--text-muted)',sent:overdue?'var(--danger)':'var(--navy-400)',paid:'var(--done)',void:'var(--text-muted)'};
+  const statusBg={draft:'rgba(90,122,158,.15)',sent:overdue?'var(--danger-light)':'rgba(74,122,181,.2)',paid:'var(--done-light)',void:'rgba(90,122,158,.15)'};
   const col=statusColors[inv.status]||'var(--text-muted)';
   const bg=statusBg[inv.status]||'transparent';
-  return`<div class="card" onclick="showInvoice('${inv.id}')">
-    <div class="card-avatar" style="background:${bg};color:${col}">${inv.status==='paid'?'✓':'£'}</div>
+  const statusLabel=overdue?'overdue':inv.status;
+  const borderStyle=overdue?'border-color:var(--danger);':'';
+  return`<div class="card" onclick="showInvoice('${inv.id}')" style="${borderStyle}">
+    <div class="card-avatar" style="background:${bg};color:${col}">${inv.status==='paid'?'✓':overdue?'!':'£'}</div>
     <div class="card-info">
       <div class="card-name">${esc(c.name||'Unknown customer')}</div>
       <div class="card-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      ${inv.due_date?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Due ${fmtShort(inv.due_date)}</div>`:''}
+      ${inv.due_date?`<div style="font-size:11px;color:${overdue?'var(--danger)':'var(--text-muted)'};margin-top:2px">${overdue?'⚠ Overdue since ':'Due '}${fmtShort(inv.due_date)}</div>`:''}
     </div>
     <div style="text-align:right;flex-shrink:0">
       <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)">£${parseFloat(inv.amount||0).toFixed(2)}</div>
-      <div style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${inv.status}</div>
+      <div style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${statusLabel}</div>
     </div>
   </div>`;
 }
