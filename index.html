@@ -223,6 +223,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     Invoices
   </a>
+  <div class="sidebar-section">Admin</div>
+  <a class="nav-item" data-page="settings" onclick="navigate('settings')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    Settings
+  </a>
   <div class="sidebar-footer">
     <div class="sidebar-user">
       <div class="sidebar-user-avatar">TR</div>
@@ -282,24 +287,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
     </div>
     <div class="form-grid">
       <div class="field"><label>Service type</label>
-        <select id="j-service">
-          <option value="">Select service…</option>
-          <option>Window Cleaning: Front and Back Standard</option>
-          <option>Window Cleaning: Front Only Standard</option>
-          <option>Window Cleaning: Flat</option>
-          <option>Window Cleaning: Commercial</option>
-          <option>Window Cleaning: Commercial Outside Only</option>
-          <option>Window Cleaning: Inside and Out</option>
-          <option>Window Cleaning: Detached House</option>
-          <option>Window Cleaning: One Off</option>
-          <option>Gutter Cleaning: Terraced</option>
-          <option>Gutter Cleaning: Semi Detached</option>
-          <option>Gutter Cleaning: Detached</option>
-          <option>Gutter Repairs</option>
-          <option>Pool Clean Standard</option>
-          <option>Conservatory Cleaning: Windows and Roof Standard</option>
-          <option>Pressure Washing</option>
-        </select>
+        <select id="j-service"><option value="">Select service…</option></select>
       </div>
       <div class="form-row">
         <div class="field"><label>Price (£) *</label><input id="j-price" type="number" step="0.50" min="0" placeholder="0.00"></div>
@@ -329,18 +317,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       </div>
       <div class="form-row">
         <div class="field"><label>Round</label>
-          <select id="j-round">
-            <option value="">No round</option>
-            <option>Danny: All</option>
-            <option>Danny: Weds</option>
-            <option>Danny: Fri</option>
-            <option>Blackheath/Chiselhurst/Eltham Sat</option>
-            <option>Sidcup/Eltham Sat</option>
-            <option>Tony Friday</option>
-            <option>Gutter Clean</option>
-            <option>Pool Cleaning</option>
-            <option>Shop Signage Cleaning</option>
-          </select>
+          <select id="j-round"><option value="">No round</option></select>
         </div>
         <div class="field"><label>Assign to</label><select id="j-assigned"></select></div>
       </div>
@@ -376,26 +353,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <button class="modal-close" onclick="closeModal('quoteModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
-      <div class="field"><label>Customer *</label><select id="q-customer"></select></div>
+      <!-- Customer picker with inline new-customer option -->
+      <div class="field">
+        <label>Customer *</label>
+        <div style="display:flex;gap:6px">
+          <select id="q-customer" style="flex:1"></select>
+          <button class="btn btn-ghost btn-sm" onclick="toggleInlineCustomer()" id="newCustBtn" title="Add new customer" style="flex-shrink:0;padding:8px 10px">+ New</button>
+        </div>
+      </div>
+      <!-- Inline new customer form (hidden by default) -->
+      <div id="inlineCustomerForm" style="display:none;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-top:-6px">
+        <div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">New customer</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <input id="nc-name" placeholder="Full name *" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+          <input id="nc-address" placeholder="Street address *" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input id="nc-postcode" placeholder="Postcode *" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-phone" placeholder="Phone" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input id="nc-whatsapp" placeholder="WhatsApp (+44…)" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-email" placeholder="Email" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+          </div>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="toggleInlineCustomer()">Cancel</button>
+            <button class="btn btn-primary btn-sm" onclick="saveInlineCustomer()">Save & select</button>
+          </div>
+        </div>
+      </div>
       <div class="field"><label>Service type</label>
-        <select id="q-service">
-          <option value="">Select service…</option>
-          <option>Window Cleaning: Front and Back Standard</option>
-          <option>Window Cleaning: Front Only Standard</option>
-          <option>Window Cleaning: Flat</option>
-          <option>Window Cleaning: Commercial</option>
-          <option>Window Cleaning: Commercial Outside Only</option>
-          <option>Window Cleaning: Inside and Out</option>
-          <option>Window Cleaning: Detached House</option>
-          <option>Window Cleaning: One Off</option>
-          <option>Gutter Cleaning: Terraced</option>
-          <option>Gutter Cleaning: Semi Detached</option>
-          <option>Gutter Cleaning: Detached</option>
-          <option>Gutter Repairs</option>
-          <option>Pool Clean Standard</option>
-          <option>Conservatory Cleaning: Windows and Roof Standard</option>
-          <option>Pressure Washing</option>
-        </select>
+        <select id="q-service"><option value="">Select service…</option></select>
       </div>
       <div class="form-row">
         <div class="field"><label>Price (£) *</label><input id="q-price" type="number" step="0.50" min="0" placeholder="0.00"></div>
@@ -415,13 +402,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       </div>
       <div class="form-row">
         <div class="field"><label>Round</label>
-          <select id="q-round">
-            <option value="">No round</option>
-            <option>Danny: All</option><option>Danny: Weds</option><option>Danny: Fri</option>
-            <option>Blackheath/Chiselhurst/Eltham Sat</option><option>Sidcup/Eltham Sat</option>
-            <option>Tony Friday</option><option>Gutter Clean</option>
-            <option>Pool Cleaning</option><option>Shop Signage Cleaning</option>
-          </select>
+          <select id="q-round"><option value="">No round</option></select>
         </div>
         <div class="field"><label>Day of week</label>
           <select id="q-day">
@@ -436,7 +417,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('quoteModal')">Cancel</button>
       <button class="btn btn-ghost" onclick="saveQuote('draft')">Save draft</button>
-      <button class="btn btn-primary" onclick="saveQuote('sent')">Save & mark sent</button>
+      <button class="btn btn-primary" onclick="saveQuote('sent')">Save & send</button>
     </div>
   </div>
 </div>
@@ -472,7 +453,27 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 
-let customers=[],wcUsers=[],roundDate=todayStr(),roundFilter='',editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
+let customers=[],wcUsers=[],wcRounds=[],wcServiceTypes=[],roundDate=todayStr(),roundFilter='',editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
+
+// Load rounds + service types from DB (cached, called once per session)
+async function loadConfig(){
+  if(wcRounds.length&&wcServiceTypes.length)return;
+  try{
+    [wcRounds,wcServiceTypes]=await Promise.all([
+      sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
+      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`)
+    ]);
+  }catch(e){console.warn('Config load failed',e);}
+}
+
+function populateRoundSelect(id,selected=''){
+  const sel=document.getElementById(id);if(!sel)return;
+  sel.innerHTML='<option value="">No round</option>'+wcRounds.map(r=>`<option${r.name===selected?' selected':''}>${esc(r.name)}</option>`).join('');
+}
+function populateServiceSelect(id,selected=''){
+  const sel=document.getElementById(id);if(!sel)return;
+  sel.innerHTML='<option value="">Select service…</option>'+wcServiceTypes.map(s=>`<option${s.name===selected?' selected':''}>${esc(s.name)}</option>`).join('');
+}
 
 function todayStr(){const d=new Date();return d.toISOString().split('T')[0];}
 function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
@@ -513,8 +514,9 @@ function navigate(page){
   else if(page==='customers')renderCustomers();
   else if(page==='quotes')renderQuotes();
   else if(page==='invoices')renderInvoices();
+  else if(page==='settings')renderSettings();
 }
-function render(){navigate('round');}
+function render(){loadConfig();navigate('round');}
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
@@ -661,10 +663,10 @@ async function openAddJob(customerId){
   document.getElementById('j-frequency').value='4-weekly';
   document.getElementById('j-date').value=todayStr();
   document.getElementById('j-day').value='';
-  document.getElementById('j-round').value='';
-  document.getElementById('j-service').value='';
   document.getElementById('j-notes').value='';
-  await loadUsers();
+  await Promise.all([loadConfig(),loadUsers()]);
+  populateServiceSelect('j-service');
+  populateRoundSelect('j-round');
   const sel=document.getElementById('j-assigned');
   sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   document.getElementById('jobModal').classList.add('open');
@@ -904,23 +906,49 @@ async function showQuote(id){
     </div>`;
 }
 
-async function openQuoteForCustomer(customerId){
-  await openNewQuote();
-  document.getElementById('q-customer').value=customerId;
+function toggleInlineCustomer(){
+  const form=document.getElementById('inlineCustomerForm');
+  const isOpen=form.style.display!=='none';
+  form.style.display=isOpen?'none':'block';
+  document.getElementById('newCustBtn').textContent=isOpen?'+ New':'✕';
+  if(!isOpen){['nc-name','nc-address','nc-postcode','nc-phone','nc-whatsapp','nc-email'].forEach(id=>document.getElementById(id).value='');}
+}
+
+async function saveInlineCustomer(){
+  const name=document.getElementById('nc-name').value.trim();
+  const address=document.getElementById('nc-address').value.trim();
+  const postcode=document.getElementById('nc-postcode').value.trim();
+  if(!name||!address||!postcode){showToast('Name, address and postcode required','error');return;}
+  const payload={name,address,postcode,
+    phone:document.getElementById('nc-phone').value.trim()||null,
+    whatsapp_number:document.getElementById('nc-whatsapp').value.trim()||null,
+    email:document.getElementById('nc-email').value.trim()||null,
+    active:true,business_id:BUSINESS_ID};
+  try{
+    const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify(payload),prefer:'return=representation'});
+    customers=[...customers,newCust].sort((a,b)=>a.name.localeCompare(b.name));
+    // Re-populate dropdown and select the new customer
+    const sel=document.getElementById('q-customer');
+    sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    sel.value=newCust.id;
+    toggleInlineCustomer();
+    showToast(`${name} added ✓`,'success');
+  }catch(e){showToast(e.message,'error');}
 }
 
 async function openNewQuote(){
   editingQuoteId=null;
   document.getElementById('quoteModalTitle').textContent='New Quote';
-  // Populate customer dropdown
-  if(!customers.length) try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  document.getElementById('inlineCustomerForm').style.display='none';
+  document.getElementById('newCustBtn').textContent='+ New';
+  await Promise.all([loadConfig(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
   const sel=document.getElementById('q-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  ['price','notes'].forEach(f=>document.getElementById('q-'+f).value='');
-  document.getElementById('q-service').value='';
+  ['q-price','q-notes'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('q-frequency').value='4-weekly';
-  document.getElementById('q-round').value='';
   document.getElementById('q-day').value='';
+  populateServiceSelect('q-service');
+  populateRoundSelect('q-round');
   document.getElementById('quoteModal').classList.add('open');
 }
 
@@ -928,17 +956,24 @@ async function openEditQuote(id){
   editingQuoteId=id;
   const q=quotes.find(x=>x.id===id);if(!q)return;
   document.getElementById('quoteModalTitle').textContent='Edit Quote';
-  if(!customers.length) try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  document.getElementById('inlineCustomerForm').style.display='none';
+  document.getElementById('newCustBtn').textContent='+ New';
+  await Promise.all([loadConfig(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
   const sel=document.getElementById('q-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   sel.value=q.customer_id||'';
   document.getElementById('q-price').value=q.price||'';
-  document.getElementById('q-service').value=q.service_type||'';
   document.getElementById('q-frequency').value=q.frequency||'4-weekly';
-  document.getElementById('q-round').value=q.round_name||'';
   document.getElementById('q-day').value=q.day_of_week||'';
   document.getElementById('q-notes').value=q.notes||'';
+  populateServiceSelect('q-service',q.service_type||'');
+  populateRoundSelect('q-round',q.round_name||'');
   document.getElementById('quoteModal').classList.add('open');
+}
+
+async function openQuoteForCustomer(customerId){
+  await openNewQuote();
+  document.getElementById('q-customer').value=customerId;
 }
 
 async function saveQuote(status){
@@ -1260,6 +1295,128 @@ async function deleteInvoice(id){
   try{
     await sb(`wc_invoices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
     showToast('Invoice deleted','success');renderInvoices();
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ===== SETTINGS =====
+async function renderSettings(){
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading settings...</div>';
+  try{
+    [wcRounds,wcServiceTypes,wcUsers]=await Promise.all([
+      sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&order=name.asc`),
+      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`),
+      sb(`wc_users?business_id=eq.${BUSINESS_ID}&order=name.asc`)
+    ]);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load settings</div></div>`;return;}
+
+  el.innerHTML=`
+    <div class="page-header"><div class="page-title">Settings</div></div>
+
+    <!-- ROUNDS -->
+    <div class="detail-section" style="margin-bottom:16px">
+      <div class="detail-section-header">
+        Rounds
+        <button class="btn btn-primary btn-sm" onclick="addSettingsItem('round')">+ Add round</button>
+      </div>
+      ${wcRounds.map(r=>`
+        <div class="detail-row" id="round-row-${r.id}">
+          <span class="detail-value">${esc(r.name)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${r.active?'var(--done-light)':'var(--danger-light)'};color:${r.active?'var(--done)':'var(--danger)'}">${r.active?'Active':'Inactive'}</span>
+            <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('round','${r.id}',${r.active})">${r.active?'Deactivate':'Activate'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteSettingsItem('round','${r.id}','${esc(r.name)}')" style="color:var(--danger);border-color:rgba(239,68,68,.3)">Delete</button>
+          </div>
+        </div>`).join('')}
+      ${wcRounds.length===0?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No rounds yet</span></div>':''}
+      <div id="add-round-form" style="display:none;padding:12px 16px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px">
+          <input id="new-round-name" placeholder="Round name (e.g. Sidcup Wed)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-900);outline:none">
+          <button class="btn btn-primary btn-sm" onclick="saveNewRound()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-round-form').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVICE TYPES -->
+    <div class="detail-section" style="margin-bottom:16px">
+      <div class="detail-section-header">
+        Service types
+        <button class="btn btn-primary btn-sm" onclick="addSettingsItem('service')">+ Add service</button>
+      </div>
+      ${wcServiceTypes.map(s=>`
+        <div class="detail-row" id="service-row-${s.id}">
+          <span class="detail-value">${esc(s.name)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${s.active?'var(--done-light)':'var(--danger-light)'};color:${s.active?'var(--done)':'var(--danger)'}">${s.active?'Active':'Inactive'}</span>
+            <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('service','${s.id}',${s.active})">${s.active?'Deactivate':'Activate'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteSettingsItem('service','${s.id}','${esc(s.name)}')" style="color:var(--danger);border-color:rgba(239,68,68,.3)">Delete</button>
+          </div>
+        </div>`).join('')}
+      ${wcServiceTypes.length===0?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No service types yet</span></div>':''}
+      <div id="add-service-form" style="display:none;padding:12px 16px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px">
+          <input id="new-service-name" placeholder="Service name (e.g. Conservatory Clean)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-900);outline:none">
+          <button class="btn btn-primary btn-sm" onclick="saveNewService()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-service-form').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEAM -->
+    <div class="detail-section">
+      <div class="detail-section-header">Team</div>
+      ${wcUsers.map(u=>`
+        <div class="detail-row">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${u.role}</div>
+          </div>
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function addSettingsItem(type){
+  document.getElementById(`add-${type}-form`).style.display='block';
+  document.getElementById(`new-${type}-name`).focus();
+}
+
+async function saveNewRound(){
+  const name=document.getElementById('new-round-name').value.trim();
+  if(!name){showToast('Enter a round name','error');return;}
+  try{
+    await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});
+    showToast('Round added','success');wcRounds=[];renderSettings();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function saveNewService(){
+  const name=document.getElementById('new-service-name').value.trim();
+  if(!name){showToast('Enter a service name','error');return;}
+  try{
+    await sb('wc_service_types',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});
+    showToast('Service type added','success');wcServiceTypes=[];renderSettings();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function toggleSettingsItem(type,id,currentlyActive){
+  const table=type==='round'?'wc_rounds':'wc_service_types';
+  try{
+    await sb(`${table}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:!currentlyActive}),prefer:'return=minimal'});
+    if(type==='round')wcRounds=[];else wcServiceTypes=[];
+    showToast(`${currentlyActive?'Deactivated':'Activated'} successfully`,'success');
+    renderSettings();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function deleteSettingsItem(type,id,name){
+  if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
+  const table=type==='round'?'wc_rounds':'wc_service_types';
+  try{
+    await sb(`${table}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
+    if(type==='round')wcRounds=[];else wcServiceTypes=[];
+    showToast('Deleted','success');renderSettings();
   }catch(e){showToast(e.message,'error');}
 }
 
