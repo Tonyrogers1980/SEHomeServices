@@ -441,12 +441,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<!-- INVOICE MODAL -->
+<div class="modal-overlay" id="invoiceModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="invModalTitle">New Invoice</div>
+      <button class="modal-close" onclick="closeModal('invoiceModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Customer *</label><select id="inv-customer"></select></div>
+      <div class="form-row">
+        <div class="field"><label>Amount (£) *</label><input id="inv-amount" type="number" step="0.50" min="0" placeholder="0.00"></div>
+        <div class="field"><label>Due date</label><input id="inv-due" type="date"></div>
+      </div>
+      <div class="field"><label>Notes / Description</label><textarea id="inv-notes" placeholder="Service description, job reference…" style="min-height:64px"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('invoiceModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInvoice()">Save draft</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const SUPABASE_URL='https://uetdrzzgydintdscvckn.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVldGRyenpneWRpbnRkc2N2Y2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjYwNTMsImV4cCI6MjA4OTg0MjA1M30.YvRc42JPlOk-YYwv0-iIKDTUBqBYDE-3ZPPQwFz_IHY';
 const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
+const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
+const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 
 let customers=[],wcUsers=[],roundDate=todayStr(),roundFilter='',editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
 
@@ -940,16 +964,39 @@ async function saveQuote(status){
       showToast('Quote updated','success');
     }else{
       await sb('wc_quotes',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
-      showToast(status==='sent'?'Quote created & marked sent':'Quote saved as draft','success');
+      showToast(status==='sent'?'Quote saved':'Quote saved as draft','success');
+    }
+    // Fire n8n delivery webhook if sending
+    if(status==='sent'){
+      const customer=customers.find(c=>c.id===customerId)||{};
+      fireQuoteWebhook({customer,price,service_type:payload.service_type,frequency:payload.frequency,notes:payload.notes});
     }
     closeModal('quoteModal');renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
 
+async function fireQuoteWebhook({customer,price,service_type,frequency,notes}){
+  try{
+    await fetch(N8N_QUOTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      customer_name:customer.name||'Customer',
+      customer_phone:customer.whatsapp_number||customer.phone||'',
+      customer_email:customer.email||'',
+      price,service_type:service_type||'Window Cleaning',frequency:frequency||'one-off',notes:notes||''
+    })});
+    showToast('Quote sent via WhatsApp & email ✓','success');
+  }catch(e){console.warn('Webhook failed:',e);}
+}
+
 async function markQuoteSent(id){
+  const q=quotes.find(x=>x.id===id);
   try{
     await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'sent',sent_at:new Date().toISOString()}),prefer:'return=minimal'});
-    showToast('Quote marked as sent','success');renderQuotes();
+    showToast('Quote marked as sent','success');
+    if(q){
+      const customer=customers.find(c=>c.id===q.customer_id)||q.wc_customers||{};
+      fireQuoteWebhook({customer,price:q.price,service_type:q.service_type,frequency:q.frequency,notes:q.notes});
+    }
+    renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -1005,9 +1052,218 @@ async function deleteQuote(id){
 }
 
 // ===== COMING SOON =====
-function renderInvoices(){document.getElementById('mainContent').innerHTML='<div class="coming-soon"><div class="coming-soon-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><h2>Invoices</h2><p>Coming in Sprint 5 — Stripe payment links sent automatically on job completion.</p></div>';}
+// ===== INVOICES =====
+let invoices=[], invoiceFilter='all', editingInvoiceId=null;
 
-['customerModal','jobModal','skipModal','quoteModal'].forEach(id=>{
+async function renderInvoices(){
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading invoices...</div>';
+  try{
+    invoices=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load invoices</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  const counts={all:invoices.length,draft:0,sent:0,paid:0,void:0};
+  invoices.forEach(i=>{ if(counts[i.status]!==undefined) counts[i.status]++; });
+  const filtered=invoiceFilter==='all'?invoices:invoices.filter(i=>i.status===invoiceFilter);
+  const totalEarned=invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const totalOutstanding=invoices.filter(i=>i.status==='sent').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+
+  el.innerHTML=`
+    <div class="page-header">
+      <div><div class="page-title">Invoices</div>
+        <div class="page-sub">£${totalEarned.toFixed(2)} paid · £${totalOutstanding.toFixed(2)} outstanding</div>
+      </div>
+      <button class="btn btn-primary" onclick="openNewInvoice()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>New invoice</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+      ${['all','draft','sent','paid','void'].map(f=>`
+        <button onclick="invoiceFilter='${f}';renderInvoices()" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${invoiceFilter===f?'var(--gold)':'var(--navy-800)'};color:${invoiceFilter===f?'var(--navy-900)':'var(--text-soft)'}">
+          ${f.charAt(0).toUpperCase()+f.slice(1)} (${counts[f]||0})
+        </button>`).join('')}
+    </div>
+    <div class="card-list">${filtered.length ? filtered.map(i=>invoiceCard(i)).join('') : '<div class="empty"><div class="empty-title">No invoices</div><div class="empty-sub">Create your first invoice with the button above.</div></div>'}</div>`;
+}
+
+function invoiceCard(inv){
+  const c=inv.wc_customers||{};
+  const statusColors={draft:'var(--text-muted)',sent:'var(--navy-400)',paid:'var(--done)',void:'var(--danger)'};
+  const statusBg={draft:'rgba(90,122,158,.15)',sent:'rgba(74,122,181,.2)',paid:'var(--done-light)',void:'var(--danger-light)'};
+  const col=statusColors[inv.status]||'var(--text-muted)';
+  const bg=statusBg[inv.status]||'transparent';
+  return`<div class="card" onclick="showInvoice('${inv.id}')">
+    <div class="card-avatar" style="background:${bg};color:${col}">${inv.status==='paid'?'✓':'£'}</div>
+    <div class="card-info">
+      <div class="card-name">${esc(c.name||'Unknown customer')}</div>
+      <div class="card-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      ${inv.due_date?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Due ${fmtShort(inv.due_date)}</div>`:''}
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)">£${parseFloat(inv.amount||0).toFixed(2)}</div>
+      <div style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${inv.status}</div>
+    </div>
+  </div>`;
+}
+
+async function showInvoice(id){
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  let inv=invoices.find(x=>x.id===id);
+  if(!inv){try{[inv]=await sb(`wc_invoices?id=eq.${id}&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);}catch(e){}}
+  if(!inv){el.innerHTML='<div class="empty"><div class="empty-title">Invoice not found</div></div>';return;}
+  const c=inv.wc_customers||{};
+
+  const actionBtns = inv.status==='draft'
+    ? `<button class="btn btn-primary" id="sendInvoiceBtn" onclick="sendInvoice('${inv.id}')">
+         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+         Send invoice
+       </button>
+       <button class="btn btn-ghost" onclick="openEditInvoice('${inv.id}')">Edit</button>`
+    : inv.status==='sent'
+    ? `<button class="btn btn-done" onclick="markInvoicePaid('${inv.id}')">✓ Mark as paid</button>
+       ${inv.stripe_payment_link?`<a href="${esc(inv.stripe_payment_link)}" target="_blank" class="btn btn-ghost">View payment link ↗</a>`:''}
+       <button class="btn btn-ghost" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="voidInvoice('${inv.id}')">Void</button>`
+    : inv.status==='paid'
+    ? `<div style="color:var(--done);font-weight:600">✓ Paid ${inv.paid_at?'on '+fmtShort(inv.paid_at.split('T')[0]):''}</div>`
+    : `<button class="btn btn-ghost" onclick="reopenInvoice('${inv.id}')">Reopen as draft</button>`;
+
+  el.innerHTML=`
+    <button class="back-btn" onclick="renderInvoices()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Invoices</button>
+    <div class="page-header">
+      <div>
+        <div class="page-title">${esc(c.name||'Unknown')}</div>
+        <div class="page-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      </div>
+      <span style="padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:${inv.status==='paid'?'var(--done-light)':inv.status==='void'?'var(--danger-light)':inv.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${inv.status==='paid'?'var(--done)':inv.status==='void'?'var(--danger)':inv.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${inv.status}</span>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-header">Invoice details</div>
+      <div class="detail-row"><span class="detail-label">Amount</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:18px">£${parseFloat(inv.amount||0).toFixed(2)}</span></div>
+      ${inv.due_date?`<div class="detail-row"><span class="detail-label">Due date</span><span class="detail-value">${fmtShort(inv.due_date)}</span></div>`:''}
+      ${inv.notes?`<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${esc(inv.notes)}</span></div>`:''}
+      <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${fmtShort(inv.created_at?.split('T')[0])}</span></div>
+      ${inv.sent_at?`<div class="detail-row"><span class="detail-label">Sent</span><span class="detail-value">${fmtShort(inv.sent_at.split('T')[0])}</span></div>`:''}
+      ${inv.paid_at?`<div class="detail-row"><span class="detail-label">Paid</span><span class="detail-value" style="color:var(--done)">${fmtShort(inv.paid_at.split('T')[0])}</span></div>`:''}
+      ${inv.stripe_payment_link?`<div class="detail-row"><span class="detail-label">Payment link</span><a href="${esc(inv.stripe_payment_link)}" target="_blank" style="color:var(--gold);font-size:12px;word-break:break-all">${esc(inv.stripe_payment_link)}</a></div>`:''}
+    </div>
+    ${c.phone||c.email?`<div class="detail-section"><div class="detail-section-header">Customer contact</div>
+      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.phone)}</span></div>`:''}
+      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${esc(c.email)}</span></div>`:''}
+    </div>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">${actionBtns}</div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="deleteInvoice('${inv.id}')">Delete invoice</button>
+    </div>`;
+}
+
+async function openNewInvoice(){
+  editingInvoiceId=null;
+  document.getElementById('invModalTitle').textContent='New Invoice';
+  if(!customers.length) try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  const sel=document.getElementById('inv-customer');
+  sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('inv-amount').value='';
+  document.getElementById('inv-due').value='';
+  document.getElementById('inv-notes').value='';
+  document.getElementById('invoiceModal').classList.add('open');
+}
+
+async function openEditInvoice(id){
+  editingInvoiceId=id;
+  const inv=invoices.find(x=>x.id===id);if(!inv)return;
+  document.getElementById('invModalTitle').textContent='Edit Invoice';
+  if(!customers.length) try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  const sel=document.getElementById('inv-customer');
+  sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  sel.value=inv.customer_id||'';
+  document.getElementById('inv-amount').value=inv.amount||'';
+  document.getElementById('inv-due').value=inv.due_date||'';
+  document.getElementById('inv-notes').value=inv.notes||'';
+  document.getElementById('invoiceModal').classList.add('open');
+}
+
+async function saveInvoice(){
+  const customerId=document.getElementById('inv-customer').value;
+  const amount=parseFloat(document.getElementById('inv-amount').value);
+  if(!customerId){showToast('Select a customer','error');return;}
+  if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
+  const payload={
+    customer_id:customerId, business_id:BUSINESS_ID, amount,
+    due_date:document.getElementById('inv-due').value||null,
+    notes:document.getElementById('inv-notes').value.trim()||null,
+    status:'draft',
+  };
+  try{
+    if(editingInvoiceId){
+      await sb(`wc_invoices?id=eq.${editingInvoiceId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
+      showToast('Invoice updated','success');
+    }else{
+      await sb('wc_invoices',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
+      showToast('Invoice created as draft','success');
+    }
+    closeModal('invoiceModal');renderInvoices();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function sendInvoice(id){
+  const inv=invoices.find(x=>x.id===id);
+  if(!inv)return;
+  const btn=document.getElementById('sendInvoiceBtn');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    const customer=customers.find(c=>c.id===inv.customer_id)||inv.wc_customers||{};
+    const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      invoice_id:inv.id,
+      customer_name:customer.name||'Customer',
+      customer_phone:customer.whatsapp_number||customer.phone||'',
+      customer_email:customer.email||'',
+      amount:inv.amount,
+      service_type:inv.notes||'Window Cleaning',
+      due_date:inv.due_date||'',
+      notes:''
+    })});
+    const data=await res.json().catch(()=>({}));
+    // Store payment link locally if returned before Supabase update completes
+    if(data.payment_link) inv.stripe_payment_link=data.payment_link;
+    showToast('Invoice sent — WhatsApp & email delivered ✓','success');
+    setTimeout(()=>renderInvoices(),1500);
+  }catch(e){
+    showToast('Delivery failed — check n8n credentials','error');
+    if(btn){btn.disabled=false;btn.textContent='Send invoice';}
+  }
+}
+
+async function markInvoicePaid(id){
+  if(!confirm('Mark this invoice as paid?'))return;
+  try{
+    await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'paid',paid_at:new Date().toISOString()}),prefer:'return=minimal'});
+    showToast('Invoice marked as paid ✓','success');renderInvoices();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function voidInvoice(id){
+  if(!confirm('Void this invoice?'))return;
+  try{
+    await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'void'}),prefer:'return=minimal'});
+    showToast('Invoice voided','success');renderInvoices();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function reopenInvoice(id){
+  try{
+    await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'draft'}),prefer:'return=minimal'});
+    showToast('Invoice reopened as draft','success');renderInvoices();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function deleteInvoice(id){
+  if(!confirm('Delete this invoice permanently?'))return;
+  try{
+    await sb(`wc_invoices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
+    showToast('Invoice deleted','success');renderInvoices();
+  }catch(e){showToast(e.message,'error');}
+}
+
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
