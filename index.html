@@ -428,6 +428,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
           </select>
         </div>
       </div>
+      <div class="field"><label>Start date</label><input id="q-start-date" type="date" placeholder="When should the first job be?"></div>
       <div class="field"><label>Notes</label><textarea id="q-notes" placeholder="What's included, access details…"></textarea></div>
     </div>
     <div class="form-actions">
@@ -460,6 +461,32 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="rescheduleModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title">Reschedule job</div>
+      <button class="modal-close" onclick="closeModal('rescheduleModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>New date *</label><input id="reschedule-date" type="date"></div>
+      <div style="background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
+          <input type="radio" name="reschedule-scope" value="single" checked id="rs-single" style="accent-color:var(--gold)">
+          Reschedule this occurrence only
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)" id="rs-all-label">
+          <input type="radio" name="reschedule-scope" value="all" id="rs-all" style="accent-color:var(--gold)">
+          Reschedule all future occurrences in this series
+        </label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('rescheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReschedule()">Reschedule</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -468,6 +495,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
+const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -605,6 +633,7 @@ const FULL_PAGES=[
   {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
   {id:'quotes',label:'Quotes',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'},
   {id:'invoices',label:'Invoices',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
+  {id:'owing',label:'Owing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>'},
   {id:'settings',label:'Settings',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
 ];
 const ROUND_ONLY_PAGES=[
@@ -652,6 +681,7 @@ function navigate(page){
   else if(page==='customers')renderCustomers();
   else if(page==='quotes')renderQuotes();
   else if(page==='invoices')renderInvoices();
+  else if(page==='owing')renderOwing();
   else if(page==='settings')renderSettings();
 }
 
@@ -735,6 +765,9 @@ function jobCard(j,num){
         <button class="job-action done-action" onclick="markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
         <button class="job-action" onclick="openSkip('${j.id}','skipped')">Skip</button>
         <button class="job-action danger-action" onclick="openSkip('${j.id}','cant-access')">No access</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>
       </div>`
     :`<div class="job-card-actions">
         <button class="job-action undo-action" style="grid-column:1/-1" onclick="undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
@@ -822,6 +855,54 @@ async function undoStatus(id){
   try{
     await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'scheduled',last_done:null,notes:null}),prefer:'return=minimal'});
     showToast('Reset','success');renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ── RESCHEDULE ────────────────────────────────────────────────────────────────
+let rescheduleJobId=null,rescheduleSeriesId=null;
+
+function openReschedule(jobId, seriesId){
+  rescheduleJobId=jobId;
+  rescheduleSeriesId=seriesId;
+  document.getElementById('reschedule-date').value='';
+  document.getElementById('rs-single').checked=true;
+  // Only show "all series" option if job belongs to a series
+  document.getElementById('rs-all-label').style.display=seriesId?'flex':'none';
+  document.getElementById('rescheduleModal').classList.add('open');
+}
+
+async function confirmReschedule(){
+  const newDate=document.getElementById('reschedule-date').value;
+  if(!newDate){showToast('Select a new date','error');return;}
+  const scope=document.querySelector('input[name="reschedule-scope"]:checked').value;
+  try{
+    if(scope==='single'||!rescheduleSeriesId){
+      // Move just this job
+      await sb(`wc_jobs?id=eq.${rescheduleJobId}`,{
+        method:'PATCH',
+        body:JSON.stringify({next_due:newDate,scheduled_date:newDate}),
+        prefer:'return=minimal'
+      });
+      showToast('Job rescheduled','success');
+    }else{
+      // Move this job AND all future scheduled jobs in the series
+      // First get current job's date to know what "future" means
+      const [job]=await sb(`wc_jobs?id=eq.${rescheduleJobId}&select=next_due`);
+      const currentDate=job?.next_due||todayStr();
+      // Calculate the day offset to apply to all future jobs
+      const offsetDays=Math.round((new Date(newDate)-new Date(currentDate))/(1000*60*60*24));
+      // Get all future scheduled jobs in this series
+      const futureJobs=await sb(`wc_jobs?series_id=eq.${rescheduleSeriesId}&status=eq.scheduled&next_due=gte.${currentDate}&select=id,next_due`);
+      // Update each one by shifting the same number of days
+      await Promise.all(futureJobs.map(fj=>{
+        const shifted=new Date(fj.next_due+'T12:00:00');
+        shifted.setDate(shifted.getDate()+offsetDays);
+        const d=shifted.toISOString().split('T')[0];
+        return sb(`wc_jobs?id=eq.${fj.id}`,{method:'PATCH',body:JSON.stringify({next_due:d,scheduled_date:d}),prefer:'return=minimal'});
+      }));
+      showToast(`${futureJobs.length} jobs rescheduled`,'success');
+    }
+    closeModal('rescheduleModal');renderRound();
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -1127,6 +1208,7 @@ async function openNewQuote(){
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   ['q-price','q-notes'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('q-frequency').value='4-weekly';document.getElementById('q-day').value='';
+  document.getElementById('q-start-date').value='';
   populateServiceSelect('q-service');populateRoundSelect('q-round');
   document.getElementById('quoteModal').classList.add('open');
 }
@@ -1143,6 +1225,7 @@ async function openEditQuote(id){
   document.getElementById('q-price').value=q.price||'';
   document.getElementById('q-frequency').value=q.frequency||'4-weekly';
   document.getElementById('q-day').value=q.day_of_week||'';
+  document.getElementById('q-start-date').value=q.start_date||'';
   document.getElementById('q-notes').value=q.notes||'';
   populateServiceSelect('q-service',q.service_type||'');populateRoundSelect('q-round',q.round_name||'');
   document.getElementById('quoteModal').classList.add('open');
@@ -1159,6 +1242,7 @@ async function saveQuote(status){
     round_name:document.getElementById('q-round').value||null,
     day_of_week:document.getElementById('q-day').value||null,
     notes:document.getElementById('q-notes').value.trim()||null,
+    start_date:document.getElementById('q-start-date').value||null,
     sent_at:status==='sent'?new Date().toISOString():null};
   try{
     if(editingQuoteId){
@@ -1204,7 +1288,9 @@ async function acceptQuote(id){
       business_id:BUSINESS_ID,customer_id:q.customer_id,price:q.price,
       frequency:q.frequency||'one-off',service_type:q.service_type||null,
       round_name:q.round_name||null,day_of_week:q.day_of_week||null,
-      notes:q.notes||null,status:'scheduled',next_due:todayStr(),scheduled_date:todayStr(),round_order:0
+      notes:q.notes||null,status:'scheduled',
+      next_due:q.start_date||todayStr(),
+      scheduled_date:q.start_date||todayStr(),round_order:0
     }),prefer:'return=minimal'});
     showToast('Accepted — job created ✓','success');renderQuotes();
   }catch(e){showToast(e.message,'error');}
@@ -1372,6 +1458,190 @@ async function deleteInvoice(id){
   try{await sb(`wc_invoices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});showToast('Deleted','success');renderInvoices();}catch(e){showToast(e.message,'error');}
 }
 
+// ── OWING / PAYMENTS ──────────────────────────────────────────────────────────
+let owingSelected=new Set();
+
+async function renderOwing(){
+  document.getElementById('topbarPage').textContent='Owing';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  owingSelected=new Set();
+  let jobs=[];
+  try{
+    // Done jobs with no invoice, or with draft invoice only
+    jobs=await sb(
+      `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done` +
+      `&select=*,wc_customers(name,address,postcode,email,phone,whatsapp_number)` +
+      `&order=last_done.desc`
+    );
+    // Filter out jobs that already have a paid/sent invoice
+    const invoicedJobIds=new Set();
+    const existingInvs=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&status=in.(sent,paid)&select=job_id`);
+    existingInvs.forEach(i=>{if(i.job_id)invoicedJobIds.add(i.job_id);});
+    jobs=jobs.filter(j=>!invoicedJobIds.has(j.id));
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  const total=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+
+  el.innerHTML=`
+    <div class="page-header">
+      <div><div class="page-title">Owing</div><div class="page-sub">${jobs.length} unpaid job${jobs.length!==1?'s':''} · £${total.toFixed(2)} total</div></div>
+    </div>
+    ${jobs.length===0?`<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="empty-title">All clear!</div><div class="empty-sub">No completed jobs waiting for payment.</div></div>`:`
+    <div id="owing-bulk-bar" style="display:none;position:sticky;top:0;z-index:10;background:var(--navy-700);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:none;align-items:center;gap:10px">
+      <span id="owing-bulk-label" style="flex:1;font-size:14px;font-weight:500;color:var(--white)">0 selected</span>
+      <button class="btn btn-primary btn-sm" onclick="bulkChargeStripe()">💳 Charge via Stripe</button>
+      <button class="btn btn-ghost btn-sm" onclick="owingSelected.clear();renderOwing()">Clear</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Tap a job to select for bulk Stripe charge, or use the individual actions.</div>
+    <div class="card-list" id="owingList">
+      ${jobs.map(j=>owingCard(j)).join('')}
+    </div>`}`;
+}
+
+function owingCard(j){
+  const c=j.wc_customers||{};
+  const isSelected=owingSelected.has(j.id);
+  return`<div class="job-card${isSelected?' is-done':''}" id="owing-${j.id}" style="${isSelected?'border-color:var(--gold);':''}" onclick="toggleOwingSelect('${j.id}')">
+    <div class="job-card-header">
+      <div class="job-card-num${isSelected?' done':''}" style="${isSelected?'background:var(--gold);color:var(--navy-900);border-color:var(--gold)':''}">
+        ${isSelected?'✓':'£'}
+      </div>
+      <div class="job-card-body">
+        <div class="job-card-name">${esc(c.name||'Unknown')}</div>
+        <div class="job-card-addr">${addrLink(c.address,c.postcode)}</div>
+        ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
+        ${j.last_done?`<div style="font-size:11px;color:var(--text-muted)">Done ${fmtShort(j.last_done)}</div>`:''}
+      </div>
+      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+    </div>
+    <div class="job-card-actions" onclick="event.stopPropagation()">
+      <button class="job-action done-action" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}')">💳 Stripe</button>
+      <button class="job-action" onclick="recordCash('${j.id}')">💵 Cash</button>
+      <button class="job-action" onclick="recordBankTransfer('${j.id}')">🏦 Transfer</button>
+    </div>
+  </div>`;
+}
+
+function toggleOwingSelect(jobId){
+  if(owingSelected.has(jobId))owingSelected.delete(jobId);
+  else owingSelected.add(jobId);
+  // Update card UI
+  const card=document.getElementById(`owing-${jobId}`);
+  if(card){
+    const isNowSelected=owingSelected.has(jobId);
+    card.style.borderColor=isNowSelected?'var(--gold)':'var(--border)';
+    const num=card.querySelector('.job-card-num');
+    if(num){
+      num.textContent=isNowSelected?'✓':'£';
+      num.style.background=isNowSelected?'var(--gold)':'var(--navy-700)';
+      num.style.color=isNowSelected?'var(--navy-900)':'var(--text-muted)';
+      num.style.borderColor=isNowSelected?'var(--gold)':'var(--border)';
+    }
+  }
+  // Show/hide bulk bar
+  const bar=document.getElementById('owing-bulk-bar');
+  if(bar){
+    bar.style.display=owingSelected.size>0?'flex':'none';
+    const label=document.getElementById('owing-bulk-label');
+    if(label){
+      const sel=[...owingSelected];
+      const total=sel.reduce((s,id)=>{
+        const card=document.getElementById(`owing-${id}`);
+        const priceEl=card?.querySelector('.job-card-price');
+        return s+parseFloat(priceEl?.textContent?.replace('£','')||0);
+      },0);
+      label.textContent=`${owingSelected.size} selected · £${total.toFixed(2)}`;
+    }
+  }
+}
+
+async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone){
+  showToast('Creating payment link…');
+  try{
+    // Create invoice then fire delivery webhook
+    const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
+      business_id:BUSINESS_ID,
+      customer_id:null, // will be set below
+      job_id:jobId,amount:parseFloat(amount),
+      notes:serviceType||'Window Cleaning',status:'sent',
+      sent_at:new Date().toISOString()
+    }),prefer:'return=representation'});
+    // Get customer_id from job
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
+    if(job&&inv){
+      await sb(`wc_invoices?id=eq.${inv.id}`,{method:'PATCH',body:JSON.stringify({customer_id:job.customer_id}),prefer:'return=minimal'});
+      const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        invoice_id:inv.id,customer_name:customerName,
+        customer_phone:phone,customer_email:email,
+        amount,service_type:serviceType||'Window Cleaning',due_date:'',notes:''
+      })});
+      const data=await res.json().catch(()=>({}));
+      if(data.payment_link){
+        showToast('Payment link sent ✓','success');
+      }
+    }
+    renderOwing();
+  }catch(e){showToast('Failed: '+e.message,'error');}
+}
+
+async function bulkChargeStripe(){
+  if(owingSelected.size===0)return;
+  const ids=[...owingSelected];
+  showToast(`Creating combined payment link for ${ids.length} jobs…`);
+  try{
+    // Fetch all selected jobs
+    const jobs=await sb(`wc_jobs?id=in.(${ids.join(',')})&select=*,wc_customers(name,email,phone,whatsapp_number)`);
+    const total=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+    const c=jobs[0]?.wc_customers||{};
+    // Create one combined invoice
+    const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
+      business_id:BUSINESS_ID,customer_id:jobs[0]?.customer_id,
+      amount:total,
+      notes:`Combined: ${jobs.map(j=>j.service_type||'Window Cleaning').join(', ')}`,
+      status:'sent',sent_at:new Date().toISOString()
+    }),prefer:'return=representation'});
+    if(inv){
+      const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        invoice_id:inv.id,customer_name:c.name||'Customer',
+        customer_phone:c.whatsapp_number||c.phone||'',customer_email:c.email||'',
+        amount:total,service_type:`${jobs.length} services`,due_date:'',notes:''
+      })});
+      const data=await res.json().catch(()=>({}));
+      showToast(`Combined link £${total.toFixed(2)} sent ✓`,'success');
+    }
+    owingSelected.clear();renderOwing();
+  }catch(e){showToast('Failed: '+e.message,'error');}
+}
+
+async function recordCash(jobId){
+  if(!confirm('Record this job as paid by cash?'))return;
+  try{
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,price,service_type`);
+    await sb('wc_invoices',{method:'POST',body:JSON.stringify({
+      business_id:BUSINESS_ID,customer_id:job.customer_id,job_id:jobId,
+      amount:job.price,notes:job.service_type||null,
+      status:'paid',paid_at:new Date().toISOString(),
+      sent_at:new Date().toISOString()
+    }),prefer:'return=minimal'});
+    showToast('Recorded as cash ✓','success');renderOwing();
+  }catch(e){showToast(e.message,'error');}
+}
+
+async function recordBankTransfer(jobId){
+  if(!confirm('Record this job as paid by bank transfer?'))return;
+  try{
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,price,service_type`);
+    await sb('wc_invoices',{method:'POST',body:JSON.stringify({
+      business_id:BUSINESS_ID,customer_id:job.customer_id,job_id:jobId,
+      amount:job.price,notes:(job.service_type||'')+(job.service_type?' — ':'')+' Bank transfer',
+      status:'paid',paid_at:new Date().toISOString(),
+      sent_at:new Date().toISOString()
+    }),prefer:'return=minimal'});
+    showToast('Recorded as bank transfer ✓','success');renderOwing();
+  }catch(e){showToast(e.message,'error');}
+}
+
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 async function renderSettings(){
   document.getElementById('topbarPage').textContent='Settings';
@@ -1492,7 +1762,7 @@ if('serviceWorker' in navigator){
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
-['customerModal','jobModal','skipModal','quoteModal','invoiceModal'].forEach(id=>{
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
