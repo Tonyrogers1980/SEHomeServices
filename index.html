@@ -474,7 +474,15 @@ function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDa
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':'badge-scheduled';}
 function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":'Scheduled';}
-function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
+function mapsUrl(address,postcode){
+  const q=encodeURIComponent([address,postcode].filter(Boolean).join(', '));
+  return`https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving`;
+}
+function addrLink(address,postcode,cls=''){
+  const full=[address,postcode].filter(Boolean).join(', ');
+  if(!full)return'';
+  return`<a href="${mapsUrl(address,postcode)}" target="_blank" onclick="event.stopPropagation()" class="${cls}" style="color:inherit;text-decoration:none;border-bottom:1px dotted currentColor">${esc(full)}</a>`;
+}return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
 async function sb(path,opts={}){
   const url=`${SUPABASE_URL}/rest/v1/${path}`;
@@ -724,7 +732,7 @@ function jobCard(j,num){
       <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
       <div class="job-card-body">
         <div class="job-card-name">${esc(c.name||'Unknown')}</div>
-        <div class="job-card-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+        <div class="job-card-addr">${addrLink(c.address,c.postcode,'job-card-addr')}</div>
         ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
         ${j.round_name?`<div class="job-card-round">${esc(j.round_name)}</div>`:''}
         ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
@@ -790,7 +798,7 @@ function customerCards(list){
   if(!list.length)return'<div class="empty"><div class="empty-title">No customers found</div></div>';
   return list.map(c=>`<div class="card" onclick="showCustomer('${c.id}')">
     <div class="card-avatar">${c.name.charAt(0).toUpperCase()}</div>
-    <div class="card-info"><div class="card-name">${esc(c.name)}</div><div class="card-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div></div>
+    <div class="card-info"><div class="card-name">${esc(c.name)}</div><div class="card-sub">${addrLink(c.address,c.postcode)}</div></div>
     ${c.phone?`<div style="font-size:13px;color:var(--text-muted);flex-shrink:0">${esc(c.phone)}</div>`:''}
   </div>`).join('');
 }
@@ -810,7 +818,7 @@ async function showCustomer(id){
   el.innerHTML=`
     <button class="back-btn" onclick="renderCustomers()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Customers</button>
     <div class="page-header">
-      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div></div>
+      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${addrLink(c.address,c.postcode)}</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="openQuoteForCustomer('${c.id}')">Quote</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditCustomer('${c.id}')">Edit</button>
