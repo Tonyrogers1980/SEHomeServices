@@ -1254,18 +1254,24 @@ async function saveQuote(status){
     }
     if(status==='sent'){
       const customer=customers.find(c=>c.id===customerId)||{};
-      fireQuoteWebhook({customer,price,service_type:payload.service_type,frequency:payload.frequency,notes:payload.notes});
+      fireQuoteWebhook({quoteId:editingQuoteId||'',customer,price,service_type:payload.service_type,frequency:payload.frequency,notes:payload.notes,start_date:payload.start_date||null});
     }
     closeModal('quoteModal');renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
-async function fireQuoteWebhook({customer,price,service_type,frequency,notes}){
+async function fireQuoteWebhook({quoteId,customer,price,service_type,frequency,notes,start_date}){
+  const acceptLink=`https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-accept?quote_id=${quoteId}`;
   try{
     await fetch(N8N_QUOTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      quote_id:quoteId,
+      accept_link:acceptLink,
       customer_name:customer.name||'Customer',
       customer_phone:customer.whatsapp_number||customer.phone||'',
       customer_email:customer.email||'',
-      price,service_type:service_type||'Window Cleaning',frequency:frequency||'one-off',notes:notes||''
+      price,service_type:service_type||'Window Cleaning',
+      frequency:frequency||'one-off',
+      notes:notes||'',
+      start_date:start_date||''
     })});
     showToast('Sent via WhatsApp & email ✓','success');
   }catch(e){console.warn('Webhook failed',e);}
@@ -1275,7 +1281,7 @@ async function markQuoteSent(id){
   try{
     await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'sent',sent_at:new Date().toISOString()}),prefer:'return=minimal'});
     showToast('Marked as sent','success');
-    if(q){const customer=customers.find(c=>c.id===q.customer_id)||q.wc_customers||{};fireQuoteWebhook({customer,price:q.price,service_type:q.service_type,frequency:q.frequency,notes:q.notes});}
+    if(q){const customer=customers.find(c=>c.id===q.customer_id)||q.wc_customers||{};fireQuoteWebhook({quoteId:id,customer,price:q.price,service_type:q.service_type,frequency:q.frequency,notes:q.notes,start_date:q.start_date||null});}
     renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
