@@ -2,256 +2,286 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ClearRound">
+<meta name="theme-color" content="#1e3a5f">
 <title>ClearRound – SE Home Services</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231e3a5f'/><text x='96' y='130' font-size='100' text-anchor='middle' font-family='sans-serif' font-weight='700' fill='%23f0a500'>SE</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
-:root {
-  --navy-900:#0d1f35;
-  --navy-800:#1e3a5f;
-  --navy-700:#243f6a;
-  --navy-600:#2d4f80;
-  --navy-400:#4a7ab5;
-  --gold:#f0a500;
-  --gold-light:#fef3c7;
-  --gold-dark:#c47f00;
-  --white:#ffffff;
-  --text:#e8edf5;
-  --text-soft:#8fa8c8;
-  --text-muted:#5a7a9e;
-  --border:#243f6a;
-  --border-soft:#1e3a5f;
-  --done:#10b981;
-  --done-light:rgba(16,185,129,.15);
-  --warn:#f59e0b;
-  --warn-light:rgba(245,158,11,.15);
-  --danger:#ef4444;
-  --danger-light:rgba(239,68,68,.15);
-  --radius:10px;
-  --radius-sm:7px;
-  --sidebar:240px;
+:root{
+  --navy-900:#0d1f35;--navy-800:#1e3a5f;--navy-700:#243f6a;--navy-600:#2d4f80;--navy-400:#4a7ab5;
+  --gold:#f0a500;--gold-dark:#c47f00;
+  --white:#ffffff;--text:#e8edf5;--text-soft:#8fa8c8;--text-muted:#5a7a9e;
+  --border:#243f6a;--done:#10b981;--done-light:rgba(16,185,129,.15);
+  --warn:#f59e0b;--warn-light:rgba(245,158,11,.15);
+  --danger:#ef4444;--danger-light:rgba(239,68,68,.15);
+  --radius:12px;--radius-sm:8px;
+  --bottom-nav:64px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--text);min-height:100vh;display:flex;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overscroll-behavior:none;}
+body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--text);min-height:100vh;min-height:-webkit-fill-available;}
 
-/* SIDEBAR */
-.sidebar{width:var(--sidebar);background:var(--navy-800);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .25s;}
-.sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
-.sidebar-logo-icon{width:36px;height:36px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--navy-900);flex-shrink:0;}
-.sidebar-logo-text{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--white);line-height:1.3;}
-.sidebar-logo-text span{color:var(--gold);}
-.sidebar-logo-sub{font-size:10px;color:var(--text-muted);margin-top:1px;}
-.sidebar-section{padding:16px 8px 4px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-soft);font-size:13px;font-weight:500;transition:background .15s,color .15s;margin:1px 8px;text-decoration:none;}
-.nav-item svg{width:17px;height:17px;flex-shrink:0;}
-.nav-item:hover{background:var(--navy-700);color:var(--text);}
-.nav-item.active{background:var(--gold);color:var(--navy-900);}
-.nav-item.active svg{color:var(--navy-900);}
-.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border);}
-.sidebar-user{display:flex;align-items:center;gap:10px;}
-.sidebar-user-avatar{width:32px;height:32px;border-radius:50%;background:var(--navy-600);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--gold);flex-shrink:0;}
-.sidebar-user-name{font-size:13px;font-weight:500;color:var(--text);}
-.sidebar-user-role{font-size:11px;color:var(--text-muted);}
+/* ── LOGIN ── */
+#loginScreen{position:fixed;inset:0;background:var(--navy-900);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:500;}
+.login-logo{width:72px;height:72px;background:var(--gold);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--navy-900);margin-bottom:20px;}
+.login-title{font-family:'DM Mono',monospace;font-size:22px;color:var(--white);margin-bottom:4px;}
+.login-title span{color:var(--gold);}
+.login-sub{font-size:14px;color:var(--text-muted);margin-bottom:40px;}
+.login-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;align-self:flex-start;width:100%;max-width:320px;}
+.user-pick{display:flex;gap:10px;width:100%;max-width:320px;margin-bottom:24px;}
+.user-btn{flex:1;padding:14px 8px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--navy-800);color:var(--text-soft);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;}
+.user-btn.selected{border-color:var(--gold);background:rgba(240,165,0,.1);color:var(--gold);}
+.pin-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;align-self:flex-start;width:100%;max-width:320px;}
+.pin-display{display:flex;gap:12px;margin-bottom:24px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background .15s,border-color .15s;}
+.pin-dot.filled{background:var(--gold);border-color:var(--gold);}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:280px;}
+.num-btn{height:68px;border-radius:var(--radius);border:none;background:var(--navy-800);color:var(--text);font-family:'DM Sans',sans-serif;font-size:22px;font-weight:500;cursor:pointer;transition:background .12s,transform .08s;display:flex;align-items:center;justify-content:center;}
+.num-btn:active{background:var(--navy-600);transform:scale(.95);}
+.num-btn.del{font-size:18px;color:var(--text-muted);}
+.login-error{color:var(--danger);font-size:13px;margin-top:12px;min-height:20px;}
 
-/* MOBILE TOPBAR */
-.mobile-topbar{display:none;background:var(--navy-800);border-bottom:1px solid var(--border);padding:0 16px;height:52px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:99;}
-.mobile-logo{font-family:'DM Mono',monospace;font-size:14px;color:var(--white);}
-.mobile-logo span{color:var(--gold);}
-.hamburger{background:none;border:none;color:var(--text);cursor:pointer;padding:4px;}
-.hamburger svg{width:22px;height:22px;}
+/* ── LAYOUT ── */
+#app{display:none;flex-direction:column;height:100vh;height:-webkit-fill-available;}
+#app.visible{display:flex;}
 
-/* MAIN */
-.app-body{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh;}
-.main{flex:1;padding:24px;max-width:960px;width:100%;}
+/* TOPBAR */
+.topbar{background:var(--navy-800);border-bottom:1px solid var(--border);height:52px;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;position:sticky;top:0;z-index:50;}
+.topbar-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--white);}
+.topbar-logo span{color:var(--gold);}
+.topbar-page{font-size:15px;font-weight:600;color:var(--white);flex:1;}
+.topbar-user{font-size:12px;color:var(--text-muted);}
+.topbar-action{margin-left:auto;}
+
+/* MAIN SCROLL AREA */
+.main-scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+.main{padding:16px;max-width:640px;margin:0 auto;padding-bottom:calc(var(--bottom-nav) + var(--safe-bottom) + 16px);}
+
+/* BOTTOM NAV */
+.bottom-nav{height:calc(var(--bottom-nav) + var(--safe-bottom));padding-bottom:var(--safe-bottom);background:var(--navy-800);border-top:1px solid var(--border);display:flex;align-items:stretch;flex-shrink:0;}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--text-muted);font-size:10px;font-weight:500;padding:8px 4px;border:none;background:none;transition:color .15s;}
+.nav-tab svg{width:22px;height:22px;}
+.nav-tab.active{color:var(--gold);}
+.nav-tab span{font-size:10px;}
 
 /* PAGE HEADER */
-.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
-.page-title{font-size:22px;font-weight:600;color:var(--white);}
-.page-sub{font-size:13px;color:var(--text-muted);margin-top:3px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.page-title{font-size:20px;font-weight:600;color:var(--white);}
+.page-sub{font-size:13px;color:var(--text-muted);margin-top:2px;}
 
 /* SEARCH */
-.search-wrap{position:relative;margin-bottom:16px;}
-.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);}
-.search-input{width:100%;padding:9px 12px 9px 36px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;background:var(--navy-800);color:var(--text);outline:none;transition:border-color .15s;}
+.search-wrap{position:relative;margin-bottom:14px;}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);}
+.search-input{width:100%;padding:11px 12px 11px 38px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;background:var(--navy-800);color:var(--text);outline:none;}
 .search-input::placeholder{color:var(--text-muted);}
 .search-input:focus{border-color:var(--gold);}
 
 /* CARDS */
-.card-list{display:flex;flex-direction:column;gap:6px;}
-.card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s,background .15s;}
-.card:hover{border-color:var(--gold);background:var(--navy-700);}
-.card-avatar{width:38px;height:38px;border-radius:9px;background:var(--navy-600);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--gold);flex-shrink:0;}
+.card-list{display:flex;flex-direction:column;gap:8px;}
+.card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s;}
+.card:active{background:var(--navy-700);}
+.card-avatar{width:42px;height:42px;border-radius:10px;background:var(--navy-600);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:var(--gold);flex-shrink:0;}
 .card-info{flex:1;min-width:0;}
-.card-name{font-size:14px;font-weight:600;color:var(--white);}
+.card-name{font-size:15px;font-weight:600;color:var(--white);}
 .card-sub{font-size:12px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-/* BADGES */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 20px;border-radius:var(--radius-sm);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;border:none;outline:none;transition:background .15s,transform .08s;min-height:48px;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--gold);color:var(--navy-900);}
+.btn-primary:active{background:var(--gold-dark);}
+.btn-ghost{background:transparent;color:var(--text-soft);border:1px solid var(--border);}
+.btn-ghost:active{background:var(--navy-700);}
+.btn-danger{background:var(--danger);color:var(--white);}
+.btn-done{background:var(--done);color:var(--white);}
+.btn-sm{padding:8px 14px;font-size:13px;min-height:36px;}
+.btn-full{width:100%;}
+.btn svg{width:18px;height:18px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-height:92vh;overflow-y:auto;transform:translateY(20px);transition:transform .22s;padding:20px 16px calc(20px + var(--safe-bottom));}
+.modal-overlay.open .modal{transform:translateY(0);}
+@media(min-width:600px){
+  .modal-overlay{align-items:center;justify-content:center;}
+  .modal{border-radius:var(--radius);max-width:520px;padding:24px 20px;}
+}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.modal-title{font-size:17px;font-weight:600;color:var(--white);}
+.modal-close{width:34px;height:34px;border-radius:8px;background:var(--navy-700);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
+.modal-close svg{width:16px;height:16px;}
+
+/* FORM */
+.form-grid{display:flex;flex-direction:column;gap:14px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;}
+.field input,.field select,.field textarea{padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-900);outline:none;-webkit-appearance:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);}
+.field select option{background:var(--navy-900);}
+.field textarea{resize:vertical;min-height:80px;}
+.form-actions{display:flex;flex-direction:column;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+@media(min-width:400px){.form-actions{flex-direction:row;justify-content:flex-end;}}
+
+/* DETAIL */
+.detail-section{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
+.detail-section-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;}
+.detail-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);font-size:14px;gap:8px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-label{color:var(--text-muted);flex-shrink:0;}
+.detail-value{font-weight:500;color:var(--text);text-align:right;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--gold);cursor:pointer;background:none;border:none;padding:0;margin-bottom:16px;min-height:44px;}
+.back-btn svg{width:16px;height:16px;}
+
+/* ROUND — mobile-first job cards */
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.date-nav-btn{width:44px;height:44px;border-radius:var(--radius-sm);background:var(--navy-800);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-soft);flex-shrink:0;}
+.date-nav-btn:active{background:var(--navy-600);}
+.date-nav-btn svg{width:18px;height:18px;}
+.date-display{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--white);}
+.date-today-btn{font-size:13px;font-weight:500;color:var(--gold);background:none;border:none;cursor:pointer;padding:4px 10px;white-space:nowrap;}
+.round-filter select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-800);outline:none;margin-bottom:12px;-webkit-appearance:none;}
+.round-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
+.round-stat{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;text-align:center;}
+.round-stat-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--white);}
+.round-stat-label{font-size:10px;color:var(--text-muted);margin-top:2px;}
+
+/* JOB CARD — large tap targets */
+.job-card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:8px;}
+.job-card-header{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 0;}
+.job-card-num{width:28px;height:28px;border-radius:50%;background:var(--navy-700);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--text-muted);flex-shrink:0;margin-top:2px;}
+.job-card-num.done{background:var(--done-light);border-color:var(--done);color:var(--done);}
+.job-card-body{flex:1;min-width:0;}
+.job-card-name{font-size:16px;font-weight:600;color:var(--white);line-height:1.2;}
+.job-card-addr{font-size:13px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.job-card-svc{font-size:12px;color:var(--text-muted);margin-top:3px;}
+.job-card-round{font-size:11px;color:var(--navy-400);font-weight:500;}
+.job-card-note{font-size:12px;color:var(--warn);margin-top:4px;font-weight:500;}
+.job-card-price{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--gold);flex-shrink:0;}
+.job-card-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:12px;border-top:1px solid var(--border);background:var(--border);}
+.job-action{background:var(--navy-800);border:none;padding:14px 8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--text-soft);display:flex;align-items:center;justify-content:center;gap:5px;min-height:48px;transition:background .12s;}
+.job-action:active{background:var(--navy-700);}
+.job-action.done-action{color:var(--done);}
+.job-action.danger-action{color:var(--danger);}
+.job-action.undo-action{color:var(--text-muted);}
+.job-action svg{width:16px;height:16px;}
+.job-card.is-done{opacity:.65;border-color:var(--done);}
+.job-card.is-skip{opacity:.65;border-color:var(--warn);}
+.job-card.is-cant{opacity:.65;border-color:var(--danger);}
+
+/* MISC */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;}
 .badge-done{background:var(--done-light);color:var(--done);}
 .badge-scheduled{background:rgba(74,122,181,.2);color:var(--navy-400);}
 .badge-skipped{background:var(--warn-light);color:var(--warn);}
 .badge-cant{background:var(--danger-light);color:var(--danger);}
-
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;border:none;outline:none;transition:background .15s,opacity .15s;}
-.btn-primary{background:var(--gold);color:var(--navy-900);}
-.btn-primary:hover{background:var(--gold-dark);}
-.btn-ghost{background:transparent;color:var(--text-soft);border:1px solid var(--border);}
-.btn-ghost:hover{background:var(--navy-700);color:var(--text);}
-.btn-danger{background:var(--danger);color:var(--white);}
-.btn-done{background:var(--done);color:var(--white);}
-.btn-sm{padding:5px 12px;font-size:12px;}
-.btn svg{width:15px;height:15px;}
-
-/* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s;}
-.modal-overlay.open{opacity:1;pointer-events:all;}
-@media(min-width:640px){.modal-overlay{align-items:center;justify-content:center;}}
-.modal{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-height:92vh;overflow-y:auto;transform:translateY(20px);transition:transform .2s;padding:24px 20px;}
-.modal-overlay.open .modal{transform:translateY(0);}
-@media(min-width:640px){.modal{border-radius:var(--radius);max-width:520px;max-height:85vh;}}
-.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
-.modal-title{font-size:16px;font-weight:600;color:var(--white);}
-.modal-close{width:30px;height:30px;border-radius:6px;background:var(--navy-700);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
-.modal-close:hover{background:var(--navy-600);}
-.modal-close svg{width:15px;height:15px;}
-
-/* FORM */
-.form-grid{display:flex;flex-direction:column;gap:14px;}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.field{display:flex;flex-direction:column;gap:5px;}
-.field label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;}
-.field input,.field select,.field textarea{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-900);outline:none;transition:border-color .15s;}
-.field input::placeholder,.field textarea::placeholder{color:var(--text-muted);}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);}
-.field select option{background:var(--navy-900);}
-.field textarea{resize:vertical;min-height:72px;}
-.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
-
-/* DETAIL SECTIONS */
-.detail-section{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
-.detail-section-header{padding:11px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;}
-.detail-row{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;}
-.detail-row:last-child{border-bottom:none;}
-.detail-label{color:var(--text-muted);}
-.detail-value{font-weight:500;color:var(--text);}
-.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--gold);cursor:pointer;background:none;border:none;padding:0;margin-bottom:16px;}
-.back-btn svg{width:15px;height:15px;}
-
-/* ROUND */
-.date-nav{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-.date-nav-btn{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--navy-800);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-soft);flex-shrink:0;}
-.date-nav-btn:hover{border-color:var(--gold);color:var(--gold);}
-.date-nav-btn svg{width:15px;height:15px;}
-.date-display{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--white);}
-.date-today-btn{font-size:12px;font-weight:500;color:var(--gold);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;white-space:nowrap;}
-.date-today-btn:hover{background:var(--warn-light);}
-.round-filter{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
-.round-filter select{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none;}
-.round-filter select:focus{border-color:var(--gold);}
-.round-filter select option{background:var(--navy-900);}
-.round-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
-.round-stat{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
-.round-stat-val{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--white);}
-.round-stat-label{font-size:10px;color:var(--text-muted);margin-top:2px;}
-.round-list{display:flex;flex-direction:column;gap:6px;}
-
-/* EMPTY */
 .empty{text-align:center;padding:60px 20px;color:var(--text-muted);}
-.empty svg{width:44px;height:44px;margin-bottom:12px;opacity:.25;}
-.empty-title{font-size:15px;font-weight:600;color:var(--text-soft);margin-bottom:6px;}
-.empty-sub{font-size:13px;}
-
-/* TOAST */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy-700);color:var(--white);border:1px solid var(--border);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:999;transition:transform .25s ease;white-space:nowrap;}
-.toast.show{transform:translateX(-50%) translateY(0);}
-.toast.success{background:var(--done);border-color:var(--done);}
-.toast.error{background:var(--danger);border-color:var(--danger);}
-
-/* LOADING */
-.loading{display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-muted);font-size:14px;gap:10px;}
-.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite;}
+.empty svg{width:48px;height:48px;margin-bottom:14px;opacity:.2;}
+.empty-title{font-size:16px;font-weight:600;color:var(--text-soft);margin-bottom:8px;}
+.empty-sub{font-size:14px;}
+.loading{display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-muted);font-size:15px;gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-
-/* COMING SOON */
+.toast{position:fixed;bottom:calc(var(--bottom-nav) + var(--safe-bottom) + 12px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy-700);color:var(--white);border:1px solid var(--border);padding:12px 20px;border-radius:24px;font-size:14px;font-weight:500;z-index:999;transition:transform .25s ease;white-space:nowrap;max-width:90vw;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:var(--done);}
+.toast.error{background:var(--danger);}
 .coming-soon{text-align:center;padding:80px 20px;}
 .coming-soon-icon{width:64px;height:64px;background:var(--navy-700);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
 .coming-soon-icon svg{width:28px;height:28px;color:var(--gold);}
 .coming-soon h2{font-size:18px;font-weight:600;color:var(--white);margin-bottom:8px;}
-.coming-soon p{font-size:13px;color:var(--text-muted);}
+.coming-soon p{font-size:14px;color:var(--text-muted);}
 
-/* SIDEBAR OVERLAY (mobile) */
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
-
-@media(max-width:768px){
-  .sidebar{transform:translateX(-100%);}
-  .sidebar.open{transform:translateX(0);}
-  .sidebar-overlay.open{display:block;}
-  .mobile-topbar{display:flex;}
-  .app-body{margin-left:0;}
-  .main{padding:16px;}
+/* DESKTOP SIDEBAR (≥768px) */
+@media(min-width:768px){
+  #app{flex-direction:row;}
+  .bottom-nav{display:none;}
+  .sidebar-desktop{width:220px;background:var(--navy-800);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;flex-shrink:0;}
+  .sidebar-logo-wrap{padding:18px 14px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .sidebar-logo-icon{width:34px;height:34px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--navy-900);}
+  .sidebar-logo-text{font-family:'DM Mono',monospace;font-size:13px;color:var(--white);}
+  .sidebar-logo-text span{color:var(--gold);}
+  .sidebar-logo-sub{font-size:10px;color:var(--text-muted);}
+  .sidebar-section{padding:14px 8px 4px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;}
+  .sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-soft);font-size:13px;font-weight:500;margin:1px 8px;border:none;background:none;width:calc(100% - 16px);text-align:left;}
+  .sidebar-nav-item svg{width:17px;height:17px;flex-shrink:0;}
+  .sidebar-nav-item:hover{background:var(--navy-700);color:var(--text);}
+  .sidebar-nav-item.active{background:var(--gold);color:var(--navy-900);}
+  .sidebar-footer{margin-top:auto;padding:14px;border-top:1px solid var(--border);}
+  .sidebar-user-info{display:flex;align-items:center;gap:10px;}
+  .sidebar-avatar{width:32px;height:32px;border-radius:50%;background:var(--navy-600);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--gold);}
+  .desktop-content{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .topbar{position:sticky;top:0;}
+  .main-scroll{flex:1;overflow-y:auto;}
+  .main{padding:24px;padding-bottom:24px;}
+}
+@media(max-width:767px){
+  .sidebar-desktop{display:none;}
+  .desktop-content{display:flex;flex-direction:column;flex:1;min-height:0;}
 }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-logo">
-    <div class="sidebar-logo-icon">SE</div>
-    <div>
-      <div class="sidebar-logo-text">clear<span>round</span></div>
-      <div class="sidebar-logo-sub">SE Home Services</div>
-    </div>
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-logo">SE</div>
+  <div class="login-title">clear<span>round</span></div>
+  <div class="login-sub">SE Home Services</div>
+  <div class="login-label">Who are you?</div>
+  <div class="user-pick" id="userPick"></div>
+  <div class="pin-label">Enter your PIN</div>
+  <div class="pin-display" id="pinDisplay">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
   </div>
-  <div class="sidebar-section">Work & Planning</div>
-  <a class="nav-item active" data-page="round" onclick="navigate('round')">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-    Today's Round
-  </a>
-  <div class="sidebar-section">Manage Customers</div>
-  <a class="nav-item" data-page="customers" onclick="navigate('customers')">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-    Customers
-  </a>
-  <div class="sidebar-section">Billing & Quotes</div>
-  <a class="nav-item" data-page="quotes" onclick="navigate('quotes')">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-    Quotes
-  </a>
-  <a class="nav-item" data-page="invoices" onclick="navigate('invoices')">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-    Invoices
-  </a>
-  <div class="sidebar-section">Admin</div>
-  <a class="nav-item" data-page="settings" onclick="navigate('settings')">
-    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-    Settings
-  </a>
-  <div class="sidebar-footer">
-    <div class="sidebar-user">
-      <div class="sidebar-user-avatar">TR</div>
-      <div><div class="sidebar-user-name">Tony Rogers</div><div class="sidebar-user-role">Owner</div></div>
-    </div>
+  <div class="numpad">
+    <button class="num-btn" onclick="pinTap('1')">1</button>
+    <button class="num-btn" onclick="pinTap('2')">2</button>
+    <button class="num-btn" onclick="pinTap('3')">3</button>
+    <button class="num-btn" onclick="pinTap('4')">4</button>
+    <button class="num-btn" onclick="pinTap('5')">5</button>
+    <button class="num-btn" onclick="pinTap('6')">6</button>
+    <button class="num-btn" onclick="pinTap('7')">7</button>
+    <button class="num-btn" onclick="pinTap('8')">8</button>
+    <button class="num-btn" onclick="pinTap('9')">9</button>
+    <button class="num-btn" onclick="pinTap('')"></button>
+    <button class="num-btn" onclick="pinTap('0')">0</button>
+    <button class="num-btn del" onclick="pinDel()">⌫</button>
   </div>
-</aside>
-
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
-<!-- MOBILE TOPBAR -->
-<div class="mobile-topbar">
-  <div class="mobile-logo">clear<span>round</span></div>
-  <button class="hamburger" onclick="toggleSidebar()">
-    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
-  </button>
+  <div class="login-error" id="loginError"></div>
 </div>
 
-<!-- MAIN -->
-<div class="app-body">
-  <main class="main" id="mainContent"></main>
+<!-- MAIN APP -->
+<div id="app">
+  <!-- Desktop sidebar (hidden on mobile) -->
+  <aside class="sidebar-desktop" id="sidebarDesktop"></aside>
+
+  <div class="desktop-content">
+    <div class="topbar">
+      <div class="topbar-logo" id="topbarLogo">clear<span>round</span></div>
+      <div class="topbar-page" id="topbarPage"></div>
+      <div class="topbar-action" id="topbarAction"></div>
+      <div class="topbar-user" id="topbarUser"></div>
+    </div>
+    <div class="main-scroll">
+      <div class="main" id="mainContent"></div>
+    </div>
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav" id="bottomNav"></nav>
+  </div>
 </div>
 
-<!-- CUSTOMER MODAL -->
+<!-- MODALS -->
 <div class="modal-overlay" id="customerModal">
   <div class="modal">
     <div class="modal-header">
@@ -259,15 +289,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <button class="modal-close" onclick="closeModal('customerModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
-      <div class="field"><label>Name *</label><input id="f-name" placeholder="Full name"></div>
-      <div class="field"><label>Address *</label><input id="f-address" placeholder="Street address"></div>
+      <div class="field"><label>Name *</label><input id="f-name" placeholder="Full name" autocomplete="name"></div>
+      <div class="field"><label>Address *</label><input id="f-address" placeholder="Street address" autocomplete="street-address"></div>
       <div class="form-row">
-        <div class="field"><label>Postcode *</label><input id="f-postcode" placeholder="SE9 1AA"></div>
-        <div class="field"><label>Phone</label><input id="f-phone" placeholder="07700 900000"></div>
+        <div class="field"><label>Postcode *</label><input id="f-postcode" placeholder="SE9 1AA" autocomplete="postal-code"></div>
+        <div class="field"><label>Phone</label><input id="f-phone" type="tel" placeholder="07700 900000" autocomplete="tel"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>WhatsApp</label><input id="f-whatsapp" placeholder="+447700900000"></div>
-        <div class="field"><label>Email</label><input id="f-email" placeholder="email@example.com"></div>
+        <div class="field"><label>WhatsApp</label><input id="f-whatsapp" type="tel" placeholder="+447700900000"></div>
+        <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="email@example.com" autocomplete="email"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Access codes, dogs, gate codes…"></textarea></div>
     </div>
@@ -278,7 +308,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
-<!-- JOB MODAL -->
 <div class="modal-overlay" id="jobModal">
   <div class="modal">
     <div class="modal-header">
@@ -286,42 +315,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <button class="modal-close" onclick="closeModal('jobModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
-      <div class="field"><label>Service type</label>
-        <select id="j-service"><option value="">Select service…</option></select>
-      </div>
+      <div class="field"><label>Service type</label><select id="j-service"><option value="">Select service…</option></select></div>
       <div class="form-row">
-        <div class="field"><label>Price (£) *</label><input id="j-price" type="number" step="0.50" min="0" placeholder="0.00"></div>
+        <div class="field"><label>Price (£) *</label><input id="j-price" type="number" inputmode="decimal" step="0.50" min="0" placeholder="0.00"></div>
         <div class="field"><label>Frequency</label>
           <select id="j-frequency">
-            <option value="one-off">One-off</option>
-            <option value="weekly">Weekly</option>
-            <option value="fortnightly">Fortnightly</option>
-            <option value="3-weekly">Every 3 weeks</option>
-            <option value="4-weekly" selected>Every 4 weeks</option>
-            <option value="6-weekly">Every 6 weeks</option>
-            <option value="8-weekly">Every 8 weeks</option>
-            <option value="12-weekly">Every 12 weeks</option>
+            <option value="one-off">One-off</option><option value="weekly">Weekly</option>
+            <option value="fortnightly">Fortnightly</option><option value="3-weekly">Every 3 weeks</option>
+            <option value="4-weekly" selected>Every 4 weeks</option><option value="6-weekly">Every 6 weeks</option>
+            <option value="8-weekly">Every 8 weeks</option><option value="12-weekly">Every 12 weeks</option>
             <option value="26-weekly">Every 26 weeks</option>
           </select>
         </div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Next due date *</label><input id="j-date" type="date"></div>
+        <div class="field"><label>Next due *</label><input id="j-date" type="date"></div>
         <div class="field"><label>Day of week</label>
-          <select id="j-day">
-            <option value="">Any day</option>
+          <select id="j-day"><option value="">Any day</option>
             <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
             <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
           </select>
         </div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Round</label>
-          <select id="j-round"><option value="">No round</option></select>
-        </div>
+        <div class="field"><label>Round</label><select id="j-round"><option value="">No round</option></select></div>
         <div class="field"><label>Assign to</label><select id="j-assigned"></select></div>
       </div>
-      <div class="field"><label>Notes</label><textarea id="j-notes" placeholder="Job-specific notes…"></textarea></div>
+      <div class="field"><label>Notes</label><textarea id="j-notes" placeholder="Job notes…"></textarea></div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('jobModal')">Cancel</button>
@@ -330,7 +350,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
-<!-- SKIP MODAL -->
 <div class="modal-overlay" id="skipModal">
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
@@ -340,12 +359,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
     <div class="field"><label>Reason (optional)</label><textarea id="skip-notes" placeholder="Customer away, access issue…" style="min-height:80px"></textarea></div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('skipModal')">Cancel</button>
-      <button class="btn btn-danger" id="skipConfirmBtn" onclick="confirmSkip()">Skip job</button>
+      <button class="btn btn-danger" id="skipConfirmBtn" onclick="confirmSkip()">Skip</button>
     </div>
   </div>
 </div>
 
-<!-- QUOTE MODAL -->
 <div class="modal-overlay" id="quoteModal">
   <div class="modal">
     <div class="modal-header">
@@ -353,66 +371,54 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <button class="modal-close" onclick="closeModal('quoteModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
-      <!-- Customer picker with inline new-customer option -->
-      <div class="field">
-        <label>Customer *</label>
+      <div class="field"><label>Customer *</label>
         <div style="display:flex;gap:6px">
           <select id="q-customer" style="flex:1"></select>
-          <button class="btn btn-ghost btn-sm" onclick="toggleInlineCustomer()" id="newCustBtn" title="Add new customer" style="flex-shrink:0;padding:8px 10px">+ New</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleInlineCustomer()" id="newCustBtn" style="flex-shrink:0;padding:8px 12px">+ New</button>
         </div>
       </div>
-      <!-- Inline new customer form (hidden by default) -->
       <div id="inlineCustomerForm" style="display:none;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-top:-6px">
         <div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">New customer</div>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <input id="nc-name" placeholder="Full name *" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
-          <input id="nc-address" placeholder="Street address *" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+          <input id="nc-name" placeholder="Full name *" autocomplete="name" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
+          <input id="nc-address" placeholder="Street address *" autocomplete="street-address" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input id="nc-postcode" placeholder="Postcode *" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
-            <input id="nc-phone" placeholder="Phone" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-postcode" placeholder="Postcode *" autocomplete="postal-code" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-phone" type="tel" placeholder="Phone" autocomplete="tel" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input id="nc-whatsapp" placeholder="WhatsApp (+44…)" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
-            <input id="nc-email" placeholder="Email" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-whatsapp" type="tel" placeholder="WhatsApp" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-email" type="email" placeholder="Email" autocomplete="email" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
           </div>
-          <div style="display:flex;gap:6px;justify-content:flex-end">
+          <div style="display:flex;gap:8px;justify-content:flex-end">
             <button class="btn btn-ghost btn-sm" onclick="toggleInlineCustomer()">Cancel</button>
             <button class="btn btn-primary btn-sm" onclick="saveInlineCustomer()">Save & select</button>
           </div>
         </div>
       </div>
-      <div class="field"><label>Service type</label>
-        <select id="q-service"><option value="">Select service…</option></select>
-      </div>
+      <div class="field"><label>Service type</label><select id="q-service"><option value="">Select service…</option></select></div>
       <div class="form-row">
-        <div class="field"><label>Price (£) *</label><input id="q-price" type="number" step="0.50" min="0" placeholder="0.00"></div>
+        <div class="field"><label>Price (£) *</label><input id="q-price" type="number" inputmode="decimal" step="0.50" min="0" placeholder="0.00"></div>
         <div class="field"><label>Frequency</label>
           <select id="q-frequency">
-            <option value="one-off">One-off</option>
-            <option value="weekly">Weekly</option>
-            <option value="fortnightly">Fortnightly</option>
-            <option value="3-weekly">Every 3 weeks</option>
-            <option value="4-weekly" selected>Every 4 weeks</option>
-            <option value="6-weekly">Every 6 weeks</option>
-            <option value="8-weekly">Every 8 weeks</option>
-            <option value="12-weekly">Every 12 weeks</option>
+            <option value="one-off">One-off</option><option value="weekly">Weekly</option>
+            <option value="fortnightly">Fortnightly</option><option value="3-weekly">Every 3 weeks</option>
+            <option value="4-weekly" selected>Every 4 weeks</option><option value="6-weekly">Every 6 weeks</option>
+            <option value="8-weekly">Every 8 weeks</option><option value="12-weekly">Every 12 weeks</option>
             <option value="26-weekly">Every 26 weeks</option>
           </select>
         </div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Round</label>
-          <select id="q-round"><option value="">No round</option></select>
-        </div>
+        <div class="field"><label>Round</label><select id="q-round"><option value="">No round</option></select></div>
         <div class="field"><label>Day of week</label>
-          <select id="q-day">
-            <option value="">Any day</option>
+          <select id="q-day"><option value="">Any day</option>
             <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
             <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
           </select>
         </div>
       </div>
-      <div class="field"><label>Description / Notes</label><textarea id="q-notes" placeholder="What's included, access details, any special conditions…"></textarea></div>
+      <div class="field"><label>Notes</label><textarea id="q-notes" placeholder="What's included, access details…"></textarea></div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('quoteModal')">Cancel</button>
@@ -422,9 +428,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
-<!-- INVOICE MODAL -->
 <div class="modal-overlay" id="invoiceModal">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" style="max-width:440px">
     <div class="modal-header">
       <div class="modal-title" id="invModalTitle">New Invoice</div>
       <button class="modal-close" onclick="closeModal('invoiceModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
@@ -432,10 +437,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
     <div class="form-grid">
       <div class="field"><label>Customer *</label><select id="inv-customer"></select></div>
       <div class="form-row">
-        <div class="field"><label>Amount (£) *</label><input id="inv-amount" type="number" step="0.50" min="0" placeholder="0.00"></div>
+        <div class="field"><label>Amount (£) *</label><input id="inv-amount" type="number" inputmode="decimal" step="0.50" min="0" placeholder="0.00"></div>
         <div class="field"><label>Due date</label><input id="inv-due" type="date"></div>
       </div>
-      <div class="field"><label>Notes / Description</label><textarea id="inv-notes" placeholder="Service description, job reference…" style="min-height:64px"></textarea></div>
+      <div class="field"><label>Notes</label><textarea id="inv-notes" placeholder="Service description…" style="min-height:64px"></textarea></div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('invoiceModal')">Cancel</button>
@@ -453,35 +458,23 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 
-let customers=[],wcUsers=[],wcRounds=[],wcServiceTypes=[],roundDate=todayStr(),roundFilter='',editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let currentUser=null; // {id, name, role, pin, view_mode}
+let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[];
+let roundDate=todayStr(),roundFilter='';
+let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
+let editingQuoteId=null,quotes=[],quoteFilter='all';
+let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 
-// Load rounds + service types from DB (cached, called once per session)
-async function loadConfig(){
-  if(wcRounds.length&&wcServiceTypes.length)return;
-  try{
-    [wcRounds,wcServiceTypes]=await Promise.all([
-      sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
-      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`)
-    ]);
-  }catch(e){console.warn('Config load failed',e);}
-}
-
-function populateRoundSelect(id,selected=''){
-  const sel=document.getElementById(id);if(!sel)return;
-  sel.innerHTML='<option value="">No round</option>'+wcRounds.map(r=>`<option${r.name===selected?' selected':''}>${esc(r.name)}</option>`).join('');
-}
-function populateServiceSelect(id,selected=''){
-  const sel=document.getElementById(id);if(!sel)return;
-  sel.innerHTML='<option value="">Select service…</option>'+wcServiceTypes.map(s=>`<option${s.name===selected?' selected':''}>${esc(s.name)}</option>`).join('');
-}
-
-function todayStr(){const d=new Date();return d.toISOString().split('T')[0];}
+// ── UTILS ──────────────────────────────────────────────────────────────────────
+function todayStr(){return new Date().toISOString().split('T')[0];}
 function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
-function fmtDate(s){if(!s)return'—';const d=new Date(s+'T12:00:00');return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
-function fmtShort(s){if(!s)return'—';const d=new Date(s+'T12:00:00');return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
+function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':'badge-scheduled';}
 function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":'Scheduled';}
+function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
 async function sb(path,opts={}){
   const url=`${SUPABASE_URL}/rest/v1/${path}`;
@@ -493,94 +486,352 @@ async function sb(path,opts={}){
   return res.json();
 }
 
-// Toast
 let toastTimer;
 function showToast(msg,type=''){
   const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type?' '+type:'');
   setTimeout(()=>t.classList.add('show'),10);
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
 }
+function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-// Sidebar
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
+// ── LOGIN ──────────────────────────────────────────────────────────────────────
+let allUsers=[],selectedUserId=null,pinEntry='';
 
-// Navigation
+async function initLogin(){
+  // Check localStorage for saved session
+  const saved=localStorage.getItem('cr_user');
+  if(saved){
+    try{
+      currentUser=JSON.parse(saved);
+      launchApp();
+      return;
+    }catch(e){localStorage.removeItem('cr_user');}
+  }
+  // Load users for login screen
+  try{allUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}
+  catch(e){allUsers=[];}
+  renderUserPick();
+}
+
+function renderUserPick(){
+  const el=document.getElementById('userPick');
+  el.innerHTML=allUsers.map(u=>`
+    <button class="user-btn${selectedUserId===u.id?' selected':''}" onclick="selectUser('${u.id}')">
+      <div style="font-size:20px;margin-bottom:4px">${u.name.charAt(0)}</div>
+      <div>${esc(u.name.split(' ')[0])}</div>
+    </button>`).join('');
+}
+
+function selectUser(id){
+  selectedUserId=id;pinEntry='';updatePinDisplay();
+  document.getElementById('loginError').textContent='';
+  renderUserPick();
+}
+
+function pinTap(digit){
+  if(!selectedUserId){document.getElementById('loginError').textContent='Select your name first';return;}
+  if(digit===''||pinEntry.length>=4)return;
+  pinEntry+=digit;
+  updatePinDisplay();
+  if(pinEntry.length===4)setTimeout(checkPin,120);
+}
+
+function pinDel(){pinEntry=pinEntry.slice(0,-1);updatePinDisplay();}
+
+function updatePinDisplay(){
+  for(let i=0;i<4;i++){
+    document.getElementById('d'+i).classList.toggle('filled',i<pinEntry.length);
+  }
+}
+
+function checkPin(){
+  const user=allUsers.find(u=>u.id===selectedUserId);
+  if(!user){pinEntry='';updatePinDisplay();return;}
+  if(user.pin===pinEntry){
+    currentUser=user;
+    localStorage.setItem('cr_user',JSON.stringify(user));
+    launchApp();
+  }else{
+    document.getElementById('loginError').textContent='Incorrect PIN — try again';
+    pinEntry='';updatePinDisplay();
+    // Shake effect
+    document.getElementById('pinDisplay').style.animation='none';
+    setTimeout(()=>{document.getElementById('pinDisplay').style.animation='';},10);
+  }
+}
+
+function launchApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('topbarUser').textContent=currentUser.name.split(' ')[0];
+  buildNav();
+  loadConfig();
+  navigate('round');
+}
+
+function logout(){
+  localStorage.removeItem('cr_user');
+  currentUser=null;selectedUserId=null;pinEntry='';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('loginError').textContent='';
+  updatePinDisplay();
+  renderUserPick();
+}
+
+// ── NAV ────────────────────────────────────────────────────────────────────────
+const FULL_PAGES=[
+  {id:'round',label:'Round',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>'},
+  {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
+  {id:'quotes',label:'Quotes',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'},
+  {id:'invoices',label:'Invoices',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
+  {id:'settings',label:'Settings',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
+];
+const ROUND_ONLY_PAGES=[
+  {id:'round',label:'Round',icon:FULL_PAGES[0].icon},
+];
+
+function getPages(){return currentUser?.view_mode==='round_only'?ROUND_ONLY_PAGES:FULL_PAGES;}
+
+function buildNav(){
+  const pages=getPages();
+  const isFull=currentUser?.view_mode!=='round_only';
+  // Bottom nav (mobile)
+  const bn=document.getElementById('bottomNav');
+  bn.innerHTML=pages.map(p=>`
+    <button class="nav-tab" data-page="${p.id}" onclick="navigate('${p.id}')">
+      ${p.icon}<span>${p.label}</span>
+    </button>`).join('');
+  // Desktop sidebar
+  const sd=document.getElementById('sidebarDesktop');
+  sd.innerHTML=`
+    <div class="sidebar-logo-wrap">
+      <div class="sidebar-logo-icon">SE</div>
+      <div><div class="sidebar-logo-text">clear<span>round</span></div><div class="sidebar-logo-sub">SE Home Services</div></div>
+    </div>
+    ${pages.map(p=>`<button class="sidebar-nav-item" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}${p.label}</button>`).join('')}
+    <div class="sidebar-footer">
+      <div class="sidebar-user-info">
+        <div class="sidebar-avatar">${currentUser.name.charAt(0)}</div>
+        <div><div style="font-size:13px;font-weight:500;color:var(--text)">${esc(currentUser.name)}</div>
+        <button onclick="logout()" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0">Log out</button></div>
+      </div>
+    </div>`;
+}
+
 function navigate(page){
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.querySelector(`[data-page="${page}"]`).classList.add('active');
-  closeSidebar();
+  const pages=getPages();
+  if(!pages.find(p=>p.id===page))page='round';
+  // Update active state
+  document.querySelectorAll('[data-page]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.page===page);
+  });
+  document.getElementById('topbarPage').textContent='';
+  document.getElementById('topbarAction').innerHTML='';
   if(page==='round')renderRound();
   else if(page==='customers')renderCustomers();
   else if(page==='quotes')renderQuotes();
   else if(page==='invoices')renderInvoices();
   else if(page==='settings')renderSettings();
 }
-function render(){loadConfig();navigate('round');}
 
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+// ── CONFIG ─────────────────────────────────────────────────────────────────────
+async function loadConfig(){
+  if(wcRounds.length&&wcServiceTypes.length)return;
+  try{
+    [wcRounds,wcServiceTypes]=await Promise.all([
+      sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
+      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`)
+    ]);
+  }catch(e){console.warn('Config load failed',e);}
+}
+async function loadUsers(){
+  if(wcUsers.length)return;
+  try{wcUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+}
+function populateRoundSelect(id,selected=''){
+  const sel=document.getElementById(id);if(!sel)return;
+  sel.innerHTML='<option value="">No round</option>'+wcRounds.map(r=>`<option${r.name===selected?' selected':''}>${esc(r.name)}</option>`).join('');
+}
+function populateServiceSelect(id,selected=''){
+  const sel=document.getElementById(id);if(!sel)return;
+  sel.innerHTML='<option value="">Select service…</option>'+wcServiceTypes.map(s=>`<option${s.name===selected?' selected':''}>${esc(s.name)}</option>`).join('');
+}
 
-// ===== CUSTOMERS =====
-async function renderCustomers(){
+// ── TODAY'S ROUND ─────────────────────────────────────────────────────────────
+async function renderRound(){
+  document.getElementById('topbarPage').textContent="Today's Round";
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading customers...</div>';
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  let jobs=[];
+  try{
+    // If round_only, filter to jobs assigned to this user
+    const assigneeFilter=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
+    const [byDue,byDate]=await Promise.all([
+      sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${assigneeFilter}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`),
+      sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${assigneeFilter}&select=*,wc_customers(name,address,postcode,notes)`)
+    ]);
+    jobs=[...byDue,...byDate];
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
+  const done=filtered.filter(j=>j.status==='done').length;
+  const skipped=filtered.filter(j=>j.status==='skipped'||j.status==='cant-access').length;
+  const remaining=filtered.filter(j=>j.status==='scheduled').length;
+  const earned=filtered.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const rounds=[...new Set(jobs.map(j=>j.round_name).filter(Boolean))].sort();
+  const isToday=roundDate===todayStr();
+
+  el.innerHTML=`
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="date-display">${fmtDate(roundDate)}</div>
+      ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:56px"></div>'}
+      <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    ${rounds.length>1?`<select class="round-filter" onchange="roundFilter=this.value;renderRound()">
+      <option value="">All rounds (${jobs.length})</option>
+      ${rounds.map(r=>`<option value="${esc(r)}"${roundFilter===r?' selected':''}>${esc(r)}</option>`).join('')}
+    </select>`:''}
+    <div class="round-summary">
+      <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
+    </div>
+    ${filtered.length
+      ? filtered.map((j,i)=>jobCard(j,i+1)).join('')
+      : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Navigate to see other days.</div></div>`
+    }`;
+}
+
+function jobCard(j,num){
+  const c=j.wc_customers||{};
+  const isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access',isSched=j.status==='scheduled';
+  const cardClass=isDone?'is-done':isSkip?'is-skip':isCant?'is-cant':'';
+  const numClass=isDone?'done':'';
+  const actions=isSched
+    ?`<div class="job-card-actions">
+        <button class="job-action done-action" onclick="markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
+        <button class="job-action" onclick="openSkip('${j.id}','skipped')">Skip</button>
+        <button class="job-action danger-action" onclick="openSkip('${j.id}','cant-access')">No access</button>
+      </div>`
+    :`<div class="job-card-actions">
+        <button class="job-action undo-action" style="grid-column:1/-1" onclick="undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
+      </div>`;
+  return`<div class="job-card ${cardClass}">
+    <div class="job-card-header">
+      <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
+      <div class="job-card-body">
+        <div class="job-card-name">${esc(c.name||'Unknown')}</div>
+        <div class="job-card-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+        ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
+        ${j.round_name?`<div class="job-card-round">${esc(j.round_name)}</div>`:''}
+        ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
+        ${j.notes?`<div class="job-card-note" style="color:var(--text-muted)">📝 ${esc(j.notes)}</div>`:''}
+      </div>
+      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+    </div>
+    ${actions}
+  </div>`;
+}
+
+function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
+
+async function markDone(id){
+  try{
+    await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:roundDate}),prefer:'return=minimal'});
+    showToast('✓ Done','success');renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+function openSkip(id,status){
+  skipJobId=id;skipStatus=status;
+  document.getElementById('skipModalTitle').textContent=status==='skipped'?'Skip job':"Can't access";
+  document.getElementById('skip-notes').value='';
+  document.getElementById('skipConfirmBtn').textContent=status==='skipped'?'Skip':"No access";
+  document.getElementById('skipModal').classList.add('open');
+}
+async function confirmSkip(){
+  const notes=document.getElementById('skip-notes').value.trim()||null;
+  try{
+    await sb(`wc_jobs?id=eq.${skipJobId}`,{method:'PATCH',body:JSON.stringify({status:skipStatus,notes}),prefer:'return=minimal'});
+    showToast(skipStatus==='skipped'?'Job skipped':'Marked no access','success');
+    closeModal('skipModal');renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+async function undoStatus(id){
+  try{
+    await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'scheduled',last_done:null,notes:null}),prefer:'return=minimal'});
+    showToast('Reset','success');renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ── CUSTOMERS ─────────────────────────────────────────────────────────────────
+async function renderCustomers(){
+  document.getElementById('topbarPage').textContent='Customers';
+  document.getElementById('topbarAction').innerHTML=`<button class="btn btn-primary btn-sm" onclick="openAddCustomer()">+ Add</button>`;
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}
-  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load customers</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   el.innerHTML=`
     <div class="page-header">
-      <div><div class="page-title">Customers</div><div class="page-sub">${customers.length} active customer${customers.length!==1?'s':''}</div></div>
-      <button class="btn btn-primary" onclick="openAddCustomer()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Add</button>
+      <div><div class="page-title">Customers</div><div class="page-sub">${customers.length} active</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openAddCustomer()">+ Add</button>
     </div>
     <div class="search-wrap">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-      <input class="search-input" placeholder="Search name, address or postcode..." oninput="filterCustomers(this.value)">
+      <input class="search-input" placeholder="Search name, address, postcode…" oninput="filterCustomers(this.value)">
     </div>
     <div class="card-list" id="customerList">${customerCards(customers)}</div>`;
 }
 
 function customerCards(list){
-  if(!list.length)return'<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg><div class="empty-title">No customers found</div></div>';
-  return list.map(c=>`<div class="card" onclick="showCustomer('${c.id}')"><div class="card-avatar">${c.name.charAt(0).toUpperCase()}</div><div class="card-info"><div class="card-name">${esc(c.name)}</div><div class="card-sub">${esc(c.address)}${c.postcode?', '+esc(c.postcode):''}</div></div>${c.phone?`<div style="font-size:12px;color:var(--text-muted);flex-shrink:0">${esc(c.phone)}</div>`:''}</div>`).join('');
+  if(!list.length)return'<div class="empty"><div class="empty-title">No customers found</div></div>';
+  return list.map(c=>`<div class="card" onclick="showCustomer('${c.id}')">
+    <div class="card-avatar">${c.name.charAt(0).toUpperCase()}</div>
+    <div class="card-info"><div class="card-name">${esc(c.name)}</div><div class="card-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div></div>
+    ${c.phone?`<div style="font-size:13px;color:var(--text-muted);flex-shrink:0">${esc(c.phone)}</div>`:''}
+  </div>`).join('');
 }
 
 function filterCustomers(q){
   const l=q.toLowerCase();
   document.getElementById('customerList').innerHTML=customerCards(customers.filter(c=>
-    c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)
-  ));
+    c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)));
 }
 
 async function showCustomer(id){
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading...</div>';
+  el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let c=customers.find(x=>x.id===id);
   if(!c){try{[c]=await sb(`wc_customers?id=eq.${id}`);}catch(e){}}
-  if(!c){el.innerHTML='<div class="empty"><div class="empty-title">Customer not found</div></div>';return;}
+  if(!c){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
   el.innerHTML=`
     <button class="back-btn" onclick="renderCustomers()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Customers</button>
     <div class="page-header">
-      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${esc(c.address)}${c.postcode?', '+esc(c.postcode):''}</div></div>
+      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div></div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="openQuoteForCustomer('${c.id}')">Quote</button>
-        <button class="btn btn-ghost" onclick="openEditCustomer('${c.id}')">Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="openQuoteForCustomer('${c.id}')">Quote</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditCustomer('${c.id}')">Edit</button>
       </div>
     </div>
     <div class="detail-section">
       <div class="detail-section-header">Contact</div>
-      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.phone)}</span></div>`:''}
+      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><a href="tel:${esc(c.phone)}" class="detail-value" style="color:var(--gold)">${esc(c.phone)}</a></div>`:''}
       ${c.whatsapp_number?`<div class="detail-row"><span class="detail-label">WhatsApp</span><span class="detail-value">${esc(c.whatsapp_number)}</span></div>`:''}
-      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${esc(c.email)}</span></div>`:''}
-      ${c.customer_reference?`<div class="detail-row"><span class="detail-label">Reference</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px">${esc(c.customer_reference)}</span></div>`:''}
+      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><a href="mailto:${esc(c.email)}" class="detail-value" style="color:var(--gold)">${esc(c.email)}</a></div>`:''}
+      ${c.customer_reference?`<div class="detail-row"><span class="detail-label">Ref</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px">${esc(c.customer_reference)}</span></div>`:''}
       ${!c.phone&&!c.whatsapp_number&&!c.email?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No contact details</span></div>':''}
     </div>
     ${c.balance&&parseFloat(c.balance)!==0?`<div class="detail-section"><div class="detail-section-header">Account</div><div class="detail-row"><span class="detail-label">Balance</span><span class="detail-value" style="color:${parseFloat(c.balance)>0?'var(--done)':'var(--danger)'}">£${parseFloat(c.balance).toFixed(2)}</span></div></div>`:''}
-    ${c.notes?`<div class="detail-section"><div class="detail-section-header">Notes</div><div class="detail-row"><span style="color:var(--warn)">&#9888; ${esc(c.notes)}</span></div></div>`:''}
+    ${c.notes?`<div class="detail-section"><div class="detail-section-header">Notes</div><div class="detail-row"><span style="color:var(--warn);font-size:14px">⚠ ${esc(c.notes)}</span></div></div>`:''}
     <div class="detail-section">
-      <div class="detail-section-header">Jobs<button class="btn btn-primary btn-sm" onclick="openAddJob('${c.id}')">+ Schedule job</button></div>
+      <div class="detail-section-header">Jobs<button class="btn btn-primary btn-sm" onclick="openAddJob('${c.id}')">+ Schedule</button></div>
       <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-danger" onclick="archiveCustomer('${c.id}')">Archive customer</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="archiveCustomer('${c.id}')">Archive customer</button>
     </div>`;
   loadCustomerJobs(id);
 }
@@ -589,18 +840,15 @@ async function loadCustomerJobs(customerId){
   try{
     const jobs=await sb(`wc_jobs?customer_id=eq.${customerId}&order=next_due.desc.nullslast,created_at.desc&limit=20`);
     const el=document.getElementById('customerJobs');if(!el)return;
-    if(!jobs.length){el.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic">No jobs yet — tap Schedule job to add one.</span></div>';return;}
-    el.innerHTML=jobs.map(j=>`
-      <div class="detail-row">
-        <div>
-          <div style="font-size:13px;font-weight:500;color:var(--white)">${fmtShort(j.next_due||j.scheduled_date)}</div>
-          <div style="font-size:11px;color:var(--text-muted)">${j.service_type||j.frequency||''}${j.round_name?' · '+j.round_name:''}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--white)">£${parseFloat(j.price).toFixed(2)}</span>
-          <span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span>
-        </div>
-      </div>`).join('');
+    if(!jobs.length){el.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic">No jobs yet</span></div>';return;}
+    el.innerHTML=jobs.map(j=>`<div class="detail-row">
+      <div><div style="font-size:14px;font-weight:500;color:var(--white)">${fmtShort(j.next_due||j.scheduled_date)}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${j.service_type||j.frequency||''}${j.round_name?' · '+j.round_name:''}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--white)">£${parseFloat(j.price||0).toFixed(2)}</span>
+        <span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span>
+      </div>
+    </div>`).join('');
   }catch(e){}
 }
 
@@ -627,7 +875,7 @@ async function saveCustomer(){
   const name=document.getElementById('f-name').value.trim();
   const address=document.getElementById('f-address').value.trim();
   const postcode=document.getElementById('f-postcode').value.trim();
-  if(!name||!address||!postcode){showToast('Name, address and postcode are required','error');return;}
+  if(!name||!address||!postcode){showToast('Name, address and postcode required','error');return;}
   const payload={name,address,postcode,
     phone:document.getElementById('f-phone').value.trim()||null,
     whatsapp_number:document.getElementById('f-whatsapp').value.trim()||null,
@@ -645,18 +893,14 @@ async function saveCustomer(){
   }catch(e){showToast(e.message,'error');}
 }
 async function archiveCustomer(id){
-  if(!confirm("Archive this customer? They won't appear in the active list."))return;
+  if(!confirm('Archive this customer?'))return;
   try{
     await sb(`wc_customers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:false}),prefer:'return=minimal'});
-    showToast('Customer archived','success');renderCustomers();
+    showToast('Archived','success');renderCustomers();
   }catch(e){showToast(e.message,'error');}
 }
 
-// ===== JOB MODAL =====
-async function loadUsers(){
-  if(wcUsers.length)return;
-  try{wcUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
-}
+// ── JOB MODAL ─────────────────────────────────────────────────────────────────
 async function openAddJob(customerId){
   jobCustomerId=customerId;
   document.getElementById('j-price').value='';
@@ -673,261 +917,121 @@ async function openAddJob(customerId){
 }
 async function saveJob(){
   const price=parseFloat(document.getElementById('j-price').value);
-  const frequency=document.getElementById('j-frequency').value;
   const date=document.getElementById('j-date').value;
-  const assigned=document.getElementById('j-assigned').value||null;
-  const notes=document.getElementById('j-notes').value.trim()||null;
-  const service_type=document.getElementById('j-service').value||null;
-  const round_name=document.getElementById('j-round').value||null;
-  const day_of_week=document.getElementById('j-day').value||null;
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
   try{
     await sb('wc_jobs',{method:'POST',body:JSON.stringify({
-      customer_id:jobCustomerId,business_id:BUSINESS_ID,
-      price,frequency,scheduled_date:date,next_due:date,
-      assigned_to:assigned,notes,status:'scheduled',
-      service_type,round_name,day_of_week,round_order:0
+      customer_id:jobCustomerId,business_id:BUSINESS_ID,price,
+      frequency:document.getElementById('j-frequency').value||'one-off',
+      scheduled_date:date,next_due:date,
+      assigned_to:document.getElementById('j-assigned').value||null,
+      notes:document.getElementById('j-notes').value.trim()||null,
+      service_type:document.getElementById('j-service').value||null,
+      round_name:document.getElementById('j-round').value||null,
+      day_of_week:document.getElementById('j-day').value||null,
+      status:'scheduled',round_order:0
     }),prefer:'return=minimal'});
     showToast('Job scheduled','success');closeModal('jobModal');loadCustomerJobs(jobCustomerId);
   }catch(e){showToast(e.message,'error');}
 }
 
-// ===== TODAY'S ROUND =====
-async function renderRound(){
-  const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading round...</div>';
-  let jobs=[];
-  try{
-    // Query by next_due — the primary scheduling field from Squeegee data
-    let query=`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`;
-    jobs=await sb(query);
-    // Also pick up any jobs scheduled by date (manually added via the app)
-    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}&select=*,wc_customers(name,address,postcode,notes)`);
-    jobs=[...jobs,...byDate];
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load round</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
-  // Apply round filter
-  const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
-
-  const done=filtered.filter(j=>j.status==='done').length;
-  const skipped=filtered.filter(j=>j.status==='skipped'||j.status==='cant-access').length;
-  const remaining=filtered.filter(j=>j.status==='scheduled').length;
-  const earned=filtered.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
-  const isToday=roundDate===todayStr();
-
-  // Get unique rounds for filter dropdown
-  const rounds=[...new Set(jobs.map(j=>j.round_name).filter(Boolean))].sort();
-
-  el.innerHTML=`
-    <div class="page-header">
-      <div class="page-title">Today's Round</div>
-      <div style="font-size:13px;color:var(--text-muted)">${filtered.length} job${filtered.length!==1?'s':''}</div>
-    </div>
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <div class="date-display">${fmtDate(roundDate)}</div>
-      ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:52px"></div>'}
-      <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
-    </div>
-    ${rounds.length>1?`<div class="round-filter">
-      <select onchange="roundFilter=this.value;renderRound()">
-        <option value="">All rounds (${jobs.length})</option>
-        ${rounds.map(r=>`<option value="${esc(r)}" ${roundFilter===r?'selected':''}>${esc(r)}</option>`).join('')}
-      </select>
-    </div>`:''}
-    <div class="round-summary">
-      <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="font-size:13px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
-    </div>
-    <div class="round-list">${filtered.length
-      ? filtered.map((j,i)=>roundCard(j,i+1)).join('')
-      : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Jobs from Squeegee appear on their next due date.</div></div>`
-    }</div>`;
-}
-
-function roundCard(j,num){
-  const c=j.wc_customers||{};
-  const isSched=j.status==='scheduled',isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access';
-  const bStyle=isDone?'border-color:var(--done);':isSkip?'border-color:var(--warn);':isCant?'border-color:var(--danger);':'';
-  const numStyle=isDone?'background:var(--done-light);border-color:var(--done);color:var(--done);':'';
-  const opacity=isDone||isSkip||isCant?'opacity:.75;':'';
-  const svcLabel=j.service_type?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(j.service_type)}${j.round_name?' · <span style="color:var(--navy-400)">'+esc(j.round_name)+'</span>':''}</div>`:'';
-  const actions=isSched
-    ?`<div style="display:flex;gap:6px;padding:0 14px 12px">
-        <button class="btn btn-done btn-sm" style="flex:1;justify-content:center" onclick="markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="openSkip('${j.id}','skipped')">Skip</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="openSkip('${j.id}','cant-access')">No access</button>
-      </div>`
-    :`<div style="padding:0 14px 12px"><button class="btn btn-ghost btn-sm" onclick="undoStatus('${j.id}')">Undo</button></div>`;
-  return`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;${bStyle}${opacity}">
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px">
-      <div style="width:26px;height:26px;border-radius:50%;background:var(--navy-700);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--text-muted);flex-shrink:0;${numStyle}">${isDone?'✓':num}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:600;color:var(--white)">${esc(c.name||'Unknown')}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-        ${svcLabel}
-        ${c.notes?`<div style="font-size:11px;color:var(--warn);margin-top:3px;font-weight:500">&#9888; ${esc(c.notes)}</div>`:''}
-        ${j.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">&#128221; ${esc(j.notes)}</div>`:''}
-      </div>
-      <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold);flex-shrink:0">£${parseFloat(j.price||0).toFixed(2)}</div>
-    </div>${actions}</div>`;
-}
-
-function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
-
-async function markDone(id){
-  try{
-    await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:roundDate}),prefer:'return=minimal'});
-    showToast('Marked as done ✓','success');renderRound();
-  }catch(e){showToast(e.message,'error');}
-}
-function openSkip(id,status){
-  skipJobId=id;skipStatus=status;
-  document.getElementById('skipModalTitle').textContent=status==='skipped'?'Skip job':"Can't access";
-  document.getElementById('skip-notes').value='';
-  document.getElementById('skipConfirmBtn').textContent=status==='skipped'?'Skip job':"Can't access";
-  document.getElementById('skipModal').classList.add('open');
-}
-async function confirmSkip(){
-  const notes=document.getElementById('skip-notes').value.trim()||null;
-  try{
-    await sb(`wc_jobs?id=eq.${skipJobId}`,{method:'PATCH',body:JSON.stringify({status:skipStatus,notes}),prefer:'return=minimal'});
-    showToast(skipStatus==='skipped'?'Job skipped':'Marked no access','success');
-    closeModal('skipModal');renderRound();
-  }catch(e){showToast(e.message,'error');}
-}
-async function undoStatus(id){
-  try{
-    await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'scheduled',last_done:null,notes:null}),prefer:'return=minimal'});
-    showToast('Status reset','success');renderRound();
-  }catch(e){showToast(e.message,'error');}
-}
-
-// ===== QUOTES =====
-let quotes=[], quoteFilter='all', editingQuoteId=null;
-
+// ── QUOTES ────────────────────────────────────────────────────────────────────
 async function renderQuotes(){
+  document.getElementById('topbarPage').textContent='Quotes';
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading quotes...</div>';
-  try{
-    quotes=await sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=*,wc_customers(name,address,postcode)`);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load quotes</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{quotes=await sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=*,wc_customers(name,address,postcode)`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   const counts={all:quotes.length,draft:0,sent:0,accepted:0,declined:0};
-  quotes.forEach(q=>{ if(counts[q.status]!==undefined) counts[q.status]++; });
+  quotes.forEach(q=>{if(counts[q.status]!==undefined)counts[q.status]++;});
   const filtered=quoteFilter==='all'?quotes:quotes.filter(q=>q.status===quoteFilter);
-
   el.innerHTML=`
     <div class="page-header">
-      <div><div class="page-title">Quotes</div><div class="page-sub">${counts.all} total · ${counts.sent} sent · ${counts.accepted} accepted</div></div>
-      <button class="btn btn-primary" onclick="openNewQuote()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>New quote</button>
+      <div><div class="page-title">Quotes</div><div class="page-sub">${counts.all} total</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openNewQuote()">+ New</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       ${['all','draft','sent','accepted','declined'].map(f=>`
-        <button onclick="quoteFilter='${f}';renderQuotes()" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${quoteFilter===f?'var(--gold)':'var(--navy-800)'};color:${quoteFilter===f?'var(--navy-900)':'var(--text-soft)'}">
+        <button onclick="quoteFilter='${f}';renderQuotes()" style="padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${quoteFilter===f?'var(--gold)':'var(--navy-800)'};color:${quoteFilter===f?'var(--navy-900)':'var(--text-soft)'}">
           ${f.charAt(0).toUpperCase()+f.slice(1)} (${counts[f]||0})
         </button>`).join('')}
     </div>
-    <div class="card-list">${filtered.length ? filtered.map(q=>quoteCard(q)).join('') : '<div class="empty"><div class="empty-title">No quotes</div><div class="empty-sub">Create your first quote with the button above.</div></div>'}</div>`;
+    <div class="card-list">${filtered.length?filtered.map(q=>quoteCard(q)).join(''):'<div class="empty"><div class="empty-title">No quotes</div></div>'}</div>`;
 }
-
 function quoteCard(q){
   const c=q.wc_customers||{};
-  const statusColors={draft:'var(--text-muted)',sent:'var(--navy-400)',accepted:'var(--done)',declined:'var(--danger)'};
-  const statusBg={draft:'rgba(90,122,158,.15)',sent:'rgba(74,122,181,.2)',accepted:'var(--done-light)',declined:'var(--danger-light)'};
-  const col=statusColors[q.status]||'var(--text-muted)';
-  const bg=statusBg[q.status]||'transparent';
-  const svcLine=q.service_type?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(q.service_type)}${q.frequency&&q.frequency!=='one-off'?' · '+q.frequency:''}</div>`:'';
+  const cols={draft:'var(--text-muted)',sent:'var(--navy-400)',accepted:'var(--done)',declined:'var(--danger)'};
+  const bgs={draft:'rgba(90,122,158,.15)',sent:'rgba(74,122,181,.2)',accepted:'var(--done-light)',declined:'var(--danger-light)'};
+  const col=cols[q.status]||'var(--text-muted)',bg=bgs[q.status]||'transparent';
   return`<div class="card" onclick="showQuote('${q.id}')">
     <div class="card-avatar" style="background:${bg};color:${col}">${q.status==='accepted'?'✓':q.status==='declined'?'✗':'£'}</div>
-    <div class="card-info">
-      <div class="card-name">${esc(c.name||'Unknown customer')}</div>
-      <div class="card-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      ${svcLine}
+    <div class="card-info"><div class="card-name">${esc(c.name||'Unknown')}</div>
+      <div class="card-sub">${q.service_type?esc(q.service_type):(c.address?esc(c.address):'')}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)">£${parseFloat(q.price||0).toFixed(2)}</div>
-      <div style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${q.status}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--gold)">£${parseFloat(q.price||0).toFixed(2)}</div>
+      <div style="font-size:11px;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${q.status}</div>
     </div>
   </div>`;
 }
-
 async function showQuote(id){
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let q=quotes.find(x=>x.id===id);
   if(!q){try{[q]=await sb(`wc_quotes?id=eq.${id}&select=*,wc_customers(name,address,postcode,phone,email)`);}catch(e){}}
-  if(!q){el.innerHTML='<div class="empty"><div class="empty-title">Quote not found</div></div>';return;}
+  if(!q){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
   const c=q.wc_customers||{};
-
-  const actionBtns = q.status==='draft'
-    ? `<button class="btn btn-primary" onclick="markQuoteSent('${q.id}')">Mark as sent</button>
-       <button class="btn btn-ghost" onclick="openEditQuote('${q.id}')">Edit</button>`
-    : q.status==='sent'
-    ? `<button class="btn btn-done" onclick="acceptQuote('${q.id}')">✓ Accept → Create job</button>
-       <button class="btn btn-ghost" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="declineQuote('${q.id}')">Decline</button>
-       <button class="btn btn-ghost" onclick="openEditQuote('${q.id}')">Edit</button>`
-    : q.status==='accepted'
-    ? `<button class="btn btn-ghost" onclick="openEditQuote('${q.id}')">Edit</button>`
-    : `<button class="btn btn-ghost" onclick="reopenQuote('${q.id}')">Reopen as draft</button>`;
-
+  const actionBtns=q.status==='draft'
+    ?`<button class="btn btn-primary btn-full" onclick="markQuoteSent('${q.id}')">Mark as sent</button>
+       <button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
+    :q.status==='sent'
+    ?`<button class="btn btn-done btn-full" onclick="acceptQuote('${q.id}')">✓ Accept → Create job</button>
+       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="declineQuote('${q.id}')">Decline</button>
+       <button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
+    :q.status==='accepted'
+    ?`<button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
+    :`<button class="btn btn-ghost btn-full" onclick="reopenQuote('${q.id}')">Reopen as draft</button>`;
   el.innerHTML=`
     <button class="back-btn" onclick="renderQuotes()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Quotes</button>
     <div class="page-header">
-      <div>
-        <div class="page-title">${esc(c.name||'Unknown')}</div>
-        <div class="page-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      </div>
-      <span style="padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:${q.status==='accepted'?'var(--done-light)':q.status==='declined'?'var(--danger-light)':q.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${q.status==='accepted'?'var(--done)':q.status==='declined'?'var(--danger)':q.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${q.status}</span>
+      <div><div class="page-title">${esc(c.name||'Unknown')}</div><div class="page-sub">${esc(c.address||'')}</div></div>
+      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${q.status==='accepted'?'var(--done-light)':q.status==='declined'?'var(--danger-light)':q.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${q.status==='accepted'?'var(--done)':q.status==='declined'?'var(--danger)':q.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${q.status}</span>
     </div>
     <div class="detail-section">
       <div class="detail-section-header">Quote details</div>
-      <div class="detail-row"><span class="detail-label">Price</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:16px">£${parseFloat(q.price||0).toFixed(2)}</span></div>
+      <div class="detail-row"><span class="detail-label">Price</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:18px">£${parseFloat(q.price||0).toFixed(2)}</span></div>
       ${q.service_type?`<div class="detail-row"><span class="detail-label">Service</span><span class="detail-value">${esc(q.service_type)}</span></div>`:''}
       <div class="detail-row"><span class="detail-label">Frequency</span><span class="detail-value">${q.frequency||'one-off'}</span></div>
       ${q.round_name?`<div class="detail-row"><span class="detail-label">Round</span><span class="detail-value">${esc(q.round_name)}</span></div>`:''}
-      ${q.day_of_week?`<div class="detail-row"><span class="detail-label">Day</span><span class="detail-value">${esc(q.day_of_week)}</span></div>`:''}
       ${q.notes?`<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value" style="white-space:pre-wrap">${esc(q.notes)}</span></div>`:''}
-      <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${fmtShort(q.created_at?.split('T')[0])}</span></div>
-      ${q.sent_at?`<div class="detail-row"><span class="detail-label">Sent</span><span class="detail-value">${fmtShort(q.sent_at.split('T')[0])}</span></div>`:''}
-      ${q.accepted_at?`<div class="detail-row"><span class="detail-label">Accepted</span><span class="detail-value" style="color:var(--done)">${fmtShort(q.accepted_at.split('T')[0])}</span></div>`:''}
-      ${q.declined_at?`<div class="detail-row"><span class="detail-label">Declined</span><span class="detail-value" style="color:var(--danger)">${fmtShort(q.declined_at.split('T')[0])}</span></div>`:''}
     </div>
-    ${c.phone||c.email?`<div class="detail-section"><div class="detail-section-header">Customer contact</div>
-      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.phone)}</span></div>`:''}
-      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${esc(c.email)}</span></div>`:''}
-    </div>`:''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">${actionBtns}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">${actionBtns}</div>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="deleteQuote('${q.id}')">Delete quote</button>
     </div>`;
 }
-
 function toggleInlineCustomer(){
-  const form=document.getElementById('inlineCustomerForm');
+  const form=document.getElementById('inlineCustomerForm'),btn=document.getElementById('newCustBtn');
   const isOpen=form.style.display!=='none';
   form.style.display=isOpen?'none':'block';
-  document.getElementById('newCustBtn').textContent=isOpen?'+ New':'✕';
-  if(!isOpen){['nc-name','nc-address','nc-postcode','nc-phone','nc-whatsapp','nc-email'].forEach(id=>document.getElementById(id).value='');}
+  btn.textContent=isOpen?'+ New':'✕';
+  if(!isOpen){['nc-name','nc-address','nc-postcode','nc-phone','nc-whatsapp','nc-email'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});}
 }
-
 async function saveInlineCustomer(){
   const name=document.getElementById('nc-name').value.trim();
   const address=document.getElementById('nc-address').value.trim();
   const postcode=document.getElementById('nc-postcode').value.trim();
   if(!name||!address||!postcode){showToast('Name, address and postcode required','error');return;}
-  const payload={name,address,postcode,
-    phone:document.getElementById('nc-phone').value.trim()||null,
-    whatsapp_number:document.getElementById('nc-whatsapp').value.trim()||null,
-    email:document.getElementById('nc-email').value.trim()||null,
-    active:true,business_id:BUSINESS_ID};
   try{
-    const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify(payload),prefer:'return=representation'});
+    const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify({
+      name,address,postcode,
+      phone:document.getElementById('nc-phone').value.trim()||null,
+      whatsapp_number:document.getElementById('nc-whatsapp').value.trim()||null,
+      email:document.getElementById('nc-email').value.trim()||null,
+      active:true,business_id:BUSINESS_ID
+    }),prefer:'return=representation'});
     customers=[...customers,newCust].sort((a,b)=>a.name.localeCompare(b.name));
-    // Re-populate dropdown and select the new customer
     const sel=document.getElementById('q-customer');
     sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
     sel.value=newCust.id;
@@ -935,7 +1039,6 @@ async function saveInlineCustomer(){
     showToast(`${name} added ✓`,'success');
   }catch(e){showToast(e.message,'error');}
 }
-
 async function openNewQuote(){
   editingQuoteId=null;
   document.getElementById('quoteModalTitle').textContent='New Quote';
@@ -945,13 +1048,10 @@ async function openNewQuote(){
   const sel=document.getElementById('q-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   ['q-price','q-notes'].forEach(f=>document.getElementById(f).value='');
-  document.getElementById('q-frequency').value='4-weekly';
-  document.getElementById('q-day').value='';
-  populateServiceSelect('q-service');
-  populateRoundSelect('q-round');
+  document.getElementById('q-frequency').value='4-weekly';document.getElementById('q-day').value='';
+  populateServiceSelect('q-service');populateRoundSelect('q-round');
   document.getElementById('quoteModal').classList.add('open');
 }
-
 async function openEditQuote(id){
   editingQuoteId=id;
   const q=quotes.find(x=>x.id===id);if(!q)return;
@@ -966,42 +1066,30 @@ async function openEditQuote(id){
   document.getElementById('q-frequency').value=q.frequency||'4-weekly';
   document.getElementById('q-day').value=q.day_of_week||'';
   document.getElementById('q-notes').value=q.notes||'';
-  populateServiceSelect('q-service',q.service_type||'');
-  populateRoundSelect('q-round',q.round_name||'');
+  populateServiceSelect('q-service',q.service_type||'');populateRoundSelect('q-round',q.round_name||'');
   document.getElementById('quoteModal').classList.add('open');
 }
-
-async function openQuoteForCustomer(customerId){
-  await openNewQuote();
-  document.getElementById('q-customer').value=customerId;
-}
-
+async function openQuoteForCustomer(customerId){await openNewQuote();document.getElementById('q-customer').value=customerId;}
 async function saveQuote(status){
   const customerId=document.getElementById('q-customer').value;
   const price=parseFloat(document.getElementById('q-price').value);
   if(!customerId){showToast('Select a customer','error');return;}
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
-  const payload={
-    customer_id:customerId,
-    business_id:BUSINESS_ID,
-    price,
-    status,
+  const payload={customer_id:customerId,business_id:BUSINESS_ID,price,status,
     frequency:document.getElementById('q-frequency').value||'one-off',
     service_type:document.getElementById('q-service').value||null,
     round_name:document.getElementById('q-round').value||null,
     day_of_week:document.getElementById('q-day').value||null,
     notes:document.getElementById('q-notes').value.trim()||null,
-    sent_at:status==='sent'?new Date().toISOString():null,
-  };
+    sent_at:status==='sent'?new Date().toISOString():null};
   try{
     if(editingQuoteId){
       await sb(`wc_quotes?id=eq.${editingQuoteId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
       showToast('Quote updated','success');
     }else{
       await sb('wc_quotes',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
-      showToast(status==='sent'?'Quote saved':'Quote saved as draft','success');
+      showToast(status==='sent'?'Quote saved':'Draft saved','success');
     }
-    // Fire n8n delivery webhook if sending
     if(status==='sent'){
       const customer=customers.find(c=>c.id===customerId)||{};
       fireQuoteWebhook({customer,price,service_type:payload.service_type,frequency:payload.frequency,notes:payload.notes});
@@ -1009,7 +1097,6 @@ async function saveQuote(status){
     closeModal('quoteModal');renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
-
 async function fireQuoteWebhook({customer,price,service_type,frequency,notes}){
   try{
     await fetch(N8N_QUOTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -1018,424 +1105,283 @@ async function fireQuoteWebhook({customer,price,service_type,frequency,notes}){
       customer_email:customer.email||'',
       price,service_type:service_type||'Window Cleaning',frequency:frequency||'one-off',notes:notes||''
     })});
-    showToast('Quote sent via WhatsApp & email ✓','success');
-  }catch(e){console.warn('Webhook failed:',e);}
+    showToast('Sent via WhatsApp & email ✓','success');
+  }catch(e){console.warn('Webhook failed',e);}
 }
-
 async function markQuoteSent(id){
   const q=quotes.find(x=>x.id===id);
   try{
     await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'sent',sent_at:new Date().toISOString()}),prefer:'return=minimal'});
-    showToast('Quote marked as sent','success');
-    if(q){
-      const customer=customers.find(c=>c.id===q.customer_id)||q.wc_customers||{};
-      fireQuoteWebhook({customer,price:q.price,service_type:q.service_type,frequency:q.frequency,notes:q.notes});
-    }
+    showToast('Marked as sent','success');
+    if(q){const customer=customers.find(c=>c.id===q.customer_id)||q.wc_customers||{};fireQuoteWebhook({customer,price:q.price,service_type:q.service_type,frequency:q.frequency,notes:q.notes});}
     renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
-
 async function acceptQuote(id){
-  const q=quotes.find(x=>x.id===id);
-  if(!q){showToast('Quote not found','error');return;}
-  if(!confirm('Accept this quote and create a scheduled job?'))return;
+  const q=quotes.find(x=>x.id===id);if(!q)return;
+  if(!confirm('Accept and create job?'))return;
   try{
-    // 1. Mark quote accepted
     await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'accepted',accepted_at:new Date().toISOString()}),prefer:'return=minimal'});
-    // 2. Create the job
-    const today=todayStr();
     await sb('wc_jobs',{method:'POST',body:JSON.stringify({
-      business_id:BUSINESS_ID,
-      customer_id:q.customer_id,
-      price:q.price,
-      frequency:q.frequency||'one-off',
-      service_type:q.service_type||null,
-      round_name:q.round_name||null,
-      day_of_week:q.day_of_week||null,
-      notes:q.notes||null,
-      status:'scheduled',
-      next_due:today,
-      scheduled_date:today,
-      round_order:0,
+      business_id:BUSINESS_ID,customer_id:q.customer_id,price:q.price,
+      frequency:q.frequency||'one-off',service_type:q.service_type||null,
+      round_name:q.round_name||null,day_of_week:q.day_of_week||null,
+      notes:q.notes||null,status:'scheduled',next_due:todayStr(),scheduled_date:todayStr(),round_order:0
     }),prefer:'return=minimal'});
-    showToast('Quote accepted — job created ✓','success');
-    renderQuotes();
+    showToast('Accepted — job created ✓','success');renderQuotes();
   }catch(e){showToast(e.message,'error');}
 }
-
 async function declineQuote(id){
-  if(!confirm('Mark this quote as declined?'))return;
-  try{
-    await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'declined',declined_at:new Date().toISOString()}),prefer:'return=minimal'});
-    showToast('Quote declined','success');renderQuotes();
-  }catch(e){showToast(e.message,'error');}
+  if(!confirm('Decline this quote?'))return;
+  try{await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'declined',declined_at:new Date().toISOString()}),prefer:'return=minimal'});showToast('Declined','success');renderQuotes();}catch(e){showToast(e.message,'error');}
 }
-
 async function reopenQuote(id){
-  try{
-    await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'draft',declined_at:null}),prefer:'return=minimal'});
-    showToast('Quote reopened as draft','success');renderQuotes();
-  }catch(e){showToast(e.message,'error');}
+  try{await sb(`wc_quotes?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'draft',declined_at:null}),prefer:'return=minimal'});showToast('Reopened','success');renderQuotes();}catch(e){showToast(e.message,'error');}
 }
-
 async function deleteQuote(id){
-  if(!confirm('Delete this quote permanently?'))return;
-  try{
-    await sb(`wc_quotes?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
-    showToast('Quote deleted','success');renderQuotes();
-  }catch(e){showToast(e.message,'error');}
+  if(!confirm('Delete this quote?'))return;
+  try{await sb(`wc_quotes?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});showToast('Deleted','success');renderQuotes();}catch(e){showToast(e.message,'error');}
 }
 
-// ===== COMING SOON =====
-// ===== INVOICES =====
-let invoices=[], invoiceFilter='all', editingInvoiceId=null;
-
+// ── INVOICES ──────────────────────────────────────────────────────────────────
 async function renderInvoices(){
+  document.getElementById('topbarPage').textContent='Invoices';
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading invoices...</div>';
-  try{
-    invoices=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load invoices</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{invoices=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   const counts={all:invoices.length,draft:0,sent:0,paid:0,void:0};
-  invoices.forEach(i=>{ if(counts[i.status]!==undefined) counts[i.status]++; });
+  invoices.forEach(i=>{if(counts[i.status]!==undefined)counts[i.status]++;});
   const overdueCount=invoices.filter(i=>isOverdue(i)).length;
-  const filtered=invoiceFilter==='all'?invoices:invoiceFilter==='overdue'?invoices.filter(i=>isOverdue(i)):invoices.filter(i=>i.status===invoiceFilter);
+  const filtered=invoiceFilter==='overdue'?invoices.filter(i=>isOverdue(i)):invoiceFilter==='all'?invoices:invoices.filter(i=>i.status===invoiceFilter);
   const totalEarned=invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.amount||0),0);
   const totalOutstanding=invoices.filter(i=>i.status==='sent').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-
   el.innerHTML=`
     <div class="page-header">
-      <div><div class="page-title">Invoices</div>
-        <div class="page-sub">£${totalEarned.toFixed(2)} paid · £${totalOutstanding.toFixed(2)} outstanding</div>
-      </div>
-      <button class="btn btn-primary" onclick="openNewInvoice()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>New invoice</button>
+      <div><div class="page-title">Invoices</div><div class="page-sub">£${totalEarned.toFixed(2)} paid · £${totalOutstanding.toFixed(2)} outstanding</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openNewInvoice()">+ New</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       ${['all','overdue','draft','sent','paid','void'].map(f=>{
         const cnt=f==='overdue'?overdueCount:f==='all'?counts.all:(counts[f]||0);
-        const isActive=invoiceFilter===f;
-        const isDanger=f==='overdue'&&cnt>0;
-        return`<button onclick="invoiceFilter='${f}';renderInvoices()" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid ${isDanger&&!isActive?'var(--danger)':'var(--border)'};background:${isActive?(isDanger?'var(--danger)':'var(--gold)'):'var(--navy-800)'};color:${isActive?(isDanger?'var(--white)':'var(--navy-900)'):(isDanger?'var(--danger)':'var(--text-soft)')}">
-          ${f.charAt(0).toUpperCase()+f.slice(1)} (${cnt})
-        </button>`;}).join('')}
+        const isActive=invoiceFilter===f,isDanger=f==='overdue'&&cnt>0;
+        return`<button onclick="invoiceFilter='${f}';renderInvoices()" style="padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid ${isDanger&&!isActive?'var(--danger)':'var(--border)'};background:${isActive?(isDanger?'var(--danger)':'var(--gold)'):'var(--navy-800)'};color:${isActive?(isDanger?'var(--white)':'var(--navy-900)'):(isDanger?'var(--danger)':'var(--text-soft)')}">
+          ${f.charAt(0).toUpperCase()+f.slice(1)} (${cnt})</button>`;}).join('')}
     </div>
-    <div class="card-list">${filtered.length ? filtered.map(i=>invoiceCard(i)).join('') : '<div class="empty"><div class="empty-title">No invoices</div><div class="empty-sub">Create your first invoice with the button above.</div></div>'}</div>`;
+    <div class="card-list">${filtered.length?filtered.map(i=>invoiceCard(i)).join(''):'<div class="empty"><div class="empty-title">No invoices</div></div>'}</div>`;
 }
-
-function isOverdue(inv){
-  return inv.status==='sent' && inv.due_date && inv.due_date < todayStr();
-}
-
 function invoiceCard(inv){
   const c=inv.wc_customers||{};
   const overdue=isOverdue(inv);
-  const statusColors={draft:'var(--text-muted)',sent:overdue?'var(--danger)':'var(--navy-400)',paid:'var(--done)',void:'var(--text-muted)'};
-  const statusBg={draft:'rgba(90,122,158,.15)',sent:overdue?'var(--danger-light)':'rgba(74,122,181,.2)',paid:'var(--done-light)',void:'rgba(90,122,158,.15)'};
-  const col=statusColors[inv.status]||'var(--text-muted)';
-  const bg=statusBg[inv.status]||'transparent';
-  const statusLabel=overdue?'overdue':inv.status;
-  const borderStyle=overdue?'border-color:var(--danger);':'';
-  return`<div class="card" onclick="showInvoice('${inv.id}')" style="${borderStyle}">
+  const cols={draft:'var(--text-muted)',sent:overdue?'var(--danger)':'var(--navy-400)',paid:'var(--done)',void:'var(--text-muted)'};
+  const bgs={draft:'rgba(90,122,158,.15)',sent:overdue?'var(--danger-light)':'rgba(74,122,181,.2)',paid:'var(--done-light)',void:'rgba(90,122,158,.15)'};
+  const col=cols[inv.status]||'var(--text-muted)',bg=bgs[inv.status]||'transparent';
+  return`<div class="card" onclick="showInvoice('${inv.id}')" style="${overdue?'border-color:var(--danger);':''}">
     <div class="card-avatar" style="background:${bg};color:${col}">${inv.status==='paid'?'✓':overdue?'!':'£'}</div>
-    <div class="card-info">
-      <div class="card-name">${esc(c.name||'Unknown customer')}</div>
-      <div class="card-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      ${inv.due_date?`<div style="font-size:11px;color:${overdue?'var(--danger)':'var(--text-muted)'};margin-top:2px">${overdue?'⚠ Overdue since ':'Due '}${fmtShort(inv.due_date)}</div>`:''}
+    <div class="card-info"><div class="card-name">${esc(c.name||'Unknown')}</div>
+      <div class="card-sub">${esc(c.address||'')}</div>
+      ${inv.due_date?`<div style="font-size:12px;color:${overdue?'var(--danger)':'var(--text-muted)'};margin-top:2px">${overdue?'⚠ Overdue since ':'Due '}${fmtShort(inv.due_date)}</div>`:''}
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)">£${parseFloat(inv.amount||0).toFixed(2)}</div>
-      <div style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${statusLabel}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--gold)">£${parseFloat(inv.amount||0).toFixed(2)}</div>
+      <div style="font-size:11px;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${overdue?'overdue':inv.status}</div>
     </div>
   </div>`;
 }
-
 async function showInvoice(id){
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let inv=invoices.find(x=>x.id===id);
   if(!inv){try{[inv]=await sb(`wc_invoices?id=eq.${id}&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);}catch(e){}}
-  if(!inv){el.innerHTML='<div class="empty"><div class="empty-title">Invoice not found</div></div>';return;}
+  if(!inv){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
   const c=inv.wc_customers||{};
-
-  const actionBtns = inv.status==='draft'
-    ? `<button class="btn btn-primary" id="sendInvoiceBtn" onclick="sendInvoice('${inv.id}')">
-         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-         Send invoice
-       </button>
-       <button class="btn btn-ghost" onclick="openEditInvoice('${inv.id}')">Edit</button>`
-    : inv.status==='sent'
-    ? `<button class="btn btn-done" onclick="markInvoicePaid('${inv.id}')">✓ Mark as paid</button>
-       ${inv.stripe_payment_link?`<a href="${esc(inv.stripe_payment_link)}" target="_blank" class="btn btn-ghost">View payment link ↗</a>`:''}
-       <button class="btn btn-ghost" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="voidInvoice('${inv.id}')">Void</button>`
-    : inv.status==='paid'
-    ? `<div style="color:var(--done);font-weight:600">✓ Paid ${inv.paid_at?'on '+fmtShort(inv.paid_at.split('T')[0]):''}</div>`
-    : `<button class="btn btn-ghost" onclick="reopenInvoice('${inv.id}')">Reopen as draft</button>`;
-
+  const actionBtns=inv.status==='draft'
+    ?`<button class="btn btn-primary btn-full" id="sendInvoiceBtn" onclick="sendInvoice('${inv.id}')">Send invoice</button>
+       <button class="btn btn-ghost btn-full" onclick="openEditInvoice('${inv.id}')">Edit</button>`
+    :inv.status==='sent'
+    ?`<button class="btn btn-done btn-full" onclick="markInvoicePaid('${inv.id}')">✓ Mark as paid</button>
+       ${inv.stripe_payment_link?`<a href="${esc(inv.stripe_payment_link)}" target="_blank" class="btn btn-ghost btn-full">View payment link ↗</a>`:''}
+       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="voidInvoice('${inv.id}')">Void</button>`
+    :inv.status==='paid'?`<div style="color:var(--done);font-weight:600;text-align:center;padding:12px">✓ Paid${inv.paid_at?' on '+fmtShort(inv.paid_at.split('T')[0]):''}</div>`
+    :`<button class="btn btn-ghost btn-full" onclick="reopenInvoice('${inv.id}')">Reopen as draft</button>`;
   el.innerHTML=`
     <button class="back-btn" onclick="renderInvoices()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Invoices</button>
     <div class="page-header">
-      <div>
-        <div class="page-title">${esc(c.name||'Unknown')}</div>
-        <div class="page-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      </div>
-      <span style="padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:${inv.status==='paid'?'var(--done-light)':inv.status==='void'?'var(--danger-light)':inv.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${inv.status==='paid'?'var(--done)':inv.status==='void'?'var(--danger)':inv.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${inv.status}</span>
+      <div><div class="page-title">${esc(c.name||'Unknown')}</div><div class="page-sub">${esc(c.address||'')}</div></div>
+      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${inv.status==='paid'?'var(--done-light)':inv.status==='void'?'var(--danger-light)':inv.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${inv.status==='paid'?'var(--done)':inv.status==='void'?'var(--danger)':inv.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${inv.status}</span>
     </div>
     <div class="detail-section">
       <div class="detail-section-header">Invoice details</div>
-      <div class="detail-row"><span class="detail-label">Amount</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:18px">£${parseFloat(inv.amount||0).toFixed(2)}</span></div>
-      ${inv.due_date?`<div class="detail-row"><span class="detail-label">Due date</span><span class="detail-value">${fmtShort(inv.due_date)}</span></div>`:''}
+      <div class="detail-row"><span class="detail-label">Amount</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:20px">£${parseFloat(inv.amount||0).toFixed(2)}</span></div>
+      ${inv.due_date?`<div class="detail-row"><span class="detail-label">Due</span><span class="detail-value">${fmtShort(inv.due_date)}</span></div>`:''}
       ${inv.notes?`<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${esc(inv.notes)}</span></div>`:''}
-      <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${fmtShort(inv.created_at?.split('T')[0])}</span></div>
       ${inv.sent_at?`<div class="detail-row"><span class="detail-label">Sent</span><span class="detail-value">${fmtShort(inv.sent_at.split('T')[0])}</span></div>`:''}
       ${inv.paid_at?`<div class="detail-row"><span class="detail-label">Paid</span><span class="detail-value" style="color:var(--done)">${fmtShort(inv.paid_at.split('T')[0])}</span></div>`:''}
-      ${inv.stripe_payment_link?`<div class="detail-row"><span class="detail-label">Payment link</span><a href="${esc(inv.stripe_payment_link)}" target="_blank" style="color:var(--gold);font-size:12px;word-break:break-all">${esc(inv.stripe_payment_link)}</a></div>`:''}
+      ${inv.stripe_payment_link?`<div class="detail-row"><span class="detail-label">Link</span><a href="${esc(inv.stripe_payment_link)}" target="_blank" style="color:var(--gold);font-size:12px;word-break:break-all">${esc(inv.stripe_payment_link)}</a></div>`:''}
     </div>
-    ${c.phone||c.email?`<div class="detail-section"><div class="detail-section-header">Customer contact</div>
-      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.phone)}</span></div>`:''}
-      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${esc(c.email)}</span></div>`:''}
-    </div>`:''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">${actionBtns}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">${actionBtns}</div>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="deleteInvoice('${inv.id}')">Delete invoice</button>
     </div>`;
 }
-
 async function openNewInvoice(){
   editingInvoiceId=null;
   document.getElementById('invModalTitle').textContent='New Invoice';
-  if(!customers.length) try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  if(!customers.length)try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
   const sel=document.getElementById('inv-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  document.getElementById('inv-amount').value='';
-  document.getElementById('inv-due').value='';
-  document.getElementById('inv-notes').value='';
+  document.getElementById('inv-amount').value='';document.getElementById('inv-due').value='';document.getElementById('inv-notes').value='';
   document.getElementById('invoiceModal').classList.add('open');
 }
-
 async function openEditInvoice(id){
   editingInvoiceId=id;
   const inv=invoices.find(x=>x.id===id);if(!inv)return;
   document.getElementById('invModalTitle').textContent='Edit Invoice';
-  if(!customers.length) try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  if(!customers.length)try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
   const sel=document.getElementById('inv-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   sel.value=inv.customer_id||'';
-  document.getElementById('inv-amount').value=inv.amount||'';
-  document.getElementById('inv-due').value=inv.due_date||'';
-  document.getElementById('inv-notes').value=inv.notes||'';
+  document.getElementById('inv-amount').value=inv.amount||'';document.getElementById('inv-due').value=inv.due_date||'';document.getElementById('inv-notes').value=inv.notes||'';
   document.getElementById('invoiceModal').classList.add('open');
 }
-
 async function saveInvoice(){
   const customerId=document.getElementById('inv-customer').value;
   const amount=parseFloat(document.getElementById('inv-amount').value);
   if(!customerId){showToast('Select a customer','error');return;}
   if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
-  const payload={
-    customer_id:customerId, business_id:BUSINESS_ID, amount,
-    due_date:document.getElementById('inv-due').value||null,
-    notes:document.getElementById('inv-notes').value.trim()||null,
-    status:'draft',
-  };
+  const payload={customer_id:customerId,business_id:BUSINESS_ID,amount,due_date:document.getElementById('inv-due').value||null,notes:document.getElementById('inv-notes').value.trim()||null,status:'draft'};
   try{
-    if(editingInvoiceId){
-      await sb(`wc_invoices?id=eq.${editingInvoiceId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
-      showToast('Invoice updated','success');
-    }else{
-      await sb('wc_invoices',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
-      showToast('Invoice created as draft','success');
-    }
+    if(editingInvoiceId){await sb(`wc_invoices?id=eq.${editingInvoiceId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});showToast('Updated','success');}
+    else{await sb('wc_invoices',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});showToast('Invoice created','success');}
     closeModal('invoiceModal');renderInvoices();
   }catch(e){showToast(e.message,'error');}
 }
-
 async function sendInvoice(id){
-  const inv=invoices.find(x=>x.id===id);
-  if(!inv)return;
+  const inv=invoices.find(x=>x.id===id);if(!inv)return;
   const btn=document.getElementById('sendInvoiceBtn');
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
   try{
     const customer=customers.find(c=>c.id===inv.customer_id)||inv.wc_customers||{};
     const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      invoice_id:inv.id,
-      customer_name:customer.name||'Customer',
+      invoice_id:inv.id,customer_name:customer.name||'Customer',
       customer_phone:customer.whatsapp_number||customer.phone||'',
-      customer_email:customer.email||'',
-      amount:inv.amount,
-      service_type:inv.notes||'Window Cleaning',
-      due_date:inv.due_date||'',
-      notes:''
+      customer_email:customer.email||'',amount:inv.amount,
+      service_type:inv.notes||'Window Cleaning',due_date:inv.due_date||'',notes:''
     })});
     const data=await res.json().catch(()=>({}));
-    // Store payment link locally if returned before Supabase update completes
-    if(data.payment_link) inv.stripe_payment_link=data.payment_link;
-    showToast('Invoice sent — WhatsApp & email delivered ✓','success');
-    setTimeout(()=>renderInvoices(),1500);
-  }catch(e){
-    showToast('Delivery failed — check n8n credentials','error');
-    if(btn){btn.disabled=false;btn.textContent='Send invoice';}
-  }
+    if(data.payment_link)inv.stripe_payment_link=data.payment_link;
+    showToast('Invoice sent ✓','success');setTimeout(()=>renderInvoices(),1500);
+  }catch(e){showToast('Delivery failed — check n8n','error');if(btn){btn.disabled=false;btn.textContent='Send invoice';}}
 }
-
 async function markInvoicePaid(id){
-  if(!confirm('Mark this invoice as paid?'))return;
-  try{
-    await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'paid',paid_at:new Date().toISOString()}),prefer:'return=minimal'});
-    showToast('Invoice marked as paid ✓','success');renderInvoices();
-  }catch(e){showToast(e.message,'error');}
+  if(!confirm('Mark as paid?'))return;
+  try{await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'paid',paid_at:new Date().toISOString()}),prefer:'return=minimal'});showToast('Marked paid ✓','success');renderInvoices();}catch(e){showToast(e.message,'error');}
 }
-
 async function voidInvoice(id){
   if(!confirm('Void this invoice?'))return;
-  try{
-    await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'void'}),prefer:'return=minimal'});
-    showToast('Invoice voided','success');renderInvoices();
-  }catch(e){showToast(e.message,'error');}
+  try{await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'void'}),prefer:'return=minimal'});showToast('Voided','success');renderInvoices();}catch(e){showToast(e.message,'error');}
 }
-
 async function reopenInvoice(id){
-  try{
-    await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'draft'}),prefer:'return=minimal'});
-    showToast('Invoice reopened as draft','success');renderInvoices();
-  }catch(e){showToast(e.message,'error');}
+  try{await sb(`wc_invoices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'draft'}),prefer:'return=minimal'});showToast('Reopened','success');renderInvoices();}catch(e){showToast(e.message,'error');}
 }
-
 async function deleteInvoice(id){
-  if(!confirm('Delete this invoice permanently?'))return;
-  try{
-    await sb(`wc_invoices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
-    showToast('Invoice deleted','success');renderInvoices();
-  }catch(e){showToast(e.message,'error');}
+  if(!confirm('Delete this invoice?'))return;
+  try{await sb(`wc_invoices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});showToast('Deleted','success');renderInvoices();}catch(e){showToast(e.message,'error');}
 }
 
-// ===== SETTINGS =====
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
 async function renderSettings(){
+  document.getElementById('topbarPage').textContent='Settings';
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading settings...</div>';
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{
     [wcRounds,wcServiceTypes,wcUsers]=await Promise.all([
       sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&order=name.asc`),
       sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`),
       sb(`wc_users?business_id=eq.${BUSINESS_ID}&order=name.asc`)
     ]);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load settings</div></div>`;return;}
-
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   el.innerHTML=`
     <div class="page-header"><div class="page-title">Settings</div></div>
-
-    <!-- ROUNDS -->
-    <div class="detail-section" style="margin-bottom:16px">
-      <div class="detail-section-header">
-        Rounds
-        <button class="btn btn-primary btn-sm" onclick="addSettingsItem('round')">+ Add round</button>
-      </div>
-      ${wcRounds.map(r=>`
-        <div class="detail-row" id="round-row-${r.id}">
-          <span class="detail-value">${esc(r.name)}</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${r.active?'var(--done-light)':'var(--danger-light)'};color:${r.active?'var(--done)':'var(--danger)'}">${r.active?'Active':'Inactive'}</span>
-            <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('round','${r.id}',${r.active})">${r.active?'Deactivate':'Activate'}</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteSettingsItem('round','${r.id}','${esc(r.name)}')" style="color:var(--danger);border-color:rgba(239,68,68,.3)">Delete</button>
-          </div>
-        </div>`).join('')}
-      ${wcRounds.length===0?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No rounds yet</span></div>':''}
+    <div class="detail-section" style="margin-bottom:14px">
+      <div class="detail-section-header">Rounds<button class="btn btn-primary btn-sm" onclick="addSettingsItem('round')">+ Add</button></div>
+      ${wcRounds.map(r=>`<div class="detail-row"><span class="detail-value">${esc(r.name)}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${r.active?'var(--done-light)':'var(--danger-light)'};color:${r.active?'var(--done)':'var(--danger)'}">${r.active?'Active':'Inactive'}</span>
+          <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('round','${r.id}',${r.active})">${r.active?'Off':'On'}</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteSettingsItem('round','${r.id}','${esc(r.name)}')">Del</button>
+        </div></div>`).join('')}
+      ${!wcRounds.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No rounds yet</span></div>':''}
       <div id="add-round-form" style="display:none;padding:12px 16px;border-top:1px solid var(--border)">
         <div style="display:flex;gap:8px">
-          <input id="new-round-name" placeholder="Round name (e.g. Sidcup Wed)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-900);outline:none">
+          <input id="new-round-name" placeholder="Round name…" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-900);outline:none">
           <button class="btn btn-primary btn-sm" onclick="saveNewRound()">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-round-form').style.display='none'">Cancel</button>
         </div>
       </div>
     </div>
-
-    <!-- SERVICE TYPES -->
-    <div class="detail-section" style="margin-bottom:16px">
-      <div class="detail-section-header">
-        Service types
-        <button class="btn btn-primary btn-sm" onclick="addSettingsItem('service')">+ Add service</button>
-      </div>
-      ${wcServiceTypes.map(s=>`
-        <div class="detail-row" id="service-row-${s.id}">
-          <span class="detail-value">${esc(s.name)}</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${s.active?'var(--done-light)':'var(--danger-light)'};color:${s.active?'var(--done)':'var(--danger)'}">${s.active?'Active':'Inactive'}</span>
-            <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('service','${s.id}',${s.active})">${s.active?'Deactivate':'Activate'}</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteSettingsItem('service','${s.id}','${esc(s.name)}')" style="color:var(--danger);border-color:rgba(239,68,68,.3)">Delete</button>
-          </div>
-        </div>`).join('')}
-      ${wcServiceTypes.length===0?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No service types yet</span></div>':''}
+    <div class="detail-section" style="margin-bottom:14px">
+      <div class="detail-section-header">Service types<button class="btn btn-primary btn-sm" onclick="addSettingsItem('service')">+ Add</button></div>
+      ${wcServiceTypes.map(s=>`<div class="detail-row"><span class="detail-value" style="font-size:13px">${esc(s.name)}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${s.active?'var(--done-light)':'var(--danger-light)'};color:${s.active?'var(--done)':'var(--danger)'}">${s.active?'Active':'Inactive'}</span>
+          <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('service','${s.id}',${s.active})">${s.active?'Off':'On'}</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteSettingsItem('service','${s.id}','${esc(s.name)}')">Del</button>
+        </div></div>`).join('')}
+      ${!wcServiceTypes.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div>':''}
       <div id="add-service-form" style="display:none;padding:12px 16px;border-top:1px solid var(--border)">
         <div style="display:flex;gap:8px">
-          <input id="new-service-name" placeholder="Service name (e.g. Conservatory Clean)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-900);outline:none">
+          <input id="new-service-name" placeholder="Service name…" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-900);outline:none">
           <button class="btn btn-primary btn-sm" onclick="saveNewService()">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-service-form').style.display='none'">Cancel</button>
         </div>
       </div>
     </div>
-
-    <!-- TEAM -->
-    <div class="detail-section">
+    <div class="detail-section" style="margin-bottom:14px">
       <div class="detail-section-header">Team</div>
-      ${wcUsers.map(u=>`
-        <div class="detail-row">
-          <div>
-            <div style="font-size:13px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
-            <div style="font-size:11px;color:var(--text-muted)">${u.role}</div>
-          </div>
-          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
-        </div>`).join('')}
+      ${wcUsers.map(u=>`<div class="detail-row">
+        <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${u.role} · ${u.view_mode==='round_only'?'Round view only':'Full access'}</div></div>
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
+      </div>`).join('')}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-header">Account</div>
+      <div class="detail-row"><span class="detail-label">Logged in as</span><span class="detail-value">${esc(currentUser.name)}</span></div>
+      <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full" onclick="logout()">Log out</button></div>
     </div>`;
 }
-
-function addSettingsItem(type){
-  document.getElementById(`add-${type}-form`).style.display='block';
-  document.getElementById(`new-${type}-name`).focus();
-}
-
+function addSettingsItem(type){document.getElementById(`add-${type}-form`).style.display='block';document.getElementById(`new-${type}-name`).focus();}
 async function saveNewRound(){
-  const name=document.getElementById('new-round-name').value.trim();
-  if(!name){showToast('Enter a round name','error');return;}
-  try{
-    await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});
-    showToast('Round added','success');wcRounds=[];renderSettings();
-  }catch(e){showToast(e.message,'error');}
+  const name=document.getElementById('new-round-name').value.trim();if(!name){showToast('Enter a name','error');return;}
+  try{await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Round added','success');wcRounds=[];renderSettings();}catch(e){showToast(e.message,'error');}
 }
-
 async function saveNewService(){
-  const name=document.getElementById('new-service-name').value.trim();
-  if(!name){showToast('Enter a service name','error');return;}
-  try{
-    await sb('wc_service_types',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});
-    showToast('Service type added','success');wcServiceTypes=[];renderSettings();
-  }catch(e){showToast(e.message,'error');}
+  const name=document.getElementById('new-service-name').value.trim();if(!name){showToast('Enter a name','error');return;}
+  try{await sb('wc_service_types',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Service added','success');wcServiceTypes=[];renderSettings();}catch(e){showToast(e.message,'error');}
 }
-
-async function toggleSettingsItem(type,id,currentlyActive){
+async function toggleSettingsItem(type,id,active){
   const table=type==='round'?'wc_rounds':'wc_service_types';
-  try{
-    await sb(`${table}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:!currentlyActive}),prefer:'return=minimal'});
-    if(type==='round')wcRounds=[];else wcServiceTypes=[];
-    showToast(`${currentlyActive?'Deactivated':'Activated'} successfully`,'success');
-    renderSettings();
-  }catch(e){showToast(e.message,'error');}
+  try{await sb(`${table}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:!active}),prefer:'return=minimal'});if(type==='round')wcRounds=[];else wcServiceTypes=[];showToast(active?'Deactivated':'Activated','success');renderSettings();}catch(e){showToast(e.message,'error');}
 }
-
 async function deleteSettingsItem(type,id,name){
-  if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
+  if(!confirm(`Delete "${name}"?`))return;
   const table=type==='round'?'wc_rounds':'wc_service_types';
-  try{
-    await sb(`${table}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
-    if(type==='round')wcRounds=[];else wcServiceTypes=[];
-    showToast('Deleted','success');renderSettings();
-  }catch(e){showToast(e.message,'error');}
+  try{await sb(`${table}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});if(type==='round')wcRounds=[];else wcServiceTypes=[];showToast('Deleted','success');renderSettings();}catch(e){showToast(e.message,'error');}
 }
 
+// ── PWA ───────────────────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+// ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
 ['customerModal','jobModal','skipModal','quoteModal','invoiceModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
-render();
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+initLogin();
 </script>
 </body>
 </html>
