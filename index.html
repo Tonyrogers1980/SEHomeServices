@@ -293,13 +293,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="field"><label>Address *</label><input id="f-address" placeholder="Street address" autocomplete="street-address"></div>
       <div class="form-row">
         <div class="field"><label>Postcode *</label><input id="f-postcode" placeholder="SE9 1AA" autocomplete="postal-code"></div>
-        <div class="field"><label>Phone</label><input id="f-phone" type="tel" placeholder="07700 900000" autocomplete="tel"></div>
+        <div class="field"><label>Phone *</label><input id="f-phone" type="tel" placeholder="07700 900000" autocomplete="tel"></div>
       </div>
       <div class="form-row">
         <div class="field"><label>WhatsApp</label><input id="f-whatsapp" type="tel" placeholder="+447700900000"></div>
-        <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="email@example.com" autocomplete="email"></div>
+        <div class="field"><label>Email *</label><input id="f-email" type="email" placeholder="email@example.com" autocomplete="email"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Access codes, dogs, gate codes…"></textarea></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--text)">Auto-send invoice on job completion</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Automatically invoice when a job is marked done</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0">
+          <input type="checkbox" id="f-auto-invoice" style="opacity:0;width:0;height:0">
+          <span onclick="document.getElementById('f-auto-invoice').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:13px;transition:.2s" id="autoInvoiceSlider"></span>
+        </label>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('customerModal')">Cancel</button>
@@ -440,6 +450,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
         <div class="field"><label>Amount (£) *</label><input id="inv-amount" type="number" inputmode="decimal" step="0.50" min="0" placeholder="0.00"></div>
         <div class="field"><label>Due date</label><input id="inv-due" type="date"></div>
       </div>
+      <div class="field"><label>PO / Reference</label><input id="inv-po" placeholder="e.g. PO-1234 or their ref number"></div>
       <div class="field"><label>Notes</label><textarea id="inv-notes" placeholder="Service description…" style="min-height:64px"></textarea></div>
     </div>
     <div class="form-actions">
@@ -482,7 +493,8 @@ function addrLink(address,postcode,cls=''){
   const full=[address,postcode].filter(Boolean).join(', ');
   if(!full)return'';
   return`<a href="${mapsUrl(address,postcode)}" target="_blank" onclick="event.stopPropagation()" class="${cls}" style="color:inherit;text-decoration:none;border-bottom:1px dotted currentColor">${esc(full)}</a>`;
-}return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
+}
+function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
 async function sb(path,opts={}){
   const url=`${SUPABASE_URL}/rest/v1/${path}`;
@@ -749,8 +761,47 @@ function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
 async function markDone(id){
   try{
     await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:roundDate}),prefer:'return=minimal'});
-    showToast('✓ Done','success');renderRound();
+    showToast('✓ Done','success');
+    // Auto-invoice if customer has it enabled
+    autoInvoiceJob(id);
+    renderRound();
   }catch(e){showToast(e.message,'error');}
+}
+
+async function autoInvoiceJob(jobId){
+  try{
+    // Fetch job with customer details
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=*,wc_customers(id,name,email,phone,whatsapp_number,auto_invoice)`);
+    if(!job)return;
+    const c=job.wc_customers||{};
+    if(c.auto_invoice===false)return; // opted out
+    if(!c.email&&!c.whatsapp_number&&!c.phone)return; // no contact — skip silently
+
+    // Create invoice
+    const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
+      business_id:BUSINESS_ID,
+      customer_id:job.customer_id,
+      job_id:jobId,
+      amount:job.price,
+      notes:job.service_type||null,
+      status:'sent',
+      sent_at:new Date().toISOString()
+    }),prefer:'return=representation'});
+
+    // Fire n8n delivery webhook
+    if(inv){
+      fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        invoice_id:inv.id,
+        customer_name:c.name||'Customer',
+        customer_phone:c.whatsapp_number||c.phone||'',
+        customer_email:c.email||'',
+        amount:job.price,
+        service_type:job.service_type||'Window Cleaning',
+        due_date:'',notes:''
+      })}).catch(()=>{});
+      showToast('Invoice sent to '+c.name,'success');
+    }
+  }catch(e){console.warn('Auto-invoice failed',e);}
 }
 function openSkip(id,status){
   skipJobId=id;skipStatus=status;
@@ -860,10 +911,17 @@ async function loadCustomerJobs(customerId){
   }catch(e){}
 }
 
+function updateSlider(){
+  const checked=document.getElementById('f-auto-invoice').checked;
+  const s=document.getElementById('autoInvoiceSlider');
+  if(s){s.style.background=checked?'var(--done)':'var(--border)';s.style.setProperty('--tx',checked?'18px':'2px');}
+}
 function openAddCustomer(){
   editingCustomerId=null;
   document.getElementById('customerModalTitle').textContent='Add customer';
   ['name','address','postcode','phone','whatsapp','email','notes'].forEach(f=>document.getElementById('f-'+f).value='');
+  const ai=document.getElementById('f-auto-invoice');ai.checked=true;updateSlider();
+  ai.onchange=updateSlider;
   document.getElementById('customerModal').classList.add('open');
 }
 function openEditCustomer(id){
@@ -877,18 +935,30 @@ function openEditCustomer(id){
   document.getElementById('f-whatsapp').value=c.whatsapp_number||'';
   document.getElementById('f-email').value=c.email||'';
   document.getElementById('f-notes').value=c.notes||'';
+  const ai=document.getElementById('f-auto-invoice');
+  ai.checked=c.auto_invoice!==false; // default true
+  updateSlider();
   document.getElementById('customerModal').classList.add('open');
 }
 async function saveCustomer(){
   const name=document.getElementById('f-name').value.trim();
   const address=document.getElementById('f-address').value.trim();
   const postcode=document.getElementById('f-postcode').value.trim();
-  if(!name||!address||!postcode){showToast('Name, address and postcode required','error');return;}
-  const payload={name,address,postcode,
-    phone:document.getElementById('f-phone').value.trim()||null,
-    whatsapp_number:document.getElementById('f-whatsapp').value.trim()||null,
-    email:document.getElementById('f-email').value.trim()||null,
-    notes:document.getElementById('f-notes').value.trim()||null};
+  const phone=document.getElementById('f-phone').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  if(!name||!address||!postcode){showToast('Name, address and postcode are required','error');return;}
+  if(!phone){showToast('Phone number is required','error');return;}
+  if(!email){showToast('Email address is required','error');return;}
+  const autoInvoice=document.getElementById('f-auto-invoice').checked;
+  let whatsapp=document.getElementById('f-whatsapp').value.trim()||null;
+  // Auto-fill whatsapp from phone if mobile and not already set
+  if(!whatsapp&&phone&&phone.match(/^(\+447|07)/)){
+    whatsapp=phone.startsWith('07')?'+44'+phone.slice(1):phone;
+  }
+  const payload={name,address,postcode,phone,email,
+    whatsapp_number:whatsapp,
+    notes:document.getElementById('f-notes').value.trim()||null,
+    auto_invoice:autoInvoice};
   try{
     if(editingCustomerId){
       await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
@@ -1221,6 +1291,7 @@ async function showInvoice(id){
     <div class="detail-section">
       <div class="detail-section-header">Invoice details</div>
       <div class="detail-row"><span class="detail-label">Amount</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:20px">£${parseFloat(inv.amount||0).toFixed(2)}</span></div>
+      ${inv.po_reference?`<div class="detail-row"><span class="detail-label">PO / Ref</span><span class="detail-value" style="font-family:'DM Mono',monospace">${esc(inv.po_reference)}</span></div>`:''}
       ${inv.due_date?`<div class="detail-row"><span class="detail-label">Due</span><span class="detail-value">${fmtShort(inv.due_date)}</span></div>`:''}
       ${inv.notes?`<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${esc(inv.notes)}</span></div>`:''}
       ${inv.sent_at?`<div class="detail-row"><span class="detail-label">Sent</span><span class="detail-value">${fmtShort(inv.sent_at.split('T')[0])}</span></div>`:''}
@@ -1238,7 +1309,7 @@ async function openNewInvoice(){
   if(!customers.length)try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
   const sel=document.getElementById('inv-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  document.getElementById('inv-amount').value='';document.getElementById('inv-due').value='';document.getElementById('inv-notes').value='';
+  document.getElementById('inv-amount').value='';document.getElementById('inv-due').value='';document.getElementById('inv-notes').value='';document.getElementById('inv-po').value='';
   document.getElementById('invoiceModal').classList.add('open');
 }
 async function openEditInvoice(id){
@@ -1257,7 +1328,11 @@ async function saveInvoice(){
   const amount=parseFloat(document.getElementById('inv-amount').value);
   if(!customerId){showToast('Select a customer','error');return;}
   if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
-  const payload={customer_id:customerId,business_id:BUSINESS_ID,amount,due_date:document.getElementById('inv-due').value||null,notes:document.getElementById('inv-notes').value.trim()||null,status:'draft'};
+  const payload={customer_id:customerId,business_id:BUSINESS_ID,amount,
+    due_date:document.getElementById('inv-due').value||null,
+    notes:document.getElementById('inv-notes').value.trim()||null,
+    po_reference:document.getElementById('inv-po').value.trim()||null,
+    status:'draft'};
   try{
     if(editingInvoiceId){await sb(`wc_invoices?id=eq.${editingInvoiceId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});showToast('Updated','success');}
     else{await sb('wc_invoices',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});showToast('Invoice created','success');}
@@ -1312,7 +1387,10 @@ async function renderSettings(){
   el.innerHTML=`
     <div class="page-header"><div class="page-title">Settings</div></div>
     <div class="detail-section" style="margin-bottom:14px">
-      <div class="detail-section-header">Rounds<button class="btn btn-primary btn-sm" onclick="addSettingsItem('round')">+ Add</button></div>
+      <div class="detail-section-header">Data quality audit</div>
+      <div id="dataAudit"><div class="loading" style="padding:20px"><div class="spinner"></div></div></div>
+    </div>
+    <div class="detail-section" style="margin-bottom:14px">
       ${wcRounds.map(r=>`<div class="detail-row"><span class="detail-value">${esc(r.name)}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${r.active?'var(--done-light)':'var(--danger-light)'};color:${r.active?'var(--done)':'var(--danger)'}">${r.active?'Active':'Inactive'}</span>
@@ -1358,8 +1436,38 @@ async function renderSettings(){
       <div class="detail-row"><span class="detail-label">Logged in as</span><span class="detail-value">${esc(currentUser.name)}</span></div>
       <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full" onclick="logout()">Log out</button></div>
     </div>`;
+  loadDataAudit();
 }
-function addSettingsItem(type){document.getElementById(`add-${type}-form`).style.display='block';document.getElementById(`new-${type}-name`).focus();}
+
+async function loadDataAudit(){
+  const el=document.getElementById('dataAudit');if(!el)return;
+  try{
+    const missing=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&or=(email.is.null,phone.is.null)&order=name.asc&select=id,name,email,phone`);
+    if(!missing.length){
+      el.innerHTML='<div class="detail-row"><span style="color:var(--done);font-size:13px">✓ All active customers have email and phone</span></div>';
+      return;
+    }
+    el.innerHTML=`
+      <div class="detail-row" style="background:var(--warn-light)">
+        <span style="font-size:13px;color:var(--warn);font-weight:500">⚠ ${missing.length} customer${missing.length>1?'s':''} missing email or phone</span>
+      </div>
+      ${missing.map(c=>`<div class="detail-row" onclick="openEditCustomerById('${c.id}')" style="cursor:pointer">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--white)">${esc(c.name)}</div>
+          <div style="font-size:11px;color:var(--danger);margin-top:2px">${!c.email?'Missing email':''} ${!c.phone?'Missing phone':''}</div>
+        </div>
+        <span style="font-size:12px;color:var(--gold)">Tap to edit →</span>
+      </div>`).join('')}`;
+  }catch(e){if(el)el.innerHTML='<div class="detail-row"><span class="detail-label">Could not load audit</span></div>';}
+}
+
+async function openEditCustomerById(id){
+  if(!customers.length)try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}catch(e){}
+  if(!customers.find(x=>x.id===id)){
+    try{const [c]=await sb(`wc_customers?id=eq.${id}`);if(c)customers=[...customers,c];}catch(e){}
+  }
+  openEditCustomer(id);
+}(type){document.getElementById(`add-${type}-form`).style.display='block';document.getElementById(`new-${type}-name`).focus();}
 async function saveNewRound(){
   const name=document.getElementById('new-round-name').value.trim();if(!name){showToast('Enter a name','error');return;}
   try{await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Round added','success');wcRounds=[];renderSettings();}catch(e){showToast(e.message,'error');}
