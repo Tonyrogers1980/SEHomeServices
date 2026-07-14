@@ -28,21 +28,21 @@ html,body{height:100%;overscroll-behavior:none;}
 body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--text);min-height:100vh;min-height:-webkit-fill-available;}
 
 /* ── LOGIN ── */
-#loginScreen{position:fixed;inset:0;background:var(--navy-900);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:500;}
+#loginScreen{position:fixed;inset:0;background:var(--navy-900);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 24px 32px;z-index:500;overflow-y:auto;}
 .login-logo{width:72px;height:72px;background:var(--gold);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--navy-900);margin-bottom:20px;}
 .login-title{font-family:'DM Mono',monospace;font-size:22px;color:var(--white);margin-bottom:4px;}
 .login-title span{color:var(--gold);}
-.login-sub{font-size:14px;color:var(--text-muted);margin-bottom:40px;}
+.login-sub{font-size:14px;color:var(--text-muted);margin-bottom:20px;}
 .login-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;align-self:flex-start;width:100%;max-width:320px;}
-.user-pick{display:flex;gap:10px;width:100%;max-width:320px;margin-bottom:24px;}
+.user-pick{display:flex;gap:10px;width:100%;max-width:300px;margin-bottom:20px;}
 .user-btn{flex:1;padding:14px 8px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--navy-800);color:var(--text-soft);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;}
 .user-btn.selected{border-color:var(--gold);background:rgba(240,165,0,.1);color:var(--gold);}
 .pin-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;align-self:flex-start;width:100%;max-width:320px;}
-.pin-display{display:flex;gap:12px;margin-bottom:24px;}
+.pin-display{display:flex;gap:12px;margin-bottom:20px;}
 .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background .15s,border-color .15s;}
 .pin-dot.filled{background:var(--gold);border-color:var(--gold);}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:280px;}
-.num-btn{height:68px;border-radius:var(--radius);border:none;background:var(--navy-800);color:var(--text);font-family:'DM Sans',sans-serif;font-size:22px;font-weight:500;cursor:pointer;transition:background .12s,transform .08s;display:flex;align-items:center;justify-content:center;}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:280px;}
+.num-btn{height:60px;border-radius:var(--radius);border:none;background:var(--navy-800);color:var(--text);font-family:'DM Sans',sans-serif;font-size:22px;font-weight:500;cursor:pointer;transition:background .12s,transform .08s;display:flex;align-items:center;justify-content:center;}
 .num-btn:active{background:var(--navy-600);transform:scale(.95);}
 .num-btn.del{font-size:18px;color:var(--text-muted);}
 .login-error{color:var(--danger);font-size:13px;margin-top:12px;min-height:20px;}
@@ -232,9 +232,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
-  <img src="logo.png" alt="SE Home Services" style="width:90px;height:90px;object-fit:contain;margin-bottom:14px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
+  <img src="logo.png" alt="SE Home Services" style="width:70px;height:70px;object-fit:contain;margin-top:8px;margin-bottom:10px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
   <div class="login-title">clear<span>round</span></div>
-  <div class="login-sub">SE Home Services</div>
+  <div class="login-sub" style="margin-bottom:16px">SE Home Services</div>
 
   <div style="width:100%;max-width:300px;margin-bottom:6px">
     <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;text-align:center">Who are you?</div>
