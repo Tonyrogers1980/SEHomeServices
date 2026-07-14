@@ -1803,7 +1803,8 @@ async function openEditCustomerById(id){
     try{const [c]=await sb(`wc_customers?id=eq.${id}`);if(c)customers=[...customers,c];}catch(e){}
   }
   openEditCustomer(id);
-}(type){document.getElementById(`add-${type}-form`).style.display='block';document.getElementById(`new-${type}-name`).focus();}
+}
+function addSettingsItem(type){document.getElementById(`add-${type}-form`).style.display='block';document.getElementById(`new-${type}-name`).focus();}
 async function saveNewRound(){
   const name=document.getElementById('new-round-name').value.trim();if(!name){showToast('Enter a name','error');return;}
   try{await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Round added','success');wcRounds=[];renderSettings();}catch(e){showToast(e.message,'error');}
