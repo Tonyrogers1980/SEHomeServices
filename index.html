@@ -1517,10 +1517,21 @@ async function sendInvoice(id){
       customer_email:customer.email||'',amount:inv.amount,
       service_type:inv.notes||'Window Cleaning',due_date:inv.due_date||'',notes:''
     })});
-    const data=await res.json().catch(()=>({}));
-    if(data.payment_link)inv.stripe_payment_link=data.payment_link;
-    showToast('Invoice sent ✓','success');setTimeout(()=>renderInvoices(),1500);
-  }catch(e){showToast('Delivery failed — check n8n','error');if(btn){btn.disabled=false;btn.textContent='Send invoice';}}
+    if(res.ok){
+      const data=await res.json().catch(()=>({}));
+      if(data.payment_link)inv.stripe_payment_link=data.payment_link;
+      showToast('Invoice sent ✓','success');
+      setTimeout(()=>renderInvoices(),1500);
+    }else{
+      const err=await res.json().catch(()=>({}));
+      const msg=err?.message||`Delivery failed (${res.status})`;
+      showToast('⚠ '+msg,'error');
+      if(btn){btn.disabled=false;btn.textContent='Send invoice';}
+    }
+  }catch(e){
+    showToast('⚠ Could not reach delivery service — check n8n','error');
+    if(btn){btn.disabled=false;btn.textContent='Send invoice';}
+  }
 }
 async function markInvoicePaid(id){
   if(!confirm('Mark as paid?'))return;
