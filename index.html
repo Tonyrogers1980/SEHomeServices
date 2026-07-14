@@ -569,20 +569,42 @@ const FALLBACK_USERS = [
 ];
 
 async function initLogin(){
+  // Always show login screen first — never assume session is valid
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('app').classList.remove('visible');
+
   // Check localStorage for saved session
   const saved=localStorage.getItem('cr_user');
   if(saved){
-    try{currentUser=JSON.parse(saved);launchApp();return;}
-    catch(e){localStorage.removeItem('cr_user');}
+    try{
+      const user=JSON.parse(saved);
+      // Validate the user object has required fields
+      if(user&&user.id&&user.name&&user.pin&&user.view_mode){
+        currentUser=user;
+        launchApp();
+        return;
+      }else{
+        localStorage.removeItem('cr_user');
+      }
+    }catch(e){
+      localStorage.removeItem('cr_user');
+    }
   }
-  // Show fallback users immediately so screen isn't blank
-  allUsers=FALLBACK_USERS;
-  renderUserPick();
-  // Then try to load from Supabase (picks up any changes to PINs etc)
+
+  // Try to load fresh users from Supabase (updates fallback if successful)
   try{
     const fresh=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);
-    if(fresh&&fresh.length){allUsers=fresh;renderUserPick();}
-  }catch(e){} // fallback already showing, no action needed
+    if(fresh&&fresh.length){
+      allUsers=fresh;
+      // Update button labels if names differ from fallback
+      allUsers.forEach(u=>{
+        const btn=document.getElementById('ubtn-'+u.id);
+        if(btn){
+          btn.querySelector('div:last-child').textContent=u.name.split(' ')[0];
+        }
+      });
+    }
+  }catch(e){} // fallback buttons already visible in HTML
 }
 
 function renderUserPick(){
