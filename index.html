@@ -232,7 +232,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
-  <div class="login-logo">SE</div>
+  <img src="logo.png" alt="SE Home Services" style="width:100px;height:100px;object-fit:contain;margin-bottom:16px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
   <div class="login-title">clear<span>round</span></div>
   <div class="login-sub">SE Home Services</div>
   <div class="login-label">Who are you?</div>
@@ -268,7 +268,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 
   <div class="desktop-content">
     <div class="topbar">
-      <div class="topbar-logo" id="topbarLogo">clear<span>round</span></div>
+      <div class="topbar-logo" id="topbarLogo"><img src="logo.png" alt="SE" style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-right:6px">clear<span>round</span></div>
       <div class="topbar-page" id="topbarPage"></div>
       <div class="topbar-action" id="topbarAction"></div>
       <div class="topbar-user" id="topbarUser"></div>
@@ -545,20 +545,27 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 // ── LOGIN ──────────────────────────────────────────────────────────────────────
 let allUsers=[],selectedUserId=null,pinEntry='';
 
+// Hardcoded fallback so login screen works even before Supabase responds
+const FALLBACK_USERS = [
+  {id:'efaaa644-c709-44da-bc47-63977fe4f64f', name:'Tony Rogers', role:'owner', pin:'1980', view_mode:'full'},
+  {id:'82d5dce0-5c85-499d-b72e-4cd816e2619f', name:'Danny Lovegrove', role:'employee', pin:'1234', view_mode:'round_only'}
+];
+
 async function initLogin(){
   // Check localStorage for saved session
   const saved=localStorage.getItem('cr_user');
   if(saved){
-    try{
-      currentUser=JSON.parse(saved);
-      launchApp();
-      return;
-    }catch(e){localStorage.removeItem('cr_user');}
+    try{currentUser=JSON.parse(saved);launchApp();return;}
+    catch(e){localStorage.removeItem('cr_user');}
   }
-  // Load users for login screen
-  try{allUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}
-  catch(e){allUsers=[];}
+  // Show fallback users immediately so screen isn't blank
+  allUsers=FALLBACK_USERS;
   renderUserPick();
+  // Then try to load from Supabase (picks up any changes to PINs etc)
+  try{
+    const fresh=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);
+    if(fresh&&fresh.length){allUsers=fresh;renderUserPick();}
+  }catch(e){} // fallback already showing, no action needed
 }
 
 function renderUserPick(){
@@ -655,7 +662,7 @@ function buildNav(){
   const sd=document.getElementById('sidebarDesktop');
   sd.innerHTML=`
     <div class="sidebar-logo-wrap">
-      <div class="sidebar-logo-icon">SE</div>
+      <img src="logo.png" alt="SE" style="width:34px;height:34px;object-fit:contain;flex-shrink:0">
       <div><div class="sidebar-logo-text">clear<span>round</span></div><div class="sidebar-logo-sub">SE Home Services</div></div>
     </div>
     ${pages.map(p=>`<button class="sidebar-nav-item" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}${p.label}</button>`).join('')}
