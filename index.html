@@ -232,18 +232,35 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
-  <img src="logo.png" alt="SE Home Services" style="width:100px;height:100px;object-fit:contain;margin-bottom:16px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
+  <img src="logo.png" alt="SE Home Services" style="width:90px;height:90px;object-fit:contain;margin-bottom:14px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
   <div class="login-title">clear<span>round</span></div>
   <div class="login-sub">SE Home Services</div>
-  <div class="login-label">Who are you?</div>
-  <div class="user-pick" id="userPick"></div>
-  <div class="pin-label">Enter your PIN</div>
-  <div class="pin-display" id="pinDisplay">
-    <div class="pin-dot" id="d0"></div>
-    <div class="pin-dot" id="d1"></div>
-    <div class="pin-dot" id="d2"></div>
-    <div class="pin-dot" id="d3"></div>
+
+  <div style="width:100%;max-width:300px;margin-bottom:6px">
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;text-align:center">Who are you?</div>
+    <div class="user-pick" id="userPick">
+      <!-- Hardcoded immediately — JS updates once Supabase responds -->
+      <button class="user-btn" id="ubtn-efaaa644-c709-44da-bc47-63977fe4f64f" onclick="selectUser('efaaa644-c709-44da-bc47-63977fe4f64f')">
+        <div style="font-size:22px;margin-bottom:4px">T</div>
+        <div>Tony</div>
+      </button>
+      <button class="user-btn" id="ubtn-82d5dce0-5c85-499d-b72e-4cd816e2619f" onclick="selectUser('82d5dce0-5c85-499d-b72e-4cd816e2619f')">
+        <div style="font-size:22px;margin-bottom:4px">D</div>
+        <div>Danny</div>
+      </button>
+    </div>
   </div>
+
+  <div style="width:100%;max-width:300px;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;text-align:center">Enter your PIN</div>
+    <div class="pin-display" id="pinDisplay" style="justify-content:center">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+  </div>
+
   <div class="numpad">
     <button class="num-btn" onclick="pinTap('1')">1</button>
     <button class="num-btn" onclick="pinTap('2')">2</button>
@@ -569,18 +586,32 @@ async function initLogin(){
 }
 
 function renderUserPick(){
-  const el=document.getElementById('userPick');
-  el.innerHTML=allUsers.map(u=>`
-    <button class="user-btn${selectedUserId===u.id?' selected':''}" onclick="selectUser('${u.id}')">
-      <div style="font-size:20px;margin-bottom:4px">${u.name.charAt(0)}</div>
-      <div>${esc(u.name.split(' ')[0])}</div>
-    </button>`).join('');
+  // Update button selected state
+  allUsers.forEach(u=>{
+    const btn=document.getElementById('ubtn-'+u.id);
+    if(btn){
+      btn.classList.toggle('selected', u.id===selectedUserId);
+    }
+  });
+  // If Supabase returned different users than fallback, rebuild
+  const pick=document.getElementById('userPick');
+  if(!pick)return;
+  if(allUsers.length!==pick.querySelectorAll('.user-btn').length){
+    pick.innerHTML=allUsers.map(u=>`
+      <button class="user-btn${selectedUserId===u.id?' selected':''}" id="ubtn-${u.id}" onclick="selectUser('${u.id}')">
+        <div style="font-size:22px;margin-bottom:4px">${u.name.charAt(0)}</div>
+        <div>${esc(u.name.split(' ')[0])}</div>
+      </button>`).join('');
+  }
 }
 
 function selectUser(id){
   selectedUserId=id;pinEntry='';updatePinDisplay();
   document.getElementById('loginError').textContent='';
-  renderUserPick();
+  // Update button styles immediately
+  document.querySelectorAll('.user-btn').forEach(btn=>{
+    btn.classList.toggle('selected', btn.id==='ubtn-'+id);
+  });
 }
 
 function pinTap(digit){
