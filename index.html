@@ -288,6 +288,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="topbar-logo" id="topbarLogo"><img src="logo.png" alt="SE" style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-right:6px">clear<span>round</span></div>
       <div class="topbar-page" id="topbarPage"></div>
       <div class="topbar-action" id="topbarAction"></div>
+      <button onclick="refreshCurrentPage()" title="Refresh" style="width:34px;height:34px;border-radius:8px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0" id="refreshBtn">
+        <svg id="refreshIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </button>
       <div class="topbar-user" id="topbarUser"></div>
     </div>
     <div class="main-scroll">
@@ -731,7 +734,6 @@ function buildNav(){
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
-  // Update active state
   document.querySelectorAll('[data-page]').forEach(el=>{
     el.classList.toggle('active',el.dataset.page===page);
   });
@@ -744,6 +746,48 @@ function navigate(page){
   else if(page==='owing')renderOwing();
   else if(page==='settings')renderSettings();
 }
+
+function getCurrentPage(){
+  const active=document.querySelector('[data-page].active');
+  return active?active.dataset.page:'round';
+}
+
+function refreshCurrentPage(){
+  const icon=document.getElementById('refreshIcon');
+  if(icon)icon.style.animation='spin .6s linear infinite';
+  navigate(getCurrentPage());
+  setTimeout(()=>{if(icon)icon.style.animation='';},600);
+}
+
+// Pull-to-refresh
+(function(){
+  let startY=0,pulling=false,indicator=null;
+  const scrollEl=()=>document.querySelector('.main-scroll');
+  document.addEventListener('touchstart',e=>{
+    const s=scrollEl();if(!s)return;
+    if(s.scrollTop===0){startY=e.touches[0].clientY;pulling=true;}
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!pulling)return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>60&&!indicator){
+      indicator=document.createElement('div');
+      indicator.textContent='↓ Release to refresh';
+      indicator.style.cssText='position:fixed;top:52px;left:50%;transform:translateX(-50%);background:var(--navy-700);color:var(--gold);font-size:13px;font-weight:500;padding:8px 16px;border-radius:20px;z-index:999;pointer-events:none;border:1px solid var(--border)';
+      document.body.appendChild(indicator);
+    }
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!pulling)return;
+    pulling=false;
+    if(indicator){
+      document.body.removeChild(indicator);
+      indicator=null;
+      refreshCurrentPage();
+    }
+    startY=0;
+  },{passive:true});
+})();
 
 // ── CONFIG ─────────────────────────────────────────────────────────────────────
 async function loadConfig(){
