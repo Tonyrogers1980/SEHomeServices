@@ -866,9 +866,9 @@ async function renderRoundDay(el){
     const [byDue,byDate]=await withTimeout(Promise.all([
       sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`),
       sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(name,address,postcode,notes)`)
-    ]),8000);
+    ]),5000);
     jobs=[...byDue,...byDate];
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message||String(e))}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
   const filtered=roundJobFilter(jobs);
   const done=filtered.filter(j=>j.status==='done').length;
   const skipped=filtered.filter(j=>j.status==='skipped'||j.status==='cant-access').length;
@@ -905,7 +905,7 @@ async function renderRoundWeek(el){
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
     const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out')),ms))]);
-    jobs=await withTimeout(sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`),8000);
+    jobs=await withTimeout(sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`),5000);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
@@ -958,7 +958,7 @@ async function renderRoundMonth(el){
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
     const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out')),ms))]);
-    jobs=await withTimeout(sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,round_name`),8000);
+    jobs=await withTimeout(sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,round_name`),5000);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const byDate={};
   jobs.forEach(j=>{if(j.next_due){if(!byDate[j.next_due])byDate[j.next_due]=[];byDate[j.next_due].push(j);}});
