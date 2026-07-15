@@ -516,8 +516,8 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
-const BUILD_VERSION='47';
-const BUILD_DATE='15 Jul 2026 20:54';
+const BUILD_VERSION='48';
+const BUILD_DATE='15 Jul 2026 21:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -828,11 +828,10 @@ function populateServiceSelect(id,selected=''){
 let roundView='day', roundAssignee='';
 
 async function renderRound(){
-  document.getElementById('topbarPage').textContent='Round';
+  document.getElementById('topbarPage').textContent="Today's Round";
   document.getElementById('topbarAction').innerHTML=`<button class="btn btn-primary btn-sm" onclick="navigate('customers')">+ Customer</button>`;
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
-  loadUsers();
   if(roundView==='day') await renderRoundDay(el);
   else if(roundView==='week') await renderRoundWeek(el);
   else await renderRoundMonth(el);
@@ -844,40 +843,37 @@ function roundViewBar(){
     ?`<select onchange="roundAssignee=this.value;renderRound()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
         <option value="">All staff</option>
         ${wcUsers.map(u=>`<option value="${u.id}"${roundAssignee===u.id?' selected':''}>${esc(u.name.split(' ')[0])}</option>`).join('')}
-      </select>`:'';
+      </select>`:''
   return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px">
       ${['day','week','month'].map(v=>`<button onclick="roundView='${v}';renderRound()" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:${roundView===v?'var(--gold)':'transparent'};color:${roundView===v?'var(--navy-900)':'var(--text-soft)'}">
-          ${v.charAt(0).toUpperCase()+v.slice(1)}</button>`).join('')}
+        ${v.charAt(0).toUpperCase()+v.slice(1)}</button>`).join('')}
     </div>
     ${assigneeOpts}
   </div>`;
 }
 
-function roundJobFilter(jobs){
-  let r=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
-  if(roundAssignee) r=r.filter(j=>j.assigned_to===roundAssignee);
-  return r;
-}
-
+// ── DAY VIEW (the original working version) ───────────────────────────────────
 async function renderRoundDay(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
-    const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out')),ms))]);
-    const [byDue,byDate]=await withTimeout(Promise.all([
+    const [byDue,byDate]=await Promise.all([
       sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`),
       sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(name,address,postcode,notes)`)
-    ]),5000);
+    ]);
     jobs=[...byDue,...byDate];
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message||String(e))}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
-  const filtered=roundJobFilter(jobs);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
+
+  const af2=roundAssignee?jobs.filter(j=>j.assigned_to===roundAssignee):jobs;
+  const filtered=roundFilter?af2.filter(j=>j.round_name===roundFilter):af2;
   const done=filtered.filter(j=>j.status==='done').length;
   const skipped=filtered.filter(j=>j.status==='skipped'||j.status==='cant-access').length;
   const remaining=filtered.filter(j=>j.status==='scheduled').length;
   const earned=filtered.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
   const rounds=[...new Set(jobs.map(j=>j.round_name).filter(Boolean))].sort();
   const isToday=roundDate===todayStr();
+
   el.innerHTML=`
     ${roundViewBar()}
     <div class="date-nav">
@@ -886,29 +882,41 @@ async function renderRoundDay(el){
       ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:56px"></div>'}
       <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    ${rounds.length>1?`<select class="round-filter" onchange="roundFilter=this.value;renderRound()"><option value="">All rounds (${jobs.length})</option>${rounds.map(r=>`<option value="${esc(r)}"${roundFilter===r?' selected':''}>${esc(r)}</option>`).join('')}</select>`:''}
+    ${rounds.length>1?`<select class="round-filter" onchange="roundFilter=this.value;renderRound()">
+      <option value="">All rounds (${jobs.length})</option>
+      ${rounds.map(r=>`<option value="${esc(r)}"${roundFilter===r?' selected':''}>${esc(r)}</option>`).join('')}
+    </select>`:''}
     <div class="round-summary">
       <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="font-size:14px">\u00a3${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
     </div>
-    ${filtered.length?filtered.map((j,i)=>jobCard(j,i+1)).join(''):`<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Jobs are scheduled from a customer profile.</div><div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;align-items:center"><button class="btn btn-primary" onclick="navigate('customers')">Go to Customers</button><button class="btn btn-ghost btn-sm" onclick="navigate('customers');setTimeout(openAddCustomer,100)">+ Add new customer</button></div></div>`}`;
+    ${filtered.length
+      ? filtered.map((j,i)=>jobCard(j,i+1)).join('')
+      : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <div class="empty-title">No jobs on this date</div>
+        <div class="empty-sub">Jobs are scheduled from a customer profile.</div>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;align-items:center">
+          <button class="btn btn-primary" onclick="navigate('customers')">Go to Customers</button>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('customers');setTimeout(openAddCustomer,100)">+ Add new customer</button>
+        </div></div>`
+    }`;
 }
 
+// ── WEEK VIEW ─────────────────────────────────────────────────────────────────
 async function renderRoundWeek(el){
   const d=new Date(roundDate+'T12:00:00');
-  const day=d.getDay();
-  const monday=new Date(d);monday.setDate(d.getDate()-(day===0?6:day-1));
+  const dow=d.getDay();
+  const mon=new Date(d);mon.setDate(d.getDate()-(dow===0?6:dow-1));
   const days=[];
-  for(let i=0;i<7;i++){const dd=new Date(monday);dd.setDate(monday.getDate()+i);days.push(dd.toISOString().split('T')[0]);}
+  for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);days.push(dd.toISOString().split('T')[0]);}
   const weekStart=days[0],weekEnd=days[6];
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
-    const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out')),ms))]);
-    jobs=await withTimeout(sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`),5000);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
   const weekTotal=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
@@ -918,16 +926,16 @@ async function renderRoundWeek(el){
     ${roundViewBar()}
     <div class="date-nav">
       <button class="date-nav-btn" onclick="roundDate='${prevWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <div class="date-display" style="font-size:13px">${fmtShort(weekStart)} \u2013 ${fmtShort(weekEnd)}</div>
+      <div class="date-display" style="font-size:13px">${fmtShort(weekStart)} – ${fmtShort(weekEnd)}</div>
       <button class="date-nav-btn" onclick="roundDate='${nextWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
     <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:13px">
       <span style="color:var(--text-muted)">${jobs.length} jobs this week</span>
-      <span><span style="color:var(--done)">\u00a3${weekDone.toFixed(2)} done</span> \u00b7 <span style="color:var(--text-soft)">\u00a3${weekTotal.toFixed(2)} total</span></span>
+      <span><span style="color:var(--done)">£${weekDone.toFixed(2)} done</span> · <span style="color:var(--text-soft)">£${weekTotal.toFixed(2)} total</span></span>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
       ${days.map((date,i)=>{
-        const dayJobs=roundJobFilter(jobs.filter(j=>j.next_due===date));
+        const dayJobs=jobs.filter(j=>j.next_due===date&&(!roundAssignee||j.assigned_to===roundAssignee)&&(!roundFilter||j.round_name===roundFilter));
         const dayDone=dayJobs.filter(j=>j.status==='done').length;
         const dayTotal=dayJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
         const isToday=date===today;
@@ -939,10 +947,15 @@ async function renderRoundWeek(el){
               <div style="font-size:20px;font-weight:600;color:${isToday?'var(--gold)':'var(--white)'}">${new Date(date+'T12:00:00').getDate()}</div>
             </div>
             <div style="flex:1">
-              ${dayJobs.length===0?`<span style="font-size:13px;color:var(--text-muted)">No jobs</span>`:`<div style="font-size:14px;font-weight:500;color:var(--white)">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div><div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))].map(r=>`<span style="font-size:11px;padding:1px 6px;border-radius:10px;background:rgba(74,122,181,.2);color:var(--navy-400)">${esc(r)}</span>`).join('')}</div>`}
+              ${dayJobs.length===0
+                ?`<span style="font-size:13px;color:var(--text-muted)">No jobs</span>`
+                :`<div style="font-size:14px;font-weight:500;color:var(--white)">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div>
+                  <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+                    ${[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))].map(r=>`<span style="font-size:11px;padding:1px 6px;border-radius:10px;background:rgba(74,122,181,.2);color:var(--navy-400)">${esc(r)}</span>`).join('')}
+                  </div>`}
             </div>
             <div style="text-align:right;flex-shrink:0">
-              ${dayJobs.length?`<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold)">\u00a3${dayTotal.toFixed(2)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${dayDone}/${dayJobs.length} done</div>`:''}
+              ${dayJobs.length?`<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold)">£${dayTotal.toFixed(2)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${dayDone}/${dayJobs.length} done</div>`:''}
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;color:var(--text-muted);margin-top:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
             </div>
           </div>
@@ -951,6 +964,7 @@ async function renderRoundWeek(el){
     </div>`;
 }
 
+// ── MONTH VIEW ────────────────────────────────────────────────────────────────
 async function renderRoundMonth(el){
   const d=new Date(roundDate+'T12:00:00');
   const year=d.getFullYear(),month=d.getMonth();
@@ -959,9 +973,8 @@ async function renderRoundMonth(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
-    const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out')),ms))]);
-    jobs=await withTimeout(sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,round_name`),5000);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+    jobs=await sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,round_name`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
   const byDate={};
   jobs.forEach(j=>{if(j.next_due){if(!byDate[j.next_due])byDate[j.next_due]=[];byDate[j.next_due].push(j);}});
   const prevMonth=new Date(year,month-1,1).toISOString().split('T')[0];
@@ -1000,11 +1013,11 @@ async function renderRoundMonth(el){
       <button class="date-nav-btn" onclick="roundDate='${nextMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
     <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:13px">
-      <span style="color:var(--text-muted)">${jobs.length} jobs \u00b7 ${monthDone} done</span>
-      <span style="font-family:'DM Mono',monospace;color:var(--gold)">\u00a3${monthTotal.toFixed(2)}</span>
+      <span style="color:var(--text-muted)">${jobs.length} jobs · ${monthDone} done</span>
+      <span style="font-family:'DM Mono',monospace;color:var(--gold)">£${monthTotal.toFixed(2)}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
-      ${['M','T','W','T','F','S','S'].map(d=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${d}</div>`).join('')}
+      ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${x}</div>`).join('')}
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div>
     <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
