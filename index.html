@@ -516,8 +516,8 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
-const BUILD_VERSION='51';
-const BUILD_DATE='15 Jul 2026 21:45';
+const BUILD_VERSION='52';
+const BUILD_DATE='15 Jul 2026 21:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -841,6 +841,16 @@ async function renderRound(){
   // CHECKPOINT — show data count before rendering
   el.innerHTML=`<div class="empty"><div class="empty-title" style="color:var(--done)">✓ Got ${jobs.length} jobs</div><div class="empty-sub">Rendering now…</div></div>`;
   await new Promise(r=>setTimeout(r,1000));
+
+  // Render minimal - no template literals, no helper functions
+  const job=jobs[0];
+  const cust=job?.wc_customers||{};
+  el.innerHTML='<div style="padding:16px;color:white">'
+    +'<div>Jobs: '+jobs.length+'</div>'
+    +'<div>Customer: '+(cust.name||'none')+'</div>'
+    +'<div>Date: '+roundDate+'</div>'
+    +'</div>';
+  return; // stop here for now
 
   const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
   const done=filtered.filter(j=>j.status==='done').length;
