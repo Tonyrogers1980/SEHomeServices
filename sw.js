@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v1';
+const CACHE = 'clearround-v3';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html'];
 
 self.addEventListener('install', e => {
@@ -14,11 +14,23 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for Supabase API calls
+  // Always go network-first for HTML so app always updates
+  if (e.request.url.includes('index.html') || e.request.url.endsWith('/SEHomeServices/') || e.request.url.endsWith('/SEHomeServices')) {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        const clone = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Network-first for Supabase/n8n API calls — never cache
   if (e.request.url.includes('supabase.co') || e.request.url.includes('n8n.cloud')) {
     return;
   }
+  // Cache-first for static assets (logo, manifest)
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    caches.match(e.request).then(cached => cached || fetch(e.request))
   );
 });
