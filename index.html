@@ -516,8 +516,8 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
-const BUILD_VERSION='52';
-const BUILD_DATE='15 Jul 2026 21:50';
+const BUILD_VERSION='53';
+const BUILD_DATE='15 Jul 2026 22:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -842,15 +842,7 @@ async function renderRound(){
   el.innerHTML=`<div class="empty"><div class="empty-title" style="color:var(--done)">✓ Got ${jobs.length} jobs</div><div class="empty-sub">Rendering now…</div></div>`;
   await new Promise(r=>setTimeout(r,1000));
 
-  // Render minimal - no template literals, no helper functions
-  const job=jobs[0];
-  const cust=job?.wc_customers||{};
-  el.innerHTML='<div style="padding:16px;color:white">'
-    +'<div>Jobs: '+jobs.length+'</div>'
-    +'<div>Customer: '+(cust.name||'none')+'</div>'
-    +'<div>Date: '+roundDate+'</div>'
-    +'</div>';
-  return; // stop here for now
+  const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
 
   const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
   const done=filtered.filter(j=>j.status==='done').length;
@@ -890,6 +882,40 @@ async function renderRound(){
 }
 
 function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
+
+function jobCard(j,num){
+  const c=j.wc_customers||{};
+  const isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access',isSched=j.status==='scheduled';
+  const cardClass=isDone?'is-done':isSkip?'is-skip':isCant?'is-cant':'';
+  const numClass=isDone?'done':'';
+  const actions=isSched
+    ?`<div class="job-card-actions">
+        <button class="job-action done-action" onclick="markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
+        <button class="job-action" onclick="openSkip('${j.id}','skipped')">Skip</button>
+        <button class="job-action danger-action" onclick="openSkip('${j.id}','cant-access')">No access</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>
+      </div>`
+    :`<div class="job-card-actions">
+        <button class="job-action undo-action" style="grid-column:1/-1" onclick="undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
+      </div>`;
+  return`<div class="job-card ${cardClass}">
+    <div class="job-card-header">
+      <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
+      <div class="job-card-body">
+        <div class="job-card-name">${esc(c.name||'Unknown')}</div>
+        <div class="job-card-addr">${addrLink(c.address,c.postcode,'job-card-addr')}</div>
+        ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
+        ${j.round_name?`<div class="job-card-round">${esc(j.round_name)}</div>`:''}
+        ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
+        ${j.notes?`<div class="job-card-note" style="color:var(--text-muted)">📝 ${esc(j.notes)}</div>`:''}
+      </div>
+      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+    </div>
+    ${actions}
+  </div>`;
+}
 
 async function markDone(id){
   try{
