@@ -771,6 +771,7 @@ function populateServiceSelect(id,selected=''){
 // ── TODAY'S ROUND ─────────────────────────────────────────────────────────────
 async function renderRound(){
   document.getElementById('topbarPage').textContent="Today's Round";
+  document.getElementById('topbarAction').innerHTML=`<button class="btn btn-primary btn-sm" onclick="navigate('customers')">+ Customer</button>`;
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   let jobs=[];
@@ -811,7 +812,7 @@ async function renderRound(){
     </div>
     ${filtered.length
       ? filtered.map((j,i)=>jobCard(j,i+1)).join('')
-      : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Navigate to see other days.</div></div>`
+      : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Jobs are scheduled from a customer profile.</div><div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;align-items:center"><button class="btn btn-primary" onclick="navigate('customers')">Go to Customers</button><button class="btn btn-ghost btn-sm" onclick="openAddCustomer();navigate('customers')">+ Add new customer</button></div></div>`
     }`;
 }
 
