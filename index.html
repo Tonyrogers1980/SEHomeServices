@@ -516,8 +516,8 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
-const BUILD_VERSION='50';
-const BUILD_DATE='15 Jul 2026 21:35';
+const BUILD_VERSION='51';
+const BUILD_DATE='15 Jul 2026 21:45';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -837,6 +837,10 @@ async function renderRound(){
     const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(name,address,postcode,notes)`);
     jobs=[...byDue,...byDate];
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
+
+  // CHECKPOINT — show data count before rendering
+  el.innerHTML=`<div class="empty"><div class="empty-title" style="color:var(--done)">✓ Got ${jobs.length} jobs</div><div class="empty-sub">Rendering now…</div></div>`;
+  await new Promise(r=>setTimeout(r,1000));
 
   const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
   const done=filtered.filter(j=>j.status==='done').length;
