@@ -516,6 +516,8 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
+const BUILD_VERSION='47';
+const BUILD_DATE='15 Jul 2026 20:54';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1958,6 +1960,8 @@ async function renderSettings(){
     <div class="detail-section">
       <div class="detail-section-header">Account</div>
       <div class="detail-row"><span class="detail-label">Logged in as</span><span class="detail-value">${esc(currentUser.name)}</span></div>
+      <div class="detail-row"><span class="detail-label">Version</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gold)">v1.0.${BUILD_VERSION}</span></div>
+      <div class="detail-row"><span class="detail-label">Deployed</span><span class="detail-value" style="font-size:12px;color:var(--text-muted)">${BUILD_DATE}</span></div>
       <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full" onclick="logout()">Log out</button></div>
     </div>`;
   loadDataAudit();
