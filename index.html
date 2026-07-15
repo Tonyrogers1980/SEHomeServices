@@ -516,8 +516,8 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
-const BUILD_VERSION='54';
-const BUILD_DATE='15 Jul 2026 22:10';
+const BUILD_VERSION='55';
+const BUILD_DATE='15 Jul 2026 22:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -830,6 +830,9 @@ async function renderRound(){
   document.getElementById('topbarAction').innerHTML=`<button class="btn btn-primary btn-sm" onclick="navigate('customers')">+ Customer</button>`;
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
+  if(roundView==='week'){await renderRoundWeek(el);return;}
+  if(roundView==='month'){await renderRoundMonth(el);return;}
+  // Day view
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
@@ -850,6 +853,7 @@ async function renderRound(){
   const isToday=roundDate===todayStr();
 
   el.innerHTML=`
+    ${roundViewBar()}
     <div class="date-nav">
       <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
       <div class="date-display">${fmtDate(roundDate)}</div>
@@ -912,6 +916,127 @@ function jobCard(j,num){
     </div>
     ${actions}
   </div>`;
+}
+
+// ── WEEK VIEW ─────────────────────────────────────────────────────────────────
+let roundView='day';
+
+function roundViewBar(){
+  return`<div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px;width:fit-content">
+    ${['Day','Week','Month'].map(v=>`<button onclick="roundView='${v.toLowerCase()}';renderRound()" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:${roundView===v.toLowerCase()?'var(--gold)':'transparent'};color:${roundView===v.toLowerCase()?'var(--navy-900)':'var(--text-soft)'}">${v}</button>`).join('')}
+  </div>`;
+}
+
+async function renderRoundWeek(el){
+  const d=new Date(roundDate+'T12:00:00');
+  const dow=d.getDay();
+  const mon=new Date(d);mon.setDate(d.getDate()-(dow===0?6:dow-1));
+  const days=[];
+  for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);days.push(dd.toISOString().split('T')[0]);}
+  const weekStart=days[0],weekEnd=days[6];
+  let jobs=[];
+  try{
+    const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
+  const today=todayStr();
+  const weekTotal=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const weekDone=jobs.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  el.innerHTML=`
+    ${roundViewBar()}
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="roundDate='${prevWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="date-display" style="font-size:13px">${fmtShort(weekStart)} – ${fmtShort(weekEnd)}</div>
+      <button class="date-nav-btn" onclick="roundDate='${nextWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:13px">
+      <span style="color:var(--text-muted)">${jobs.length} jobs this week</span>
+      <span><span style="color:var(--done)">£${weekDone.toFixed(2)} done</span> · <span style="color:var(--text-soft)">£${weekTotal.toFixed(2)} total</span></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${days.map((date,i)=>{
+        const dayJobs=jobs.filter(j=>j.next_due===date);
+        const dayDone=dayJobs.filter(j=>j.status==='done').length;
+        const dayTotal=dayJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+        const isToday=date===today;
+        const isPast=date<today;
+        return`<div style="background:var(--navy-800);border:1px solid ${isToday?'var(--gold)':isPast&&dayJobs.length&&dayDone<dayJobs.length?'var(--warn)':'var(--border)'};border-radius:var(--radius);overflow:hidden">
+          <div style="display:flex;align-items:center;padding:12px 14px;cursor:pointer;gap:12px" onclick="roundDate='${date}';roundView='day';renderRound()">
+            <div style="width:36px;text-align:center;flex-shrink:0">
+              <div style="font-size:11px;font-weight:600;color:${isToday?'var(--gold)':'var(--text-muted)'};text-transform:uppercase">${DAYS[i]}</div>
+              <div style="font-size:20px;font-weight:600;color:${isToday?'var(--gold)':'var(--white)'}">${new Date(date+'T12:00:00').getDate()}</div>
+            </div>
+            <div style="flex:1">
+              ${dayJobs.length===0?`<span style="font-size:13px;color:var(--text-muted)">No jobs</span>`
+              :`<div style="font-size:14px;font-weight:500;color:var(--white)">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div>
+                <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))].map(r=>`<span style="font-size:11px;padding:1px 6px;border-radius:10px;background:rgba(74,122,181,.2);color:var(--navy-400)">${esc(r)}</span>`).join('')}</div>`}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              ${dayJobs.length?`<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold)">£${dayTotal.toFixed(2)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${dayDone}/${dayJobs.length} done</div>`:''}
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;color:var(--text-muted);margin-top:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function renderRoundMonth(el){
+  const d=new Date(roundDate+'T12:00:00');
+  const year=d.getFullYear(),month=d.getMonth();
+  const firstDay=new Date(year,month,1),lastDay=new Date(year,month+1,0);
+  const monthStart=firstDay.toISOString().split('T')[0],monthEnd=lastDay.toISOString().split('T')[0];
+  let jobs=[];
+  try{
+    const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
+    jobs=await sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  const byDate={};
+  jobs.forEach(j=>{if(j.next_due){if(!byDate[j.next_due])byDate[j.next_due]=[];byDate[j.next_due].push(j);}});
+  const prevMonth=new Date(year,month-1,1).toISOString().split('T')[0];
+  const nextMonth=new Date(year,month+1,1).toISOString().split('T')[0];
+  const today=todayStr();
+  const monthName=firstDay.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const monthTotal=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const startDow=firstDay.getDay()===0?6:firstDay.getDay()-1;
+  const totalCells=Math.ceil((startDow+lastDay.getDate())/7)*7;
+  let cells='';
+  for(let i=0;i<totalCells;i++){
+    const dayNum=i-startDow+1;
+    if(dayNum<1||dayNum>lastDay.getDate()){cells+=`<div></div>`;continue;}
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    const dayJobs=byDate[dateStr]||[];
+    const isToday=dateStr===today,isSelected=dateStr===roundDate;
+    const hasDone=dayJobs.some(j=>j.status==='done');
+    const hasScheduled=dayJobs.some(j=>j.status==='scheduled');
+    const hasSkipped=dayJobs.some(j=>j.status==='skipped'||j.status==='cant-access');
+    cells+=`<div onclick="roundDate='${dateStr}';roundView='day';renderRound()" style="min-height:48px;background:${isSelected?'rgba(240,165,0,.15)':isToday?'rgba(240,165,0,.08)':'var(--navy-800)'};border:1px solid ${isSelected?'var(--gold)':isToday?'rgba(240,165,0,.4)':'var(--border)'};border-radius:var(--radius-sm);padding:4px;cursor:pointer">
+      <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday||isSelected?'var(--gold)':'var(--text-soft)'}">${dayNum}</div>
+      ${dayJobs.length?`<div style="font-size:10px;color:var(--gold);font-weight:600">${dayJobs.length}</div>
+      <div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:1px">
+        ${hasDone?`<div style="width:5px;height:5px;border-radius:50%;background:var(--done)"></div>`:''}
+        ${hasScheduled?`<div style="width:5px;height:5px;border-radius:50%;background:var(--navy-400)"></div>`:''}
+        ${hasSkipped?`<div style="width:5px;height:5px;border-radius:50%;background:var(--warn)"></div>`:''}
+      </div>`:''}
+    </div>`;
+  }
+  el.innerHTML=`
+    ${roundViewBar()}
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="roundDate='${prevMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="date-display">${monthName}</div>
+      <button class="date-nav-btn" onclick="roundDate='${nextMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:13px">
+      <span style="color:var(--text-muted)">${jobs.length} jobs this month</span>
+      <span style="font-family:'DM Mono',monospace;color:var(--gold)">£${monthTotal.toFixed(2)}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
+      ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${x}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div>`;
 }
 
 async function markDone(id){
