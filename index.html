@@ -768,86 +768,192 @@ function populateServiceSelect(id,selected=''){
   sel.innerHTML='<option value="">Select service…</option>'+wcServiceTypes.map(s=>`<option${s.name===selected?' selected':''}>${esc(s.name)}</option>`).join('');
 }
 
-// ── TODAY'S ROUND ─────────────────────────────────────────────────────────────
+
+// ── ROUND ─────────────────────────────────────────────────────────────────────
+let roundView='day', roundAssignee='';
+
 async function renderRound(){
-  document.getElementById('topbarPage').textContent="Today's Round";
+  document.getElementById('topbarPage').textContent='Round';
   document.getElementById('topbarAction').innerHTML=`<button class="btn btn-primary btn-sm" onclick="navigate('customers')">+ Customer</button>`;
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
+  await loadUsers();
+  if(roundView==='day') await renderRoundDay(el);
+  else if(roundView==='week') await renderRoundWeek(el);
+  else await renderRoundMonth(el);
+}
+
+function roundViewBar(){
+  const isFull=currentUser?.view_mode!=='round_only';
+  const assigneeOpts=isFull&&wcUsers.length
+    ?`<select onchange="roundAssignee=this.value;renderRound()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;color:var(--text);background:var(--navy-800);outline:none">
+        <option value="">All staff</option>
+        ${wcUsers.map(u=>`<option value="${u.id}"${roundAssignee===u.id?' selected':''}>${esc(u.name.split(' ')[0])}</option>`).join('')}
+      </select>`:'';
+  return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px">
+      ${['day','week','month'].map(v=>`<button onclick="roundView='${v}';renderRound()" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:${roundView===v?'var(--gold)':'transparent'};color:${roundView===v?'var(--navy-900)':'var(--text-soft)'}">
+          ${v.charAt(0).toUpperCase()+v.slice(1)}</button>`).join('')}
+    </div>
+    ${assigneeOpts}
+  </div>`;
+}
+
+function roundJobFilter(jobs){
+  let r=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
+  if(roundAssignee) r=r.filter(j=>j.assigned_to===roundAssignee);
+  return r;
+}
+
+async function renderRoundDay(el){
   let jobs=[];
   try{
-    // If round_only, filter to jobs assigned to this user
-    const assigneeFilter=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
+    const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
     const [byDue,byDate]=await Promise.all([
-      sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${assigneeFilter}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`),
-      sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${assigneeFilter}&select=*,wc_customers(name,address,postcode,notes)`)
+      sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`),
+      sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(name,address,postcode,notes)`)
     ]);
     jobs=[...byDue,...byDate];
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
-  const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  const filtered=roundJobFilter(jobs);
   const done=filtered.filter(j=>j.status==='done').length;
   const skipped=filtered.filter(j=>j.status==='skipped'||j.status==='cant-access').length;
   const remaining=filtered.filter(j=>j.status==='scheduled').length;
   const earned=filtered.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
   const rounds=[...new Set(jobs.map(j=>j.round_name).filter(Boolean))].sort();
   const isToday=roundDate===todayStr();
-
   el.innerHTML=`
+    ${roundViewBar()}
     <div class="date-nav">
       <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
       <div class="date-display">${fmtDate(roundDate)}</div>
       ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:56px"></div>'}
       <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    ${rounds.length>1?`<select class="round-filter" onchange="roundFilter=this.value;renderRound()">
-      <option value="">All rounds (${jobs.length})</option>
-      ${rounds.map(r=>`<option value="${esc(r)}"${roundFilter===r?' selected':''}>${esc(r)}</option>`).join('')}
-    </select>`:''}
+    ${rounds.length>1?`<select class="round-filter" onchange="roundFilter=this.value;renderRound()"><option value="">All rounds (${jobs.length})</option>${rounds.map(r=>`<option value="${esc(r)}"${roundFilter===r?' selected':''}>${esc(r)}</option>`).join('')}</select>`:''}
     <div class="round-summary">
       <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="font-size:14px">\u00a3${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
     </div>
-    ${filtered.length
-      ? filtered.map((j,i)=>jobCard(j,i+1)).join('')
-      : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Jobs are scheduled from a customer profile.</div><div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;align-items:center"><button class="btn btn-primary" onclick="navigate('customers')">Go to Customers</button><button class="btn btn-ghost btn-sm" onclick="openAddCustomer();navigate('customers')">+ Add new customer</button></div></div>`
-    }`;
+    ${filtered.length?filtered.map((j,i)=>jobCard(j,i+1)).join(''):`<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><div class="empty-title">No jobs on this date</div><div class="empty-sub">Jobs are scheduled from a customer profile.</div><div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;align-items:center"><button class="btn btn-primary" onclick="navigate('customers')">Go to Customers</button><button class="btn btn-ghost btn-sm" onclick="navigate('customers');setTimeout(openAddCustomer,100)">+ Add new customer</button></div></div>`}`;
 }
 
-function jobCard(j,num){
-  const c=j.wc_customers||{};
-  const isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access',isSched=j.status==='scheduled';
-  const cardClass=isDone?'is-done':isSkip?'is-skip':isCant?'is-cant':'';
-  const numClass=isDone?'done':'';
-  const actions=isSched
-    ?`<div class="job-card-actions">
-        <button class="job-action done-action" onclick="markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
-        <button class="job-action" onclick="openSkip('${j.id}','skipped')">Skip</button>
-        <button class="job-action danger-action" onclick="openSkip('${j.id}','cant-access')">No access</button>
-      </div>
-      <div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>
-      </div>`
-    :`<div class="job-card-actions">
-        <button class="job-action undo-action" style="grid-column:1/-1" onclick="undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
-      </div>`;
-  return`<div class="job-card ${cardClass}">
-    <div class="job-card-header">
-      <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
-      <div class="job-card-body">
-        <div class="job-card-name">${esc(c.name||'Unknown')}</div>
-        <div class="job-card-addr">${addrLink(c.address,c.postcode,'job-card-addr')}</div>
-        ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
-        ${j.round_name?`<div class="job-card-round">${esc(j.round_name)}</div>`:''}
-        ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
-        ${j.notes?`<div class="job-card-note" style="color:var(--text-muted)">📝 ${esc(j.notes)}</div>`:''}
-      </div>
-      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+async function renderRoundWeek(el){
+  const d=new Date(roundDate+'T12:00:00');
+  const day=d.getDay();
+  const monday=new Date(d);monday.setDate(d.getDate()-(day===0?6:day-1));
+  const days=[];
+  for(let i=0;i<7;i++){const dd=new Date(monday);dd.setDate(monday.getDate()+i);days.push(dd.toISOString().split('T')[0]);}
+  const weekStart=days[0],weekEnd=days[6];
+  let jobs=[];
+  try{
+    const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
+  const today=todayStr();
+  const weekTotal=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const weekDone=jobs.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  el.innerHTML=`
+    ${roundViewBar()}
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="roundDate='${prevWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="date-display" style="font-size:13px">${fmtShort(weekStart)} \u2013 ${fmtShort(weekEnd)}</div>
+      <button class="date-nav-btn" onclick="roundDate='${nextWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    ${actions}
-  </div>`;
+    <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:13px">
+      <span style="color:var(--text-muted)">${jobs.length} jobs this week</span>
+      <span><span style="color:var(--done)">\u00a3${weekDone.toFixed(2)} done</span> \u00b7 <span style="color:var(--text-soft)">\u00a3${weekTotal.toFixed(2)} total</span></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${days.map((date,i)=>{
+        const dayJobs=roundJobFilter(jobs.filter(j=>j.next_due===date));
+        const dayDone=dayJobs.filter(j=>j.status==='done').length;
+        const dayTotal=dayJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+        const isToday=date===today;
+        const isPast=date<today;
+        return`<div style="background:var(--navy-800);border:1px solid ${isToday?'var(--gold)':isPast&&dayJobs.length&&dayDone<dayJobs.length?'var(--warn)':'var(--border)'};border-radius:var(--radius);overflow:hidden">
+          <div style="display:flex;align-items:center;padding:12px 14px;cursor:pointer;gap:12px" onclick="roundDate='${date}';roundView='day';renderRound()">
+            <div style="width:36px;text-align:center;flex-shrink:0">
+              <div style="font-size:11px;font-weight:600;color:${isToday?'var(--gold)':'var(--text-muted)'};text-transform:uppercase">${DAYS[i]}</div>
+              <div style="font-size:20px;font-weight:600;color:${isToday?'var(--gold)':'var(--white)'}">${new Date(date+'T12:00:00').getDate()}</div>
+            </div>
+            <div style="flex:1">
+              ${dayJobs.length===0?`<span style="font-size:13px;color:var(--text-muted)">No jobs</span>`:`<div style="font-size:14px;font-weight:500;color:var(--white)">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div><div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))].map(r=>`<span style="font-size:11px;padding:1px 6px;border-radius:10px;background:rgba(74,122,181,.2);color:var(--navy-400)">${esc(r)}</span>`).join('')}</div>`}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              ${dayJobs.length?`<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold)">\u00a3${dayTotal.toFixed(2)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${dayDone}/${dayJobs.length} done</div>`:''}
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;color:var(--text-muted);margin-top:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function renderRoundMonth(el){
+  const d=new Date(roundDate+'T12:00:00');
+  const year=d.getFullYear(),month=d.getMonth();
+  const firstDay=new Date(year,month,1),lastDay=new Date(year,month+1,0);
+  const monthStart=firstDay.toISOString().split('T')[0],monthEnd=lastDay.toISOString().split('T')[0];
+  let jobs=[];
+  try{
+    const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:(roundAssignee?`&assigned_to=eq.${roundAssignee}`:'');
+    jobs=await sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,round_name`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  const byDate={};
+  jobs.forEach(j=>{if(j.next_due){if(!byDate[j.next_due])byDate[j.next_due]=[];byDate[j.next_due].push(j);}});
+  const prevMonth=new Date(year,month-1,1).toISOString().split('T')[0];
+  const nextMonth=new Date(year,month+1,1).toISOString().split('T')[0];
+  const today=todayStr();
+  const monthName=firstDay.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const monthTotal=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const monthDone=jobs.filter(j=>j.status==='done').length;
+  const startDow=firstDay.getDay()===0?6:firstDay.getDay()-1;
+  const totalCells=Math.ceil((startDow+lastDay.getDate())/7)*7;
+  let cells='';
+  for(let i=0;i<totalCells;i++){
+    const dayNum=i-startDow+1;
+    if(dayNum<1||dayNum>lastDay.getDate()){cells+=`<div></div>`;continue;}
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    const dayJobs=byDate[dateStr]||[];
+    const isToday=dateStr===today,isSelected=dateStr===roundDate;
+    const hasDone=dayJobs.some(j=>j.status==='done');
+    const hasScheduled=dayJobs.some(j=>j.status==='scheduled');
+    const hasSkipped=dayJobs.some(j=>j.status==='skipped'||j.status==='cant-access');
+    cells+=`<div onclick="roundDate='${dateStr}';roundView='day';renderRound()" style="min-height:52px;background:${isSelected?'rgba(240,165,0,.15)':isToday?'rgba(240,165,0,.08)':'var(--navy-800)'};border:1px solid ${isSelected?'var(--gold)':isToday?'rgba(240,165,0,.4)':'var(--border)'};border-radius:var(--radius-sm);padding:5px;cursor:pointer">
+      <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday||isSelected?'var(--gold)':'var(--text-soft)'}">${dayNum}</div>
+      ${dayJobs.length?`<div style="font-size:10px;color:var(--gold);font-weight:600;margin-top:1px">${dayJobs.length}</div>
+      <div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:2px">
+        ${hasDone?`<div style="width:6px;height:6px;border-radius:50%;background:var(--done)"></div>`:''}
+        ${hasScheduled?`<div style="width:6px;height:6px;border-radius:50%;background:var(--navy-400)"></div>`:''}
+        ${hasSkipped?`<div style="width:6px;height:6px;border-radius:50%;background:var(--warn)"></div>`:''}
+      </div>`:''}
+    </div>`;
+  }
+  el.innerHTML=`
+    ${roundViewBar()}
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="roundDate='${prevMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="date-display">${monthName}</div>
+      <button class="date-nav-btn" onclick="roundDate='${nextMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:13px">
+      <span style="color:var(--text-muted)">${jobs.length} jobs \u00b7 ${monthDone} done</span>
+      <span style="font-family:'DM Mono',monospace;color:var(--gold)">\u00a3${monthTotal.toFixed(2)}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
+      ${['M','T','W','T','F','S','S'].map(d=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div>
+    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)"><div style="width:8px;height:8px;border-radius:50%;background:var(--done)"></div>Done</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)"><div style="width:8px;height:8px;border-radius:50%;background:var(--navy-400)"></div>Scheduled</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)"><div style="width:8px;height:8px;border-radius:50%;background:var(--warn)"></div>Skipped</div>
+    </div>`;
 }
 
 function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
