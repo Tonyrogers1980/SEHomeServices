@@ -507,6 +507,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="stripeLinkModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Link Stripe Customer</div>
+      <button class="modal-close" onclick="closeModal('stripeLinkModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div id="stripeLinkContent">
+      <div class="loading"><div class="spinner"></div> Searching Stripe…</div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -517,8 +529,9 @@ const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
-const BUILD_VERSION='56';
-const BUILD_DATE='16 Jul 2026 09:00';
+const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
+const BUILD_VERSION='57';
+const BUILD_DATE='16 Jul 2026 09:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1220,12 +1233,14 @@ async function showCustomer(id){
       ${c.stripe_customer_id
         ?`<div class="detail-row"><span class="detail-label">Customer ID</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--done)">${esc(c.stripe_customer_id)}</span></div>
            ${c.stripe_setup_sent_at?`<div class="detail-row"><span class="detail-label">Setup sent</span><span class="detail-value">${fmtShort(c.stripe_setup_sent_at.split('T')[0])}</span></div>`:''}
-           <div class="detail-row" style="padding:12px 16px">
-             <button class="btn btn-ghost btn-sm" onclick="sendPaymentSetup('${c.id}')">↻ Resend payment setup link</button>
+           <div class="detail-row" style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap">
+             <button class="btn btn-ghost btn-sm" onclick="sendPaymentSetup('${c.id}')">↻ Resend setup link</button>
+             <button class="btn btn-ghost btn-sm" onclick="openStripeLink('${c.id}','${esc(c.name)}','${esc(c.email||'')}')">🔗 Relink</button>
            </div>`
         :`<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">No Stripe account linked</span></div>
-           <div class="detail-row" style="padding:12px 16px">
+           <div class="detail-row" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
              <button class="btn btn-primary btn-full" onclick="sendPaymentSetup('${c.id}')">💳 Send payment setup invite</button>
+             <button class="btn btn-ghost btn-full" onclick="openStripeLink('${c.id}','${esc(c.name)}','${esc(c.email||'')}')">🔗 Link existing Stripe customer</button>
            </div>`
       }
     </div>
@@ -1326,7 +1341,113 @@ async function archiveCustomer(id){
   }catch(e){showToast(e.message,'error');}
 }
 
-async function sendPaymentSetup(customerId){
+let stripeLinkCustomerId=null;
+
+async function openStripeLink(customerId, customerName, customerEmail){
+  stripeLinkCustomerId=customerId;
+  document.getElementById('stripeLinkModal').classList.add('open');
+  const content=document.getElementById('stripeLinkContent');
+  content.innerHTML='<div class="loading"><div class="spinner"></div> Searching Stripe…</div>';
+
+  try{
+    // Search Stripe via our n8n proxy webhook
+    const res=await fetch(N8N_STRIPE_SEARCH_WEBHOOK,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({customer_name:customerName, customer_email:customerEmail})
+    });
+    if(!res.ok) throw new Error('Search failed');
+    const data=await res.json();
+    const results=data.customers||[];
+
+    if(!results.length){
+      content.innerHTML=`
+        <div class="empty" style="padding:24px">
+          <div class="empty-title">No matches found</div>
+          <div class="empty-sub">No Stripe customers match "${esc(customerName)}".</div>
+          <div class="field" style="margin-top:16px">
+            <label>Search manually</label>
+            <input id="stripeManualSearch" placeholder="Name or email…" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-900);outline:none;width:100%">
+          </div>
+          <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="stripeManualSearch()">Search</button>
+        </div>`;
+      return;
+    }
+
+    renderStripeResults(results, customerName);
+  }catch(e){
+    content.innerHTML=`<div class="empty"><div class="empty-title">Search failed</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-ghost" onclick="closeModal('stripeLinkModal')">Close</button></div>`;
+  }
+}
+
+function renderStripeResults(results, searchedName){
+  const content=document.getElementById('stripeLinkContent');
+  content.innerHTML=`
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+      Found ${results.length} match${results.length!==1?'es':''} for <strong style="color:var(--text)">${esc(searchedName)}</strong>. Tap to link.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto">
+      ${results.map(r=>`
+        <div onclick="confirmStripeLink('${r.id}','${esc(r.name||'')}','${esc(r.email||'')}')"
+          style="padding:14px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s"
+          onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:14px;font-weight:600;color:var(--white)">${esc(r.name||'No name')}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:3px">${esc(r.email||'No email')}</div>
+          <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-muted);margin-top:3px">${esc(r.id)}</div>
+          ${r.created?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px">Created ${fmtShort(new Date(r.created*1000).toISOString().split('T')[0])}</div>`:''}
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div class="field">
+        <label>Not listed? Search manually</label>
+        <div style="display:flex;gap:8px">
+          <input id="stripeManualSearch" placeholder="Name or email…" style="flex:1;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-900);outline:none">
+          <button class="btn btn-ghost btn-sm" onclick="stripeManualSearch()">Search</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function stripeManualSearch(){
+  const query=document.getElementById('stripeManualSearch')?.value.trim();
+  if(!query){showToast('Enter a name or email to search','error');return;}
+  const content=document.getElementById('stripeLinkContent');
+  content.innerHTML='<div class="loading"><div class="spinner"></div> Searching…</div>';
+  try{
+    const res=await fetch(N8N_STRIPE_SEARCH_WEBHOOK,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({customer_name:query, customer_email:query})
+    });
+    if(!res.ok) throw new Error('Search failed');
+    const data=await res.json();
+    const results=data.customers||[];
+    if(!results.length){
+      content.innerHTML=`<div class="empty"><div class="empty-title">No results</div><div class="empty-sub">No Stripe customers match "${esc(query)}".</div></div>`;
+      return;
+    }
+    renderStripeResults(results, query);
+  }catch(e){
+    content.innerHTML=`<div class="empty"><div class="empty-title">Search failed</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+async function confirmStripeLink(stripeId, stripeName, stripeEmail){
+  if(!confirm(`Link this customer to Stripe account:\n\n${stripeName}\n${stripeEmail}\n${stripeId}`)) return;
+  try{
+    await sb(`wc_customers?id=eq.${stripeLinkCustomerId}`,{
+      method:'PATCH',
+      body:JSON.stringify({stripe_customer_id:stripeId}),
+      prefer:'return=minimal'
+    });
+    // Update local cache
+    const c=customers.find(x=>x.id===stripeLinkCustomerId);
+    if(c) c.stripe_customer_id=stripeId;
+    showToast('Stripe customer linked ✓','success');
+    closeModal('stripeLinkModal');
+    showCustomer(stripeLinkCustomerId);
+  }catch(e){showToast(e.message,'error');}
+}
   const c=customers.find(x=>x.id===customerId);
   if(!c){showToast('Customer not found','error');return;}
   if(!c.email){showToast('Customer needs an email address first','error');return;}
@@ -2102,7 +2223,7 @@ if('serviceWorker' in navigator){
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
-['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal'].forEach(id=>{
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
