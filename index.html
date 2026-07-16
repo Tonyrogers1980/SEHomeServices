@@ -170,16 +170,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-chevron{width:14px;height:14px;color:var(--text-muted);transition:transform .15s;flex-shrink:0;}
 .job-card-chevron.open{transform:rotate(180deg);}
 .job-card-details{padding:0 12px 10px 46px;}
-.job-card-actions{display:grid;gap:1px;margin-top:0;border-top:1px solid var(--border);background:var(--border);}
+.job-card-actions{display:grid;gap:6px;padding:0 10px 10px;}
+.job-action{border:none;border-radius:8px;padding:10px 4px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;transition:filter .12s,transform .08s;}
+.job-action:active{transform:scale(.96);filter:brightness(1.15);}
+.job-action svg{width:15px;height:15px;}
+.action-done{background:var(--done);color:#ffffff;}
+.action-navigate{background:var(--navy-400);color:#ffffff;}
+.action-skip{background:var(--navy-700);color:var(--text-soft);border:1px solid var(--border);}
+.action-charge{background:var(--gold);color:var(--navy-900);}
+.action-reschedule{background:#7c5cbf;color:#ffffff;}
+.action-undo{background:var(--navy-700);color:var(--text-soft);border:1px solid var(--border);}
 .job-action{background:var(--navy-800);border:none;padding:14px 8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--text-soft);display:flex;align-items:center;justify-content:center;gap:5px;min-height:48px;transition:background .12s;}
 .job-action:active{background:var(--navy-700);}
-.job-action.done-action{color:var(--done);}
-.job-action.danger-action{color:var(--danger);}
-.job-action.undo-action{color:var(--text-muted);}
 .job-action svg{width:16px;height:16px;}
 .job-card.is-done{opacity:.65;border-color:var(--done);}
 .job-card.is-skip{opacity:.65;border-color:var(--warn);}
 .job-card.is-cant{opacity:.65;border-color:var(--danger);}
+.assignee-pill{padding:6px 14px;border-radius:16px;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--navy-800);color:var(--text-muted);cursor:pointer;transition:all .12s;}
+.assignee-pill.selected{background:var(--gold);border-color:var(--gold);color:var(--navy-900);}
 
 /* MISC */
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;}
@@ -385,6 +393,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="paymentChoiceModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">Record payment</div>
+      <button class="modal-close" onclick="closeModal('paymentChoiceModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div id="paymentChoiceBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="skipModal">
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
@@ -536,8 +554,9 @@ const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearroun
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
-const BUILD_VERSION='61';
-const BUILD_DATE='16 Jul 2026 14:30';
+const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
+const BUILD_VERSION='62';
+const BUILD_DATE='16 Jul 2026 15:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -863,8 +882,8 @@ async function renderRound(){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes)`);
-    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(name,address,postcode,notes)`);
+    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id)`);
+    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id)`);
     jobs=[...byDue,...byDate];
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
 
@@ -918,21 +937,20 @@ function jobCard(j,num){
   const numClass=isDone?'done':'';
   const isAdmin=currentUser?.view_mode!=='round_only';
   const cardId='jc-'+j.id;
-  const navBtn=`<button class="job-action" onclick="event.stopPropagation();window.open('${mapsUrl(c.address,c.postcode)}','_blank')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</button>`;
-  const chargeBtn=`<button class="job-action" style="color:var(--gold)" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}')">💳 Charge</button>`;
+  const navBtn=`<button class="job-action action-navigate" onclick="event.stopPropagation();window.open('${mapsUrl(c.address,c.postcode)}','_blank')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</button>`;
+  const chargeBtn=`<button class="job-action action-charge" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`;
+  const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>`;
   const actions=isSched
-    ?`<div class="job-card-actions" style="grid-template-columns:repeat(${isAdmin?4:3},1fr)">
-        <button class="job-action done-action" onclick="event.stopPropagation();markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
+    ?`<div class="job-card-actions" style="grid-template-columns:repeat(${isAdmin?5:4},1fr)">
+        <button class="job-action action-done" onclick="event.stopPropagation();markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
         ${navBtn}
-        <button class="job-action" onclick="event.stopPropagation();openSkip('${j.id}','skipped')">Skip</button>
+        <button class="job-action action-skip" onclick="event.stopPropagation();openSkip('${j.id}','skipped')">Skip</button>
         ${isAdmin?chargeBtn:''}
-      </div>
-      <div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:12px" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>
+        ${rescheduleBtn}
       </div>`
     :`<div class="job-card-actions" style="grid-template-columns:repeat(${isAdmin?3:2},1fr)">
         ${navBtn}
-        <button class="job-action undo-action" onclick="event.stopPropagation();undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
+        <button class="job-action action-undo" onclick="event.stopPropagation();undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
         ${isAdmin?chargeBtn:''}
       </div>`;
   const hasDetails=!!(j.service_type||j.round_name||c.notes||j.notes);
@@ -986,7 +1004,7 @@ async function renderRoundWeek(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes)`);
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id)`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
@@ -2016,7 +2034,7 @@ async function renderOwing(){
     // Done jobs not yet paid — whether or not they've already been invoiced/sent
     jobs=await sb(
       `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done` +
-      `&select=*,wc_customers(name,address,postcode,email,phone,whatsapp_number)` +
+      `&select=*,wc_customers(name,address,postcode,email,phone,whatsapp_number,stripe_customer_id)` +
       `&order=last_done.desc`
     );
     // Attach the latest invoice (any status) for each job, so we can reuse it instead of
@@ -2067,10 +2085,8 @@ function owingCard(j){
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
     </div>
-    <div class="job-card-actions" onclick="event.stopPropagation()">
-      <button class="job-action done-action" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}')">💳 ${alreadySent?'Resend link':'Charge via Stripe'}</button>
-      <button class="job-action" onclick="recordCash('${j.id}')">💵 Cash</button>
-      <button class="job-action" onclick="recordBankTransfer('${j.id}')">🏦 Transfer</button>
+    <div class="job-card-actions" style="grid-template-columns:1fr" onclick="event.stopPropagation()">
+      <button class="job-action action-charge" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>
     </div>
   </div>`;
 }
@@ -2108,34 +2124,57 @@ function toggleOwingSelect(jobId){
   }
 }
 
-async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone){
-  showToast('Creating payment link…');
-  try{
-    // Reuse an existing unpaid invoice for this job if one already exists (e.g. from auto-invoice)
-    const [existing]=await sb(`wc_invoices?job_id=eq.${jobId}&status=neq.paid&order=created_at.desc&limit=1`);
-    let inv=existing;
-    if(!inv){
-      const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
-      [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
-        business_id:BUSINESS_ID,customer_id:job?.customer_id,
-        job_id:jobId,amount:parseFloat(amount),
-        notes:serviceType||'Window Cleaning',status:'sent',
-        sent_at:new Date().toISOString()
-      }),prefer:'return=representation'});
-    }
-    if(inv){
-      const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        invoice_id:inv.id,customer_name:customerName,
-        customer_phone:phone,customer_email:email,
-        amount,service_type:serviceType||'Window Cleaning',due_date:'',notes:''
+async function ensureInvoice(jobId,amount,serviceType){
+  const [existing]=await sb(`wc_invoices?job_id=eq.${jobId}&status=neq.paid&order=created_at.desc&limit=1`);
+  if(existing)return existing;
+  const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
+  const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
+    business_id:BUSINESS_ID,customer_id:job?.customer_id,job_id:jobId,amount:parseFloat(amount),
+    notes:serviceType||'Window Cleaning',status:'sent',sent_at:new Date().toISOString()
+  }),prefer:'return=representation'});
+  return inv;
+}
+
+async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone,stripeCustomerId){
+  if(stripeCustomerId){
+    showToast('Charging saved card…');
+    try{
+      const inv=await ensureInvoice(jobId,amount,serviceType);
+      const res=await fetch(N8N_CHARGE_SAVED_CARD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        stripe_customer_id:stripeCustomerId,amount:parseFloat(amount),invoice_id:inv?.id,description:serviceType||'Window Cleaning'
       })});
       const data=await res.json().catch(()=>({}));
-      if(data.payment_link){
-        showToast('Payment link sent ✓','success');
+      if(data.ok){
+        showToast('Charged ✓','success');
+        refreshCurrentPage();
+      }else{
+        showToast((data.error==='no_payment_method'?'No card on file':'Charge failed: '+(data.error||'unknown'))+' — choose another option','error');
+        openPaymentChoice(jobId,customerName,amount);
       }
-    }
-    renderOwing();
-  }catch(e){showToast('Failed: '+e.message,'error');}
+    }catch(e){showToast('Failed: '+e.message,'error');}
+  }else{
+    openPaymentChoice(jobId,customerName,amount);
+  }
+}
+
+function openPaymentChoice(jobId,customerName,amount){
+  const body=document.getElementById('paymentChoiceBody');
+  body.innerHTML=`
+    <div style="padding:0 16px 16px;font-size:13px;color:var(--text-muted)">${esc(customerName)} · £${parseFloat(amount||0).toFixed(2)} · no card on file</div>
+    <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordCash('${jobId}')">💵 Record as cash</button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordBankTransfer('${jobId}')">🏦 Record as bank transfer</button>
+      <button class="btn btn-primary btn-full" onclick="closeModal('paymentChoiceModal');sendStripeSetupFromJob('${jobId}')">🔗 Send Stripe setup link</button>
+    </div>`;
+  document.getElementById('paymentChoiceModal').classList.add('open');
+}
+
+async function sendStripeSetupFromJob(jobId){
+  try{
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
+    if(job?.customer_id)await sendPaymentSetup(job.customer_id);
+    refreshCurrentPage();
+  }catch(e){showToast(e.message,'error');}
 }
 
 async function bulkChargeStripe(){
@@ -2191,23 +2230,28 @@ async function recordCash(jobId){return recordManualPayment(jobId,'cash','cash')
 async function recordBankTransfer(jobId){return recordManualPayment(jobId,'bank_transfer','bank transfer');}
 
 // ── REVENUE ───────────────────────────────────────────────────────────────────
-let revenuePeriod='week',revenueAssignee='';
+let revenuePeriod='week',revenueAssignees=null; // Set of user ids; null = not yet initialized (defaults to all)
 
 async function renderRevenue(){
   document.getElementById('topbarPage').textContent='Revenue';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   await loadUsers();
+  if(revenueAssignees===null)revenueAssignees=new Set(wcUsers.map(u=>u.id));
 
-  const af=revenueAssignee?`&assigned_to=eq.${revenueAssignee}`:'';
+  const allSelected=revenueAssignees.size===wcUsers.length;
+  const noneSelected=revenueAssignees.size===0;
+  const af=(!allSelected&&!noneSelected)?`&assigned_to=in.(${[...revenueAssignees].join(',')})`:'';
   let scheduled=[],done=[];
-  try{
-    // Estimated income — every currently scheduled job (covers the 3-month rolling horizon)
-    scheduled=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled${af}&select=next_due,price,assigned_to&order=next_due.asc`);
-    // Actual income — completed jobs over the last 6 months
-    const since=localDateStr(new Date(Date.now()-183*86400000));
-    done=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${since}${af}&select=last_done,price,assigned_to&order=last_done.asc`);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  if(!noneSelected){
+    try{
+      // Estimated income — every currently scheduled job (covers the 3-month rolling horizon)
+      scheduled=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled${af}&select=next_due,price,assigned_to&order=next_due.asc`);
+      // Actual income — completed jobs over the last 6 months
+      const since=localDateStr(new Date(Date.now()-183*86400000));
+      done=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${since}${af}&select=last_done,price,assigned_to&order=last_done.asc`);
+    }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  }
 
   const estBuckets=bucketByPeriod(scheduled,'next_due',revenuePeriod);
   const actBuckets=bucketByPeriod(done,'last_done',revenuePeriod);
@@ -2216,15 +2260,15 @@ async function renderRevenue(){
 
   el.innerHTML=`
     <div class="page-header"><div><div class="page-title">Revenue</div><div class="page-sub">Estimated vs actual income</div></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px">
         ${['Week','Month'].map(v=>`<button onclick="revenuePeriod='${v.toLowerCase()}';renderRevenue()" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:${revenuePeriod===v.toLowerCase()?'var(--gold)':'transparent'};color:${revenuePeriod===v.toLowerCase()?'var(--navy-900)':'var(--text-soft)'}">${v}</button>`).join('')}
       </div>
-      <select class="round-filter" style="max-width:170px;margin:0" onchange="revenueAssignee=this.value;renderRevenue()">
-        <option value="">All assignees</option>
-        ${wcUsers.map(u=>`<option value="${u.id}"${revenueAssignee===u.id?' selected':''}>${esc(u.name)}</option>`).join('')}
-      </select>
     </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      ${wcUsers.map(u=>`<button class="assignee-pill${revenueAssignees.has(u.id)?' selected':''}" onclick="toggleRevenueAssignee('${u.id}')">${esc(u.name)}</button>`).join('')}
+    </div>
+    ${noneSelected?`<div class="empty" style="padding:24px 0"><div class="empty-sub">Select at least one assignee to see revenue</div></div>`:`
     <div class="round-summary" style="margin-bottom:20px">
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--navy-400)">£${estTotal.toFixed(0)}</div><div class="round-stat-label">Estimated (scheduled)</div></div>
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--done)">£${actTotal.toFixed(0)}</div><div class="round-stat-label">Actual (done, 6mo)</div></div>
@@ -2233,7 +2277,14 @@ async function renderRevenue(){
     ${revenueChart(estBuckets,'var(--navy-400)')}
     <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Actual income — ${revenuePeriod==='week'?'by week':'by month'}</div>
     ${revenueChart(actBuckets,'var(--done)')}
+    `}
   `;
+}
+
+function toggleRevenueAssignee(id){
+  if(revenueAssignees.has(id))revenueAssignees.delete(id);
+  else revenueAssignees.add(id);
+  renderRevenue();
 }
 
 function bucketByPeriod(jobs,dateField,period){
