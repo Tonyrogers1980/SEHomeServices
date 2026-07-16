@@ -530,8 +530,8 @@ const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearrou
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
-const BUILD_VERSION='57';
-const BUILD_DATE='16 Jul 2026 09:30';
+const BUILD_VERSION='58';
+const BUILD_DATE='16 Jul 2026 09:45';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1448,6 +1448,8 @@ async function confirmStripeLink(stripeId, stripeName, stripeEmail){
     showCustomer(stripeLinkCustomerId);
   }catch(e){showToast(e.message,'error');}
 }
+
+async function sendPaymentSetup(customerId){
   const c=customers.find(x=>x.id===customerId);
   if(!c){showToast('Customer not found','error');return;}
   if(!c.email){showToast('Customer needs an email address first','error');return;}
