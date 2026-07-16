@@ -530,8 +530,8 @@ const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearrou
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
-const BUILD_VERSION='58';
-const BUILD_DATE='16 Jul 2026 09:45';
+const BUILD_VERSION='59';
+const BUILD_DATE='16 Jul 2026 10:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1356,8 +1356,10 @@ async function openStripeLink(customerId, customerName, customerEmail){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({customer_name:customerName, customer_email:customerEmail})
     });
-    if(!res.ok) throw new Error('Search failed');
-    const data=await res.json();
+    if(!res.ok) throw new Error(`Search failed (${res.status})`);
+    const text=await res.text();
+    if(!text||!text.trim()) throw new Error('No response from search service');
+    const data=JSON.parse(text);
     const results=data.customers||[];
 
     if(!results.length){
@@ -1419,8 +1421,10 @@ async function stripeManualSearch(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({customer_name:query, customer_email:query})
     });
-    if(!res.ok) throw new Error('Search failed');
-    const data=await res.json();
+    if(!res.ok) throw new Error(`Search failed (${res.status})`);
+    const text=await res.text();
+    if(!text||!text.trim()) throw new Error('No response from search service');
+    const data=JSON.parse(text);
     const results=data.customers||[];
     if(!results.length){
       content.innerHTML=`<div class="empty"><div class="empty-title">No results</div><div class="empty-sub">No Stripe customers match "${esc(query)}".</div></div>`;
