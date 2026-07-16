@@ -557,8 +557,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='63';
-const BUILD_DATE='16 Jul 2026 15:40';
+const BUILD_VERSION='64';
+const BUILD_DATE='16 Jul 2026 16:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1555,7 +1555,10 @@ async function confirmStripeLink(stripeId, stripeName, stripeEmail){
 }
 
 async function sendPaymentSetup(customerId){
-  const c=customers.find(x=>x.id===customerId);
+  let c=customers.find(x=>x.id===customerId);
+  if(!c){
+    try{[c]=await sb(`wc_customers?id=eq.${customerId}&select=*`);}catch(e){}
+  }
   if(!c){showToast('Customer not found','error');return;}
   if(!c.email){showToast('Customer needs an email address first','error');return;}
   const btn=event?.target;
@@ -2024,13 +2027,11 @@ async function deleteInvoice(id){
 }
 
 // ── OWING / PAYMENTS ──────────────────────────────────────────────────────────
-let owingSelected=new Set();
 
 async function renderOwing(){
   document.getElementById('topbarPage').textContent='Owing';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  owingSelected=new Set();
   let jobs=[];
   try{
     // Done jobs not yet paid — whether or not they've already been invoiced/sent
@@ -2057,12 +2058,6 @@ async function renderOwing(){
       <div><div class="page-title">Owing</div><div class="page-sub">${jobs.length} unpaid job${jobs.length!==1?'s':''} · £${total.toFixed(2)} total</div></div>
     </div>
     ${jobs.length===0?`<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="empty-title">All clear!</div><div class="empty-sub">No completed jobs waiting for payment.</div></div>`:`
-    <div id="owing-bulk-bar" style="display:none;position:sticky;top:0;z-index:10;background:var(--navy-700);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:none;align-items:center;gap:10px">
-      <span id="owing-bulk-label" style="flex:1;font-size:14px;font-weight:500;color:var(--white)">0 selected</span>
-      <button class="btn btn-primary btn-sm" onclick="bulkChargeStripe()">💳 Charge via Stripe</button>
-      <button class="btn btn-ghost btn-sm" onclick="owingSelected.clear();renderOwing()">Clear</button>
-    </div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Tap a job to select for bulk Stripe charge, or use the individual actions.</div>
     <div class="card-list" id="owingList">
       ${jobs.map(j=>owingCard(j)).join('')}
     </div>`}`;
@@ -2070,14 +2065,11 @@ async function renderOwing(){
 
 function owingCard(j){
   const c=j.wc_customers||{};
-  const isSelected=owingSelected.has(j.id);
   const inv=j._invoice;
   const alreadySent=inv&&inv.status==='sent';
-  return`<div class="job-card${isSelected?' is-done':''}" id="owing-${j.id}" style="${isSelected?'border-color:var(--gold);':''}" onclick="toggleOwingSelect('${j.id}')">
+  return`<div class="job-card" id="owing-${j.id}">
     <div class="job-card-header">
-      <div class="job-card-num${isSelected?' done':''}" style="${isSelected?'background:var(--gold);color:var(--navy-900);border-color:var(--gold)':''}">
-        ${isSelected?'✓':'£'}
-      </div>
+      <div class="job-card-num">£</div>
       <div class="job-card-body">
         <div class="job-card-name">${esc(c.name||'Unknown')}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}</div>
         <div class="job-card-addr">${addrLink(c.address,c.postcode)}</div>
@@ -2087,43 +2079,10 @@ function owingCard(j){
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
     </div>
-    <div class="job-card-actions" style="grid-template-columns:1fr" onclick="event.stopPropagation()">
+    <div class="job-card-actions" style="grid-template-columns:1fr">
       <button class="job-action action-charge" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>
     </div>
   </div>`;
-}
-
-function toggleOwingSelect(jobId){
-  if(owingSelected.has(jobId))owingSelected.delete(jobId);
-  else owingSelected.add(jobId);
-  // Update card UI
-  const card=document.getElementById(`owing-${jobId}`);
-  if(card){
-    const isNowSelected=owingSelected.has(jobId);
-    card.style.borderColor=isNowSelected?'var(--gold)':'var(--border)';
-    const num=card.querySelector('.job-card-num');
-    if(num){
-      num.textContent=isNowSelected?'✓':'£';
-      num.style.background=isNowSelected?'var(--gold)':'var(--navy-700)';
-      num.style.color=isNowSelected?'var(--navy-900)':'var(--text-muted)';
-      num.style.borderColor=isNowSelected?'var(--gold)':'var(--border)';
-    }
-  }
-  // Show/hide bulk bar
-  const bar=document.getElementById('owing-bulk-bar');
-  if(bar){
-    bar.style.display=owingSelected.size>0?'flex':'none';
-    const label=document.getElementById('owing-bulk-label');
-    if(label){
-      const sel=[...owingSelected];
-      const total=sel.reduce((s,id)=>{
-        const card=document.getElementById(`owing-${id}`);
-        const priceEl=card?.querySelector('.job-card-price');
-        return s+parseFloat(priceEl?.textContent?.replace('£','')||0);
-      },0);
-      label.textContent=`${owingSelected.size} selected · £${total.toFixed(2)}`;
-    }
-  }
 }
 
 async function ensureInvoice(jobId,amount,serviceType){
@@ -2175,38 +2134,9 @@ async function sendStripeSetupFromJob(jobId){
   try{
     const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
     if(job?.customer_id)await sendPaymentSetup(job.customer_id);
-    refreshCurrentPage();
   }catch(e){showToast(e.message,'error');}
 }
 
-async function bulkChargeStripe(){
-  if(owingSelected.size===0)return;
-  const ids=[...owingSelected];
-  showToast(`Creating combined payment link for ${ids.length} jobs…`);
-  try{
-    // Fetch all selected jobs
-    const jobs=await sb(`wc_jobs?id=in.(${ids.join(',')})&select=*,wc_customers(name,email,phone,whatsapp_number)`);
-    const total=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
-    const c=jobs[0]?.wc_customers||{};
-    // Create one combined invoice
-    const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
-      business_id:BUSINESS_ID,customer_id:jobs[0]?.customer_id,
-      amount:total,
-      notes:`Combined: ${jobs.map(j=>j.service_type||'Window Cleaning').join(', ')}`,
-      status:'sent',sent_at:new Date().toISOString()
-    }),prefer:'return=representation'});
-    if(inv){
-      const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        invoice_id:inv.id,customer_name:c.name||'Customer',
-        customer_phone:c.whatsapp_number||c.phone||'',customer_email:c.email||'',
-        amount:total,service_type:`${jobs.length} services`,due_date:'',notes:''
-      })});
-      const data=await res.json().catch(()=>({}));
-      showToast(`Combined link £${total.toFixed(2)} sent ✓`,'success');
-    }
-    owingSelected.clear();renderOwing();
-  }catch(e){showToast('Failed: '+e.message,'error');}
-}
 
 async function recordManualPayment(jobId,method,label){
   if(!confirm(`Record this job as paid by ${label}?`))return;
