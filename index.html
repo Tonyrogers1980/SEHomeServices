@@ -530,8 +530,8 @@ const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearrou
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
-const BUILD_VERSION='59';
-const BUILD_DATE='16 Jul 2026 10:15';
+const BUILD_VERSION='60';
+const BUILD_DATE='16 Jul 2026 10:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1365,13 +1365,15 @@ async function openStripeLink(customerId, customerName, customerEmail){
     if(!results.length){
       content.innerHTML=`
         <div class="empty" style="padding:24px">
-          <div class="empty-title">No matches found</div>
-          <div class="empty-sub">No Stripe customers match "${esc(customerName)}".</div>
+          <div class="empty-title">No exact match found</div>
+          <div class="empty-sub">No Stripe customer with email "${esc(customerEmail)}".</div>
           <div class="field" style="margin-top:16px">
-            <label>Search manually</label>
-            <input id="stripeManualSearch" placeholder="Name or email…" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-900);outline:none;width:100%">
+            <label>Search by name or email</label>
+            <div style="display:flex;gap:8px">
+              <input id="stripeManualSearch" value="${esc(customerName)}" placeholder="Name or email…" style="flex:1;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-900);outline:none">
+              <button class="btn btn-primary btn-sm" onclick="stripeManualSearch()">Search</button>
+            </div>
           </div>
-          <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="stripeManualSearch()">Search</button>
         </div>`;
       return;
     }
@@ -1419,6 +1421,7 @@ async function stripeManualSearch(){
     const res=await fetch(N8N_STRIPE_SEARCH_WEBHOOK,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
+      // Send as both fields so workflow searches name AND email
       body:JSON.stringify({customer_name:query, customer_email:query})
     });
     if(!res.ok) throw new Error(`Search failed (${res.status})`);
@@ -1427,7 +1430,14 @@ async function stripeManualSearch(){
     const data=JSON.parse(text);
     const results=data.customers||[];
     if(!results.length){
-      content.innerHTML=`<div class="empty"><div class="empty-title">No results</div><div class="empty-sub">No Stripe customers match "${esc(query)}".</div></div>`;
+      content.innerHTML=`<div class="empty"><div class="empty-title">No results</div><div class="empty-sub">No Stripe customers match "${esc(query)}".</div>
+        <div class="field" style="margin-top:16px">
+          <label>Try a different search</label>
+          <div style="display:flex;gap:8px">
+            <input id="stripeManualSearch" value="${esc(query)}" placeholder="Name or email…" style="flex:1;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-900);outline:none">
+            <button class="btn btn-ghost btn-sm" onclick="stripeManualSearch()">Search</button>
+          </div>
+        </div></div>`;
       return;
     }
     renderStripeResults(results, query);
