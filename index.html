@@ -516,8 +516,9 @@ const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
-const BUILD_VERSION='55';
-const BUILD_DATE='15 Jul 2026 22:15';
+const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
+const BUILD_VERSION='56';
+const BUILD_DATE='16 Jul 2026 09:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1193,7 +1194,7 @@ async function showCustomer(id){
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let c=customers.find(x=>x.id===id);
-  if(!c){try{[c]=await sb(`wc_customers?id=eq.${id}`);}catch(e){}}
+  if(!c){try{[c]=await sb(`wc_customers?id=eq.${id}&select=*`);}catch(e){}}
   if(!c){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
   el.innerHTML=`
     <button class="back-btn" onclick="renderCustomers()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Customers</button>
@@ -1215,6 +1216,19 @@ async function showCustomer(id){
     ${c.balance&&parseFloat(c.balance)!==0?`<div class="detail-section"><div class="detail-section-header">Account</div><div class="detail-row"><span class="detail-label">Balance</span><span class="detail-value" style="color:${parseFloat(c.balance)>0?'var(--done)':'var(--danger)'}">£${parseFloat(c.balance).toFixed(2)}</span></div></div>`:''}
     ${c.notes?`<div class="detail-section"><div class="detail-section-header">Notes</div><div class="detail-row"><span style="color:var(--warn);font-size:14px">⚠ ${esc(c.notes)}</span></div></div>`:''}
     <div class="detail-section">
+      <div class="detail-section-header">Stripe</div>
+      ${c.stripe_customer_id
+        ?`<div class="detail-row"><span class="detail-label">Customer ID</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--done)">${esc(c.stripe_customer_id)}</span></div>
+           ${c.stripe_setup_sent_at?`<div class="detail-row"><span class="detail-label">Setup sent</span><span class="detail-value">${fmtShort(c.stripe_setup_sent_at.split('T')[0])}</span></div>`:''}
+           <div class="detail-row" style="padding:12px 16px">
+             <button class="btn btn-ghost btn-sm" onclick="sendPaymentSetup('${c.id}')">↻ Resend payment setup link</button>
+           </div>`
+        :`<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">No Stripe account linked</span></div>
+           <div class="detail-row" style="padding:12px 16px">
+             <button class="btn btn-primary btn-full" onclick="sendPaymentSetup('${c.id}')">💳 Send payment setup invite</button>
+           </div>`
+      }
+    </div>
       <div class="detail-section-header">Jobs<button class="btn btn-primary btn-sm" onclick="openAddJob('${c.id}')">+ Schedule</button></div>
       <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
     </div>
@@ -1293,8 +1307,13 @@ async function saveCustomer(){
       await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
       showToast('Customer updated','success');
     }else{
-      await sb('wc_customers',{method:'POST',body:JSON.stringify({...payload,active:true,business_id:BUSINESS_ID}),prefer:'return=minimal'});
+      const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify({...payload,active:true,business_id:BUSINESS_ID}),prefer:'return=representation'});
       showToast('Customer added','success');
+      // Auto-send payment setup invite to new customers
+      if(newCust&&email){
+        customers=[...customers,newCust].sort((a,b)=>a.name.localeCompare(b.name));
+        setTimeout(()=>sendPaymentSetup(newCust.id),500);
+      }
     }
     closeModal('customerModal');renderCustomers();
   }catch(e){showToast(e.message,'error');}
@@ -1305,6 +1324,45 @@ async function archiveCustomer(id){
     await sb(`wc_customers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:false}),prefer:'return=minimal'});
     showToast('Archived','success');renderCustomers();
   }catch(e){showToast(e.message,'error');}
+}
+
+async function sendPaymentSetup(customerId){
+  const c=customers.find(x=>x.id===customerId);
+  if(!c){showToast('Customer not found','error');return;}
+  if(!c.email){showToast('Customer needs an email address first','error');return;}
+  const btn=event?.target;
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    const res=await fetch(N8N_PAYMENT_SETUP_WEBHOOK,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        customer_id:c.id,
+        customer_name:c.name,
+        customer_email:c.email,
+        customer_phone:c.whatsapp_number||c.phone||'',
+        stripe_customer_id:c.stripe_customer_id||null
+      })
+    });
+    if(res.ok){
+      const data=await res.json().catch(()=>({}));
+      // Update local customer record with Stripe ID if returned
+      if(data.stripe_customer_id){
+        c.stripe_customer_id=data.stripe_customer_id;
+        c.stripe_setup_sent_at=new Date().toISOString();
+      }
+      showToast('Payment setup link sent ✓','success');
+      // Refresh customer detail view
+      setTimeout(()=>showCustomer(customerId),800);
+    }else{
+      const err=await res.json().catch(()=>({}));
+      showToast('⚠ '+(err.message||'Delivery failed'),'error');
+      if(btn){btn.disabled=false;btn.textContent='💳 Send payment setup invite';}
+    }
+  }catch(e){
+    showToast('⚠ Could not reach delivery service','error');
+    if(btn){btn.disabled=false;btn.textContent='💳 Send payment setup invite';}
+  }
 }
 
 // ── JOB MODAL ─────────────────────────────────────────────────────────────────
