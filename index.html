@@ -557,8 +557,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='66';
-const BUILD_DATE='17 Jul 2026 12:45';
+const BUILD_VERSION='67';
+const BUILD_DATE='17 Jul 2026 13:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -741,6 +741,7 @@ function logout(){
 // ── NAV ────────────────────────────────────────────────────────────────────────
 const FULL_PAGES=[
   {id:'round',label:'Round',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>'},
+  {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
   {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
   {id:'quotes',label:'Quotes',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'},
   {id:'invoices',label:'Invoices',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
@@ -789,6 +790,7 @@ function navigate(page){
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
   if(page==='round')renderRound();
+  else if(page==='jobs')renderJobs();
   else if(page==='customers')renderCustomers();
   else if(page==='quotes')renderQuotes();
   else if(page==='invoices')renderInvoices();
@@ -2163,6 +2165,88 @@ async function recordManualPayment(jobId,method,label){
 }
 async function recordCash(jobId){return recordManualPayment(jobId,'cash','cash');}
 async function recordBankTransfer(jobId){return recordManualPayment(jobId,'bank_transfer','bank transfer');}
+
+// ── JOBS OVERVIEW ─────────────────────────────────────────────────────────────
+let jobsSearch='',jobsAssignees=null;
+
+function freqLabel(f){
+  const map={'one-off':'One-off','weekly':'Weekly','fortnightly':'Fortnightly','4-weekly':'Every 4 weeks','8-weekly':'Every 8 weeks'};
+  return map[f]||f||'—';
+}
+
+async function renderJobs(){
+  document.getElementById('topbarPage').textContent='Jobs';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  await loadUsers();
+  if(jobsAssignees===null)jobsAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
+
+  let jobs=[];
+  try{
+    jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&select=*,wc_customers(id,name,address,postcode)&order=next_due.asc`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  // One row per client job — recurring series collapse to their soonest upcoming occurrence;
+  // one-off jobs (no series_id) are each their own row.
+  const seen=new Set();
+  const deduped=[];
+  for(const j of jobs){
+    const key=j.series_id||j.id;
+    if(seen.has(key))continue;
+    seen.add(key);
+    deduped.push(j);
+  }
+
+  const q=jobsSearch.trim().toLowerCase();
+  const filtered=deduped.filter(j=>{
+    const assigneeKey=j.assigned_to||'unassigned';
+    if(!jobsAssignees.has(assigneeKey))return false;
+    if(q&&!(j.wc_customers?.name||'').toLowerCase().includes(q))return false;
+    return true;
+  });
+  const totalValue=filtered.reduce((s,j)=>s+parseFloat(j.price||0),0);
+
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Jobs</div><div class="page-sub">${filtered.length} active job${filtered.length!==1?'s':''} · £${totalValue.toFixed(2)} total value</div></div></div>
+    <div class="search-wrap">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input class="search-input" placeholder="Search by customer…" value="${esc(jobsSearch)}" oninput="jobsSearch=this.value;renderJobs()">
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 16px">
+      ${wcUsers.map(u=>`<button class="assignee-pill${jobsAssignees.has(u.id)?' selected':''}" onclick="toggleJobsAssignee('${u.id}')">${esc(u.name)}</button>`).join('')}
+      <button class="assignee-pill${jobsAssignees.has('unassigned')?' selected':''}" onclick="toggleJobsAssignee('unassigned')">Unassigned</button>
+    </div>
+    ${filtered.length===0?`<div class="empty"><div class="empty-title">No jobs found</div></div>`:`
+    <div class="card-list">${filtered.map(j=>jobsOverviewCard(j)).join('')}</div>`}
+  `;
+}
+
+function toggleJobsAssignee(key){
+  if(jobsAssignees.has(key))jobsAssignees.delete(key);
+  else jobsAssignees.add(key);
+  renderJobs();
+}
+
+function jobsOverviewCard(j){
+  const c=j.wc_customers||{};
+  const assigneeName=j.assigned_to?(wcUsers.find(u=>u.id===j.assigned_to)?.name||'Unknown'):'Unassigned';
+  return`<div class="job-card" style="cursor:pointer" onclick="showCustomer('${c.id}')">
+    <div class="job-card-header">
+      <div class="job-card-body">
+        <div class="job-card-name">${esc(c.name||'Unknown')}</div>
+        <div class="job-card-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      </div>
+      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+    </div>
+    <div style="padding:0 12px 12px 46px;display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:12px;color:var(--text-muted)">
+      <div>🧹 ${esc(j.service_type||'—')}</div>
+      <div>🔁 ${freqLabel(j.frequency)}</div>
+      <div>📅 Next: ${j.next_due?fmtShort(j.next_due):'—'}</div>
+      <div>🧭 ${esc(j.round_name||'No round')}</div>
+      <div style="grid-column:1/-1">👤 ${esc(assigneeName)}</div>
+    </div>
+  </div>`;
+}
 
 // ── REVENUE ───────────────────────────────────────────────────────────────────
 let revenuePeriod='week',revenueAssignees=null; // Set of user ids; null = not yet initialized (defaults to all)
