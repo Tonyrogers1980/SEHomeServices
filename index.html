@@ -557,8 +557,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='65';
-const BUILD_DATE='17 Jul 2026 09:15';
+const BUILD_VERSION='66';
+const BUILD_DATE='17 Jul 2026 12:45';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2111,19 +2111,20 @@ async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone
         showToast('Charged ✓','success');
         refreshCurrentPage();
       }else{
-        showToast((data.error==='no_payment_method'?'No card on file':'Charge failed: '+(data.error||'unknown'))+' — choose another option','error');
-        openPaymentChoice(jobId,customerName,amount);
+        const reason=data.error==='no_payment_method'?'No card on file':(data.error||'Charge failed');
+        showToast(reason+' — choose another option','error');
+        openPaymentChoice(jobId,customerName,amount,reason);
       }
     }catch(e){showToast('Failed: '+e.message,'error');}
   }else{
-    openPaymentChoice(jobId,customerName,amount);
+    openPaymentChoice(jobId,customerName,amount,'No card on file');
   }
 }
 
-function openPaymentChoice(jobId,customerName,amount){
+function openPaymentChoice(jobId,customerName,amount,reason){
   const body=document.getElementById('paymentChoiceBody');
   body.innerHTML=`
-    <div style="padding:0 16px 16px;font-size:13px;color:var(--text-muted)">${esc(customerName)} · £${parseFloat(amount||0).toFixed(2)} · no card on file</div>
+    <div style="padding:0 16px 16px;font-size:13px;color:var(--text-muted)">${esc(customerName)} · £${parseFloat(amount||0).toFixed(2)} · ${esc(reason||'no card on file')}</div>
     <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordCash('${jobId}')">💵 Record as cash</button>
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordBankTransfer('${jobId}')">🏦 Record as bank transfer</button>
