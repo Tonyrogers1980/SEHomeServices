@@ -557,8 +557,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='64';
-const BUILD_DATE='16 Jul 2026 16:00';
+const BUILD_VERSION='65';
+const BUILD_DATE='17 Jul 2026 09:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1614,12 +1614,14 @@ async function openAddJob(customerId){
 async function saveJob(){
   const price=parseFloat(document.getElementById('j-price').value);
   const date=document.getElementById('j-date').value;
+  const frequency=document.getElementById('j-frequency').value||'one-off';
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
   try{
     await sb('wc_jobs',{method:'POST',body:JSON.stringify({
       customer_id:jobCustomerId,business_id:BUSINESS_ID,price,
-      frequency:document.getElementById('j-frequency').value||'one-off',
+      frequency,
+      series_id:frequency!=='one-off'?crypto.randomUUID():null,
       scheduled_date:date,next_due:date,
       assigned_to:document.getElementById('j-assigned').value||null,
       notes:document.getElementById('j-notes').value.trim()||null,
