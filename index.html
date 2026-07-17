@@ -189,6 +189,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card.is-skip{opacity:.65;border-color:var(--warn);}
 .job-card.is-cant{opacity:.65;border-color:var(--danger);}
 .assignee-pill{padding:6px 14px;border-radius:16px;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--navy-800);color:var(--text-muted);cursor:pointer;transition:all .12s;}
+.more-menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;border:none;background:none;color:var(--text-soft);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;text-align:left;}
+.more-menu-item svg{width:17px;height:17px;flex-shrink:0;}
+.more-menu-item:active{background:var(--navy-700);}
 .assignee-pill.selected{background:var(--gold);border-color:var(--gold);color:var(--navy-900);}
 
 /* MISC */
@@ -395,6 +398,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="moreMenuModal">
+  <div class="modal" style="max-width:340px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">More</div>
+      <button class="modal-close" onclick="closeModal('moreMenuModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div id="moreMenuBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="paymentChoiceModal">
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
@@ -557,8 +570,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='67';
-const BUILD_DATE='17 Jul 2026 13:10';
+const BUILD_VERSION='68';
+const BUILD_DATE='17 Jul 2026 14:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -739,39 +752,79 @@ function logout(){
 }
 
 // ── NAV ────────────────────────────────────────────────────────────────────────
-const FULL_PAGES=[
-  {id:'round',label:'Round',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>'},
-  {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
-  {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
-  {id:'quotes',label:'Quotes',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'},
-  {id:'invoices',label:'Invoices',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
-  {id:'owing',label:'Owing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>'},
-  {id:'revenue',label:'Revenue',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18.7 8l-5.1 5.2-3-3L7 14"/></svg>'},
-  {id:'settings',label:'Settings',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
+const ICON_ROUND='<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';
+const NAV_SECTIONS=[
+  {section:'Work & Planning',items:[
+    {id:'round',label:'Round',icon:ICON_ROUND},
+    {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
+  ]},
+  {section:'Customers',items:[
+    {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
+    {id:'owing',label:'Owing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>'},
+  ]},
+  {section:'Billing & Quotes',items:[
+    {id:'quotes',label:'Quotes',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'},
+    {id:'invoices',label:'Invoices',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
+  ]},
+  {section:'Finance',items:[
+    {id:'revenue',label:'Revenue',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18.7 8l-5.1 5.2-3-3L7 14"/></svg>'},
+  ]},
+  {section:'Configuration',items:[
+    {id:'rounds-config',label:'Rounds',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>'},
+    {id:'service-types-config',label:'Service Types',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l7 7a1 1 0 010 1.414l-7.586 7.586a1 1 0 01-1.414 0l-7-7A1 1 0 013 11.586V7a4 4 0 014-4z"/></svg>'},
+    {id:'team-config',label:'Team',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4.418 0-8 1.79-8 4v2h16v-2c0-2.21-3.582-4-8-4z"/></svg>'},
+    {id:'settings',label:'Settings',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
+  ]},
 ];
+const FULL_PAGES=NAV_SECTIONS.flatMap(s=>s.items);
+const MOBILE_PRIMARY_IDS=['round','jobs','customers','owing'];
 const ROUND_ONLY_PAGES=[
-  {id:'round',label:'Round',icon:FULL_PAGES[0].icon},
+  {id:'round',label:'Round',icon:ICON_ROUND},
 ];
 
 function getPages(){return currentUser?.view_mode==='round_only'?ROUND_ONLY_PAGES:FULL_PAGES;}
 
+let collapsedNavSections=new Set(JSON.parse(localStorage.getItem('collapsedNavSections')||'[]'));
+function toggleNavSection(name){
+  if(collapsedNavSections.has(name))collapsedNavSections.delete(name);
+  else collapsedNavSections.add(name);
+  localStorage.setItem('collapsedNavSections',JSON.stringify([...collapsedNavSections]));
+  buildNav();
+}
+
 function buildNav(){
-  const pages=getPages();
   const isFull=currentUser?.view_mode!=='round_only';
-  // Bottom nav (mobile)
+  // Bottom nav (mobile) — curated primary set + More sheet for everything else
   const bn=document.getElementById('bottomNav');
-  bn.innerHTML=pages.map(p=>`
-    <button class="nav-tab" data-page="${p.id}" onclick="navigate('${p.id}')">
-      ${p.icon}<span>${p.label}</span>
-    </button>`).join('');
+  if(!isFull){
+    bn.innerHTML=ROUND_ONLY_PAGES.map(p=>`
+      <button class="nav-tab" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}<span>${p.label}</span></button>`).join('');
+  }else{
+    const primary=FULL_PAGES.filter(p=>MOBILE_PRIMARY_IDS.includes(p.id));
+    const moreIcon='<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>';
+    bn.innerHTML=primary.map(p=>`
+      <button class="nav-tab" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}<span>${p.label}</span></button>`).join('')+
+      `<button class="nav-tab" data-page="__more" onclick="openMoreMenu()">${moreIcon}<span>More</span></button>`;
+  }
   // Desktop sidebar
   const sd=document.getElementById('sidebarDesktop');
+  const sections=isFull?NAV_SECTIONS:[{section:null,items:ROUND_ONLY_PAGES}];
   sd.innerHTML=`
     <div class="sidebar-logo-wrap">
       <img src="logo.png" alt="SE" style="width:34px;height:34px;object-fit:contain;flex-shrink:0">
       <div><div class="sidebar-logo-text">clear<span>round</span></div><div class="sidebar-logo-sub">SE Home Services</div></div>
     </div>
-    ${pages.map(p=>`<button class="sidebar-nav-item" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}${p.label}</button>`).join('')}
+    <div style="flex:1;overflow-y:auto;padding-bottom:8px">
+    ${sections.map(sec=>{
+      if(!sec.section)return sec.items.map(p=>`<button class="sidebar-nav-item" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}${p.label}</button>`).join('');
+      const collapsed=collapsedNavSections.has(sec.section);
+      return`<div class="sidebar-section" onclick="toggleNavSection('${sec.section}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none">
+        <span>${sec.section}</span>
+        <svg style="width:11px;height:11px;transition:transform .15s;transform:rotate(${collapsed?'-90deg':'0deg'})" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      ${collapsed?'':sec.items.map(p=>`<button class="sidebar-nav-item" data-page="${p.id}" onclick="navigate('${p.id}')">${p.icon}${p.label}</button>`).join('')}`;
+    }).join('')}
+    </div>
     <div class="sidebar-footer">
       <div class="sidebar-user-info">
         <div class="sidebar-avatar">${currentUser.name.charAt(0)}</div>
@@ -781,9 +834,20 @@ function buildNav(){
     </div>`;
 }
 
+function openMoreMenu(){
+  const body=document.getElementById('moreMenuBody');
+  body.innerHTML=NAV_SECTIONS.map(sec=>`
+    <div style="padding:14px 16px 6px;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px">${sec.section}</div>
+    ${sec.items.map(p=>`<button class="more-menu-item" onclick="closeModal('moreMenuModal');navigate('${p.id}')">${p.icon}${p.label}</button>`).join('')}
+  `).join('');
+  document.getElementById('moreMenuModal').classList.add('open');
+}
+
+let currentPageId='round';
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
+  currentPageId=page;
   document.querySelectorAll('[data-page]').forEach(el=>{
     el.classList.toggle('active',el.dataset.page===page);
   });
@@ -796,12 +860,14 @@ function navigate(page){
   else if(page==='invoices')renderInvoices();
   else if(page==='owing')renderOwing();
   else if(page==='revenue')renderRevenue();
+  else if(page==='rounds-config')renderRoundsConfig();
+  else if(page==='service-types-config')renderServiceTypesConfig();
+  else if(page==='team-config')renderTeamConfig();
   else if(page==='settings')renderSettings();
 }
 
 function getCurrentPage(){
-  const active=document.querySelector('[data-page].active');
-  return active?active.dataset.page:'round';
+  return currentPageId;
 }
 
 function refreshCurrentPage(){
@@ -2341,24 +2407,16 @@ function revenueChart(buckets,color){
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
-async function renderSettings(){
-  document.getElementById('topbarPage').textContent='Settings';
+async function renderRoundsConfig(){
+  document.getElementById('topbarPage').textContent='Rounds';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  try{
-    [wcRounds,wcServiceTypes,wcUsers]=await Promise.all([
-      sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&order=name.asc`),
-      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`),
-      sb(`wc_users?business_id=eq.${BUSINESS_ID}&order=name.asc`)
-    ]);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  try{wcRounds=await sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&order=name.asc`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   el.innerHTML=`
-    <div class="page-header"><div class="page-title">Settings</div></div>
-    <div class="detail-section" style="margin-bottom:14px">
-      <div class="detail-section-header">Data quality audit</div>
-      <div id="dataAudit"><div class="loading" style="padding:20px"><div class="spinner"></div></div></div>
-    </div>
-    <div class="detail-section" style="margin-bottom:14px">
+    <div class="page-header"><div><div class="page-title">Rounds</div><div class="page-sub">${wcRounds.length} round${wcRounds.length!==1?'s':''}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="addSettingsItem('round')">+ Add</button></div>
+    <div class="detail-section">
       ${wcRounds.map(r=>`<div class="detail-row"><span class="detail-value">${esc(r.name)}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${r.active?'var(--done-light)':'var(--danger-light)'};color:${r.active?'var(--done)':'var(--danger)'}">${r.active?'Active':'Inactive'}</span>
@@ -2373,9 +2431,19 @@ async function renderSettings(){
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-round-form').style.display='none'">Cancel</button>
         </div>
       </div>
-    </div>
-    <div class="detail-section" style="margin-bottom:14px">
-      <div class="detail-section-header">Service types<button class="btn btn-primary btn-sm" onclick="addSettingsItem('service')">+ Add</button></div>
+    </div>`;
+}
+
+async function renderServiceTypesConfig(){
+  document.getElementById('topbarPage').textContent='Service Types';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{wcServiceTypes=await sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Service Types</div><div class="page-sub">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="addSettingsItem('service')">+ Add</button></div>
+    <div class="detail-section">
       ${wcServiceTypes.map(s=>`<div class="detail-row"><span class="detail-value" style="font-size:13px">${esc(s.name)}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${s.active?'var(--done-light)':'var(--danger-light)'};color:${s.active?'var(--done)':'var(--danger)'}">${s.active?'Active':'Inactive'}</span>
@@ -2390,14 +2458,36 @@ async function renderSettings(){
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-service-form').style.display='none'">Cancel</button>
         </div>
       </div>
-    </div>
-    <div class="detail-section" style="margin-bottom:14px">
-      <div class="detail-section-header">Team</div>
+    </div>`;
+}
+
+async function renderTeamConfig(){
+  document.getElementById('topbarPage').textContent='Team';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{wcUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&order=name.asc`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Team</div><div class="page-sub">${wcUsers.length} team member${wcUsers.length!==1?'s':''}</div></div></div>
+    <div class="detail-section">
       ${wcUsers.map(u=>`<div class="detail-row">
         <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
           <div style="font-size:12px;color:var(--text-muted)">${u.role} · ${u.view_mode==='round_only'?'Round view only':'Full access'}</div></div>
         <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
       </div>`).join('')}
+      ${!wcUsers.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No team members yet</span></div>':''}
+    </div>`;
+}
+
+async function renderSettings(){
+  document.getElementById('topbarPage').textContent='Settings';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  el.innerHTML=`
+    <div class="page-header"><div class="page-title">Settings</div></div>
+    <div class="detail-section" style="margin-bottom:14px">
+      <div class="detail-section-header">Data quality audit</div>
+      <div id="dataAudit"><div class="loading" style="padding:20px"><div class="spinner"></div></div></div>
     </div>
     <div class="detail-section">
       <div class="detail-section-header">Account</div>
@@ -2441,20 +2531,20 @@ async function openEditCustomerById(id){
 function addSettingsItem(type){document.getElementById(`add-${type}-form`).style.display='block';document.getElementById(`new-${type}-name`).focus();}
 async function saveNewRound(){
   const name=document.getElementById('new-round-name').value.trim();if(!name){showToast('Enter a name','error');return;}
-  try{await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Round added','success');wcRounds=[];renderSettings();}catch(e){showToast(e.message,'error');}
+  try{await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Round added','success');wcRounds=[];renderRoundsConfig();}catch(e){showToast(e.message,'error');}
 }
 async function saveNewService(){
   const name=document.getElementById('new-service-name').value.trim();if(!name){showToast('Enter a name','error');return;}
-  try{await sb('wc_service_types',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Service added','success');wcServiceTypes=[];renderSettings();}catch(e){showToast(e.message,'error');}
+  try{await sb('wc_service_types',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Service added','success');wcServiceTypes=[];renderServiceTypesConfig();}catch(e){showToast(e.message,'error');}
 }
 async function toggleSettingsItem(type,id,active){
   const table=type==='round'?'wc_rounds':'wc_service_types';
-  try{await sb(`${table}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:!active}),prefer:'return=minimal'});if(type==='round')wcRounds=[];else wcServiceTypes=[];showToast(active?'Deactivated':'Activated','success');renderSettings();}catch(e){showToast(e.message,'error');}
+  try{await sb(`${table}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:!active}),prefer:'return=minimal'});showToast(active?'Deactivated':'Activated','success');if(type==='round'){wcRounds=[];renderRoundsConfig();}else{wcServiceTypes=[];renderServiceTypesConfig();}}catch(e){showToast(e.message,'error');}
 }
 async function deleteSettingsItem(type,id,name){
   if(!confirm(`Delete "${name}"?`))return;
   const table=type==='round'?'wc_rounds':'wc_service_types';
-  try{await sb(`${table}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});if(type==='round')wcRounds=[];else wcServiceTypes=[];showToast('Deleted','success');renderSettings();}catch(e){showToast(e.message,'error');}
+  try{await sb(`${table}?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});showToast('Deleted','success');if(type==='round'){wcRounds=[];renderRoundsConfig();}else{wcServiceTypes=[];renderServiceTypesConfig();}}catch(e){showToast(e.message,'error');}
 }
 
 // ── PWA ───────────────────────────────────────────────────────────────────────
@@ -2463,7 +2553,7 @@ if('serviceWorker' in navigator){
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
-['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal'].forEach(id=>{
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
