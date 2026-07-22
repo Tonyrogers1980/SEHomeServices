@@ -173,18 +173,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-chevron.open{transform:rotate(180deg);}
 .job-card-details{padding:0 12px 10px 46px;}
 .job-card-actions{display:grid;gap:6px;padding:0 10px 10px;}
-.job-action{border:none;border-radius:8px;padding:10px 4px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;transition:filter .12s,transform .08s;}
+.job-action{border:none;border-radius:8px;padding:10px 4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;transition:filter .12s,transform .08s;text-decoration:none;}
 .job-action:active{transform:scale(.96);filter:brightness(1.15);}
 .job-action svg{width:15px;height:15px;}
-.action-done{background:var(--done);color:#ffffff;}
-.action-navigate{background:var(--navy-400);color:#ffffff;}
-.action-skip{background:var(--navy-700);color:var(--text-soft);border:1px solid var(--border);}
+.action-done{background:var(--done);color:var(--white);}
+.action-navigate{background:#3b7dd8;color:var(--white);}
+.action-skip{background:var(--navy-700);color:var(--white);border:1px solid var(--border);}
 .action-charge{background:var(--gold);color:var(--navy-900);}
-.action-reschedule{background:#7c5cbf;color:#ffffff;}
-.action-undo{background:var(--navy-700);color:var(--text-soft);border:1px solid var(--border);}
-.job-action{background:var(--navy-800);border:none;padding:14px 8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--text-soft);display:flex;align-items:center;justify-content:center;gap:5px;min-height:48px;transition:background .12s;}
-.job-action:active{background:var(--navy-700);}
-.job-action svg{width:16px;height:16px;}
+.action-reschedule{background:#8b5cf6;color:var(--white);}
+.action-undo{background:var(--navy-700);color:var(--white);border:1px solid var(--border);}
 .job-card.is-done{opacity:.65;border-color:var(--done);}
 .job-card.is-skip{opacity:.65;border-color:var(--warn);}
 .job-card.is-cant{opacity:.65;border-color:var(--danger);}
@@ -570,8 +567,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='68';
-const BUILD_DATE='17 Jul 2026 14:20';
+const BUILD_VERSION='69';
+const BUILD_DATE='22 Jul 2026 08:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -595,13 +592,17 @@ function esc(s){if(!s)return'';const d=document.createElement('div');d.textConte
 function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':'badge-scheduled';}
 function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":'Scheduled';}
 function mapsUrl(address,postcode){
-  const q=encodeURIComponent([address,postcode].filter(Boolean).join(', '));
-  return`https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving`;
+  const q=[address,postcode].filter(Boolean).join(', ');
+  const enc=encodeURIComponent(q);
+  const ua=navigator.userAgent||'';
+  if(/Android/i.test(ua))return`google.navigation:q=${enc}`;
+  if(/iPhone|iPad|iPod/i.test(ua))return`maps://?daddr=${enc}&dirflg=d`;
+  return`https://www.google.com/maps/dir/?api=1&destination=${enc}&travelmode=driving`;
 }
 function addrLink(address,postcode,cls=''){
   const full=[address,postcode].filter(Boolean).join(', ');
   if(!full)return'';
-  return`<a href="${mapsUrl(address,postcode)}" target="_blank" onclick="event.stopPropagation()" class="${cls}" style="color:inherit;text-decoration:none;border-bottom:1px dotted currentColor">${esc(full)}</a>`;
+  return`<a href="${mapsUrl(address,postcode)}" onclick="event.stopPropagation()" class="${cls}" style="color:inherit;text-decoration:none;border-bottom:1px dotted currentColor">${esc(full)}</a>`;
 }
 function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
@@ -1007,7 +1008,7 @@ function jobCard(j,num){
   const numClass=isDone?'done':'';
   const isAdmin=currentUser?.view_mode!=='round_only';
   const cardId='jc-'+j.id;
-  const navBtn=`<button class="job-action action-navigate" onclick="event.stopPropagation();window.open('${mapsUrl(c.address,c.postcode)}','_blank')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</button>`;
+  const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" class="job-action action-navigate" onclick="event.stopPropagation()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</a>`;
   const chargeBtn=`<button class="job-action action-charge" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`;
   const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>`;
   const actions=isSched
