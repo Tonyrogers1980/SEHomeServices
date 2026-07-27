@@ -567,8 +567,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='71';
-const BUILD_DATE='27 Jul 2026 14:05';
+const BUILD_VERSION='72';
+const BUILD_DATE='27 Jul 2026 15:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -775,6 +775,7 @@ const NAV_SECTIONS=[
     {id:'service-types-config',label:'Service Types',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l7 7a1 1 0 010 1.414l-7.586 7.586a1 1 0 01-1.414 0l-7-7A1 1 0 013 11.586V7a4 4 0 014-4z"/></svg>'},
     {id:'pricing-config',label:'Pricing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
     {id:'team-config',label:'Team',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4.418 0-8 1.79-8 4v2h16v-2c0-2.21-3.582-4-8-4z"/></svg>'},
+    {id:'availability-config',label:'Availability',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
     {id:'settings',label:'Settings',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
   ]},
 ];
@@ -866,6 +867,7 @@ function navigate(page){
   else if(page==='service-types-config')renderServiceTypesConfig();
   else if(page==='pricing-config')renderPricingConfig();
   else if(page==='team-config')renderTeamConfig();
+  else if(page==='availability-config')renderAvailabilityConfig();
   else if(page==='settings')renderSettings();
 }
 
@@ -2652,6 +2654,67 @@ async function savePricingFrequency(){
     ];
     await upsertPricingRows('pricing_frequency_multipliers',rows,'business_id,frequency_weeks');
     showToast('Frequency multipliers saved','success');
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ── AVAILABILITY CONFIG (worker_availability table) ─────────────────────────
+function toggleAvailRow(wid,day){
+  const active=document.getElementById(`avail-${wid}-${day}-active`).checked;
+  document.getElementById(`avail-${wid}-${day}-start`).disabled=!active;
+  document.getElementById(`avail-${wid}-${day}-end`).disabled=!active;
+}
+async function renderAvailabilityConfig(){
+  document.getElementById('topbarPage').textContent='Availability';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  let users,avail;
+  try{
+    [users,avail]=await Promise.all([
+      sb(`wc_users?business_id=eq.${BUSINESS_ID}&order=name.asc`),
+      sb(`worker_availability?business_id=eq.${BUSINESS_ID}`),
+    ]);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dayShort={Monday:'Mon',Tuesday:'Tue',Wednesday:'Wed',Thursday:'Thu',Friday:'Fri',Saturday:'Sat',Sunday:'Sun'};
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Availability</div><div class="page-sub">Working days &amp; hours per team member</div></div></div>
+    ${users.map(u=>{
+      const rows=days.map(day=>{
+        const a=avail.find(x=>x.worker_id===u.id&&x.day_of_week===day);
+        const active=a?a.active:false;
+        const start=a&&a.start_time?a.start_time.slice(0,5):'';
+        const end=a&&a.end_time?a.end_time.slice(0,5):'';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <label style="display:flex;align-items:center;gap:6px;width:90px;flex-shrink:0;font-size:13px;color:var(--text)">
+            <input type="checkbox" id="avail-${u.id}-${day}-active" ${active?'checked':''} onchange="toggleAvailRow('${u.id}','${day}')">
+            ${dayShort[day]}
+          </label>
+          <input type="time" id="avail-${u.id}-${day}-start" value="${start}" ${active?'':'disabled'} style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--navy-900);color:var(--text);font-size:13px;-webkit-appearance:none">
+          <span style="color:var(--text-muted);font-size:12px">to</span>
+          <input type="time" id="avail-${u.id}-${day}-end" value="${end}" ${active?'':'disabled'} style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--navy-900);color:var(--text);font-size:13px;-webkit-appearance:none">
+        </div>`;
+      }).join('');
+      return `<div class="detail-section">
+        <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">${esc(u.name)}</span></div>
+        <div style="padding:10px 16px 16px">
+          ${rows}
+          <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="saveAvailability('${u.id}','${esc(u.name)}')">Save ${esc(u.name.split(' ')[0])}'s hours</button>
+        </div>
+      </div>`;
+    }).join('')}
+    ${!users.length?'<div class="empty"><div class="empty-title">No team members yet</div></div>':''}`;
+}
+async function saveAvailability(workerId,workerName){
+  try{
+    const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const rows=days.map(day=>{
+      const active=document.getElementById(`avail-${workerId}-${day}-active`).checked;
+      const start=document.getElementById(`avail-${workerId}-${day}-start`).value||null;
+      const end=document.getElementById(`avail-${workerId}-${day}-end`).value||null;
+      return {business_id:BUSINESS_ID,worker_id:workerId,worker_name:workerName,day_of_week:day,active,start_time:active?start:null,end_time:active?end:null};
+    });
+    await upsertPricingRows('worker_availability',rows,'business_id,worker_name,day_of_week');
+    showToast(`${workerName.split(' ')[0]}'s hours saved`,'success');
   }catch(e){showToast(e.message,'error');}
 }
 
