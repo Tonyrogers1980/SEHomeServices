@@ -554,6 +554,34 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="teamModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title" id="teamModalTitle">Add team member</div>
+      <button class="modal-close" onclick="closeModal('teamModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Name *</label><input id="t-name" placeholder="Full name" autocomplete="name"></div>
+      <div class="form-row">
+        <div class="field"><label>Role</label><select id="t-role"><option value="owner">Owner</option><option value="employee">Employee</option></select></div>
+        <div class="field"><label>App access</label><select id="t-view-mode"><option value="full">Full access</option><option value="round_only">Round view only</option></select></div>
+      </div>
+      <div class="field"><label>PIN * (4 digits, used to log in)</label><input id="t-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1234"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">Active</div>
+        <label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0">
+          <input type="checkbox" id="t-active" onchange="updateTeamActiveSlider()" style="opacity:0;width:0;height:0">
+          <span onclick="document.getElementById('t-active').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:13px;transition:.2s" id="teamActiveSlider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('teamModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTeamMember()">Save team member</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -567,14 +595,14 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='72';
-const BUILD_DATE='27 Jul 2026 15:10';
+const BUILD_VERSION='73';
+const BUILD_DATE='27 Jul 2026 16:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundFilter='';
-let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
+let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null;
 let editingQuoteId=null,quotes=[],quoteFilter='all';
 let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 
@@ -612,8 +640,10 @@ async function sb(path,opts={}){
   if(opts.prefer)headers['Prefer']=opts.prefer;
   const res=await fetch(url,{...opts,headers});
   if(!res.ok){let e;try{e=await res.json();}catch{e={message:res.statusText};}throw new Error(e.message||res.statusText);}
-  if(res.status===204||opts.prefer==='return=minimal')return null;
-  return res.json();
+  if(res.status===204)return null;
+  const text=await res.text();
+  if(!text)return null;
+  try{return JSON.parse(text);}catch{return null;}
 }
 
 let toastTimer;
@@ -2725,15 +2755,65 @@ async function renderTeamConfig(){
   try{wcUsers=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&order=name.asc`);}
   catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Team</div><div class="page-sub">${wcUsers.length} team member${wcUsers.length!==1?'s':''}</div></div></div>
+    <div class="page-header"><div><div class="page-title">Team</div><div class="page-sub">${wcUsers.length} team member${wcUsers.length!==1?'s':''}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openTeamModal(null)">+ Add</button></div>
     <div class="detail-section">
       ${wcUsers.map(u=>`<div class="detail-row">
         <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
-          <div style="font-size:12px;color:var(--text-muted)">${u.role} · ${u.view_mode==='round_only'?'Round view only':'Full access'}</div></div>
-        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
+          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
+          <button class="btn btn-ghost btn-sm" onclick="openTeamModal('${u.id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteTeamMember('${u.id}','${esc(u.name)}')">Del</button>
+        </div>
       </div>`).join('')}
       ${!wcUsers.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No team members yet</span></div>':''}
     </div>`;
+}
+function updateTeamActiveSlider(){
+  const checked=document.getElementById('t-active').checked;
+  const s=document.getElementById('teamActiveSlider');
+  if(s)s.style.background=checked?'var(--done)':'var(--border)';
+}
+function openTeamModal(id){
+  editingTeamMemberId=id;
+  const u=id?wcUsers.find(x=>x.id===id):null;
+  document.getElementById('teamModalTitle').textContent=id?'Edit team member':'Add team member';
+  document.getElementById('t-name').value=u?u.name:'';
+  document.getElementById('t-role').value=u?u.role:'employee';
+  document.getElementById('t-view-mode').value=u?u.view_mode:'round_only';
+  document.getElementById('t-pin').value=u?(u.pin||''):'';
+  const ta=document.getElementById('t-active');ta.checked=u?u.active!==false:true;updateTeamActiveSlider();
+  document.getElementById('teamModal').classList.add('open');
+}
+async function saveTeamMember(){
+  const name=document.getElementById('t-name').value.trim();
+  const role=document.getElementById('t-role').value;
+  const view_mode=document.getElementById('t-view-mode').value;
+  const pin=document.getElementById('t-pin').value.trim();
+  const active=document.getElementById('t-active').checked;
+  if(!name){showToast('Enter a name','error');return;}
+  if(!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits','error');return;}
+  const clash=wcUsers.find(u=>u.pin===pin&&u.id!==editingTeamMemberId);
+  if(clash){showToast(`That PIN is already used by ${clash.name}`,'error');return;}
+  const payload={name,role,view_mode,pin,active,business_id:BUSINESS_ID};
+  try{
+    if(editingTeamMemberId)await sb(`wc_users?id=eq.${editingTeamMemberId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
+    else await sb('wc_users',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
+    closeModal('teamModal');
+    showToast('Team member saved','success');
+    wcUsers=[];
+    renderTeamConfig();
+  }catch(e){showToast(e.message,'error');}
+}
+async function deleteTeamMember(id,name){
+  if(!confirm(`Remove "${name}"? This also deletes their saved availability hours.`))return;
+  try{
+    await sb(`wc_users?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
+    showToast('Team member removed','success');
+    wcUsers=[];
+    renderTeamConfig();
+  }catch(e){showToast(e.message,'error');}
 }
 
 async function renderSettings(){
@@ -2810,7 +2890,7 @@ if('serviceWorker' in navigator){
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
-['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal'].forEach(id=>{
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal','teamModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
