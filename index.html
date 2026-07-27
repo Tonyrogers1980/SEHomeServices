@@ -567,12 +567,12 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='69';
-const BUILD_DATE='22 Jul 2026 08:15';
+const BUILD_VERSION='70';
+const BUILD_DATE='27 Jul 2026 11:55';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
-let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[];
+let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundFilter='';
 let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null;
 let editingQuoteId=null,quotes=[],quoteFilter='all';
@@ -773,6 +773,7 @@ const NAV_SECTIONS=[
   {section:'Configuration',items:[
     {id:'rounds-config',label:'Rounds',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>'},
     {id:'service-types-config',label:'Service Types',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l7 7a1 1 0 010 1.414l-7.586 7.586a1 1 0 01-1.414 0l-7-7A1 1 0 013 11.586V7a4 4 0 014-4z"/></svg>'},
+    {id:'pricing-config',label:'Pricing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
     {id:'team-config',label:'Team',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4.418 0-8 1.79-8 4v2h16v-2c0-2.21-3.582-4-8-4z"/></svg>'},
     {id:'settings',label:'Settings',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
   ]},
@@ -863,6 +864,7 @@ function navigate(page){
   else if(page==='revenue')renderRevenue();
   else if(page==='rounds-config')renderRoundsConfig();
   else if(page==='service-types-config')renderServiceTypesConfig();
+  else if(page==='pricing-config')renderPricingConfig();
   else if(page==='team-config')renderTeamConfig();
   else if(page==='settings')renderSettings();
 }
@@ -2460,6 +2462,199 @@ async function renderServiceTypesConfig(){
         </div>
       </div>
     </div>`;
+}
+
+// ── PRICING CONFIG ───────────────────────────────────────────────────────────
+function numOrNull(id){
+  const v=document.getElementById(id).value;
+  if(v===''||v===null)return null;
+  const n=parseFloat(v);
+  return isNaN(n)?null:n;
+}
+async function renderPricingConfig(){
+  document.getElementById('topbarPage').textContent='Pricing';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{
+    const rows=await sb(`business_configs?business_id=eq.${BUSINESS_ID}&select=pricing_rules,service_catalog,frequency_multipliers`);
+    pricingConfigData=rows[0]||{pricing_rules:{},service_catalog:[],frequency_multipliers:{}};
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  const pr=pricingConfigData.pricing_rules||{};
+  const wc=pr.window_cleaning||{};
+  const fo=wc.front_only||{},fb=wc.front_and_back||{},fallback=wc.fallback||{};
+  const ex=pr.window_feature_surcharges||{};
+  const cat=pricingConfigData.service_catalog||[];
+  const gutter=cat.find(s=>s.service_code==='gutter_cleaning')||{pricing_model:{bands:[]}};
+  const pw=cat.find(s=>s.service_code==='pressure_washing')||{pricing_model:{bands:[],addons:{}}};
+  const gBands=Object.fromEntries((gutter.pricing_model?.bands||[]).map(b=>[b.key,b.price]));
+  const pwBands=Object.fromEntries((pw.pricing_model?.bands||[]).map(b=>[b.key,b.price]));
+  const pwAddons=pw.pricing_model?.addons||{};
+  const freq=pricingConfigData.frequency_multipliers||{};
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Pricing</div><div class="page-sub">Rates used by the WhatsApp booking agent</div></div></div>
+
+    <div class="detail-section">
+      <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">Window Cleaning — Base Rates</span></div>
+      <div style="padding:14px 16px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Front only</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+          <div class="field"><label>2 Bed</label><input id="pr-wc-fo-2" type="number" step="0.50" min="0" value="${fo['2_bed']??''}"></div>
+          <div class="field"><label>3 Bed</label><input id="pr-wc-fo-3" type="number" step="0.50" min="0" value="${fo['3_bed']??''}"></div>
+          <div class="field"><label>4 Bed</label><input id="pr-wc-fo-4" type="number" step="0.50" min="0" value="${fo['4_bed']??''}"></div>
+          <div class="field"><label>5 Bed</label><input id="pr-wc-fo-5" type="number" step="0.50" min="0" value="${fo['5_bed']??''}"></div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Front &amp; back</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+          <div class="field"><label>2 Bed</label><input id="pr-wc-fb-2" type="number" step="0.50" min="0" value="${fb['2_bed']??''}"></div>
+          <div class="field"><label>3 Bed</label><input id="pr-wc-fb-3" type="number" step="0.50" min="0" value="${fb['3_bed']??''}"></div>
+          <div class="field"><label>4 Bed</label><input id="pr-wc-fb-4" type="number" step="0.50" min="0" value="${fb['4_bed']??''}"></div>
+          <div class="field"><label>5 Bed</label><input id="pr-wc-fb-5" type="number" step="0.50" min="0" value="${fb['5_bed']??''}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;max-width:220px;margin-bottom:14px">
+          <div class="field"><label>Extra bedroom (6+, £/bed)</label><input id="pr-wc-extra" type="number" step="0.50" min="0" value="${fallback.per_extra_bedroom??''}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="savePricingWindowBase()">Save base rates</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">Window Cleaning — Extras</span></div>
+      <div style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field"><label>Skylight (£/item)</label><input id="pr-ex-skylight" type="number" step="0.50" min="0" value="${ex.skylight??''}"></div>
+          <div class="field"><label>Bifold door (£/pane)</label><input id="pr-ex-bifold_door" type="number" step="0.50" min="0" value="${ex.bifold_door??''}"></div>
+          <div class="field"><label>French door (£)</label><input id="pr-ex-french_door" type="number" step="0.50" min="0" value="${ex.french_door??''}"></div>
+          <div class="field"><label>Patio door (£)</label><input id="pr-ex-patio_door" type="number" step="0.50" min="0" value="${ex.patio_door??''}"></div>
+          <div class="field"><label>Conservatory windows (£/pane)</label><input id="pr-ex-conservatory_windows" type="number" step="0.50" min="0" value="${ex.conservatory_windows??''}"></div>
+          <div class="field"><label>Roof lantern (£/item)</label><input id="pr-ex-roof_lantern" type="number" step="0.50" min="0" value="${ex.roof_lantern??''}"></div>
+          <div class="field"><label>Roof access charge (£ flat, flat roofs only)</label><input id="pr-ex-roof_access_required" type="number" step="0.50" min="0" value="${ex.roof_access_required??''}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="savePricingWindowExtras()">Save extras</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">Gutter Cleaning</span></div>
+      <div style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field"><label>Terraced (£)</label><input id="pr-gc-terraced" type="number" step="1" min="0" value="${gBands.terraced??''}"></div>
+          <div class="field"><label>Semi-detached (£)</label><input id="pr-gc-semi_detached" type="number" step="1" min="0" value="${gBands.semi_detached??''}"></div>
+          <div class="field"><label>Detached (£)</label><input id="pr-gc-detached" type="number" step="1" min="0" value="${gBands.detached??''}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="savePricingGutter()">Save gutter cleaning</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">Pressure Washing</span></div>
+      <div style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field"><label>Small (£)</label><input id="pr-pw-small" type="number" step="1" min="0" value="${pwBands.small??''}"></div>
+          <div class="field"><label>Medium (£)</label><input id="pr-pw-medium" type="number" step="1" min="0" value="${pwBands.medium??''}"></div>
+          <div class="field"><label>Large (£)</label><input id="pr-pw-large" type="number" step="1" min="0" value="${pwBands.large??''}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;max-width:220px;margin-bottom:14px">
+          <div class="field"><label>Block paving resanding (+£)</label><input id="pr-pw-addon-block_paving_resanding" type="number" step="1" min="0" value="${pwAddons.block_paving_resanding??''}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="savePricingPressureWashing()">Save pressure washing</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">Frequency Multipliers</span></div>
+      <div style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field"><label>Every 1 week</label><input id="pr-freq-1" type="number" step="0.05" min="0" value="${freq['1']??''}"></div>
+          <div class="field"><label>Every 2 weeks</label><input id="pr-freq-2" type="number" step="0.05" min="0" value="${freq['2']??''}"></div>
+          <div class="field"><label>Every 4 weeks</label><input id="pr-freq-4" type="number" step="0.05" min="0" value="${freq['4']??''}"></div>
+          <div class="field"><label>Every 6 weeks</label><input id="pr-freq-6" type="number" step="0.05" min="0" value="${freq['6']??''}"></div>
+          <div class="field"><label>Every 8 weeks</label><input id="pr-freq-8" type="number" step="0.05" min="0" value="${freq['8']??''}"></div>
+          <div class="field"><label>Every 12 weeks</label><input id="pr-freq-12" type="number" step="0.05" min="0" value="${freq['12']??''}"></div>
+          <div class="field"><label>One-off</label><input id="pr-freq-one_off" type="number" step="0.05" min="0" value="${freq['one_off']??''}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="savePricingFrequency()">Save frequency multipliers</button>
+      </div>
+    </div>`;
+}
+async function savePricingRulesPatch(newPricingRules){
+  await sb(`business_configs?business_id=eq.${BUSINESS_ID}`,{method:'PATCH',body:JSON.stringify({pricing_rules:newPricingRules}),prefer:'return=minimal'});
+  pricingConfigData.pricing_rules=newPricingRules;
+}
+async function savePricingWindowBase(){
+  try{
+    const pr=JSON.parse(JSON.stringify(pricingConfigData.pricing_rules||{}));
+    pr.window_cleaning=pr.window_cleaning||{};
+    pr.window_cleaning.front_only={'2_bed':numOrNull('pr-wc-fo-2'),'3_bed':numOrNull('pr-wc-fo-3'),'4_bed':numOrNull('pr-wc-fo-4'),'5_bed':numOrNull('pr-wc-fo-5')};
+    pr.window_cleaning.front_and_back={'2_bed':numOrNull('pr-wc-fb-2'),'3_bed':numOrNull('pr-wc-fb-3'),'4_bed':numOrNull('pr-wc-fb-4'),'5_bed':numOrNull('pr-wc-fb-5')};
+    pr.window_cleaning.fallback={per_extra_bedroom:numOrNull('pr-wc-extra')};
+    await savePricingRulesPatch(pr);
+    showToast('Base rates saved','success');
+  }catch(e){showToast(e.message,'error');}
+}
+async function savePricingWindowExtras(){
+  try{
+    const pr=JSON.parse(JSON.stringify(pricingConfigData.pricing_rules||{}));
+    pr.window_feature_surcharges={
+      skylight:numOrNull('pr-ex-skylight'),
+      bifold_door:numOrNull('pr-ex-bifold_door'),
+      french_door:numOrNull('pr-ex-french_door'),
+      patio_door:numOrNull('pr-ex-patio_door'),
+      conservatory_windows:numOrNull('pr-ex-conservatory_windows'),
+      roof_lantern:numOrNull('pr-ex-roof_lantern'),
+      roof_access_required:numOrNull('pr-ex-roof_access_required'),
+    };
+    await savePricingRulesPatch(pr);
+    showToast('Extras saved','success');
+  }catch(e){showToast(e.message,'error');}
+}
+async function savePricingCatalogPatch(newCatalog){
+  await sb(`business_configs?business_id=eq.${BUSINESS_ID}`,{method:'PATCH',body:JSON.stringify({service_catalog:newCatalog}),prefer:'return=minimal'});
+  pricingConfigData.service_catalog=newCatalog;
+}
+async function savePricingGutter(){
+  try{
+    const cat=JSON.parse(JSON.stringify(pricingConfigData.service_catalog||[]));
+    const gutter=cat.find(s=>s.service_code==='gutter_cleaning');
+    if(!gutter){showToast('Gutter cleaning not found in catalog','error');return;}
+    gutter.pricing_model.bands=[
+      {key:'terraced',price:numOrNull('pr-gc-terraced')},
+      {key:'semi_detached',price:numOrNull('pr-gc-semi_detached')},
+      {key:'detached',price:numOrNull('pr-gc-detached')},
+    ];
+    await savePricingCatalogPatch(cat);
+    showToast('Gutter cleaning saved','success');
+  }catch(e){showToast(e.message,'error');}
+}
+async function savePricingPressureWashing(){
+  try{
+    const cat=JSON.parse(JSON.stringify(pricingConfigData.service_catalog||[]));
+    const pw=cat.find(s=>s.service_code==='pressure_washing');
+    if(!pw){showToast('Pressure washing not found in catalog','error');return;}
+    pw.pricing_model.bands=[
+      {key:'small',price:numOrNull('pr-pw-small')},
+      {key:'medium',price:numOrNull('pr-pw-medium')},
+      {key:'large',price:numOrNull('pr-pw-large')},
+    ];
+    pw.pricing_model.addons={block_paving_resanding:numOrNull('pr-pw-addon-block_paving_resanding')};
+    await savePricingCatalogPatch(cat);
+    showToast('Pressure washing saved','success');
+  }catch(e){showToast(e.message,'error');}
+}
+async function savePricingFrequency(){
+  try{
+    const freq={
+      '1':numOrNull('pr-freq-1'),
+      '2':numOrNull('pr-freq-2'),
+      '4':numOrNull('pr-freq-4'),
+      '6':numOrNull('pr-freq-6'),
+      '8':numOrNull('pr-freq-8'),
+      '12':numOrNull('pr-freq-12'),
+      one_off:numOrNull('pr-freq-one_off'),
+    };
+    await sb(`business_configs?business_id=eq.${BUSINESS_ID}`,{method:'PATCH',body:JSON.stringify({frequency_multipliers:freq}),prefer:'return=minimal'});
+    pricingConfigData.frequency_multipliers=freq;
+    showToast('Frequency multipliers saved','success');
+  }catch(e){showToast(e.message,'error');}
 }
 
 async function renderTeamConfig(){
