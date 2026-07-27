@@ -567,8 +567,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='70';
-const BUILD_DATE='27 Jul 2026 11:55';
+const BUILD_VERSION='71';
+const BUILD_DATE='27 Jul 2026 14:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2464,7 +2464,11 @@ async function renderServiceTypesConfig(){
     </div>`;
 }
 
-// ── PRICING CONFIG ───────────────────────────────────────────────────────────
+// ── PRICING CONFIG (backed by real tables: pricing_window_base_rates, pricing_window_extras,
+//    pricing_service_bands, pricing_service_addons, pricing_frequency_multipliers — NOT JSON.
+//    A DB trigger keeps business_configs.pricing_rules/service_catalog/frequency_multipliers
+//    in sync automatically so the WhatsApp AI agent (which reads business_configs) needs no
+//    changes when prices are edited here or directly in Supabase.) ─────────────────────────
 function numOrNull(id){
   const v=document.getElementById(id).value;
   if(v===''||v===null)return null;
@@ -2476,20 +2480,23 @@ async function renderPricingConfig(){
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{
-    const rows=await sb(`business_configs?business_id=eq.${BUSINESS_ID}&select=pricing_rules,service_catalog,frequency_multipliers`);
-    pricingConfigData=rows[0]||{pricing_rules:{},service_catalog:[],frequency_multipliers:{}};
+    const [baseRates,extras,bands,addons,freq]=await Promise.all([
+      sb(`pricing_window_base_rates?business_id=eq.${BUSINESS_ID}`),
+      sb(`pricing_window_extras?business_id=eq.${BUSINESS_ID}`),
+      sb(`pricing_service_bands?business_id=eq.${BUSINESS_ID}`),
+      sb(`pricing_service_addons?business_id=eq.${BUSINESS_ID}`),
+      sb(`pricing_frequency_multipliers?business_id=eq.${BUSINESS_ID}`),
+    ]);
+    pricingConfigData={baseRates,extras,bands,addons,freq};
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
-  const pr=pricingConfigData.pricing_rules||{};
-  const wc=pr.window_cleaning||{};
-  const fo=wc.front_only||{},fb=wc.front_and_back||{},fallback=wc.fallback||{};
-  const ex=pr.window_feature_surcharges||{};
-  const cat=pricingConfigData.service_catalog||[];
-  const gutter=cat.find(s=>s.service_code==='gutter_cleaning')||{pricing_model:{bands:[]}};
-  const pw=cat.find(s=>s.service_code==='pressure_washing')||{pricing_model:{bands:[],addons:{}}};
-  const gBands=Object.fromEntries((gutter.pricing_model?.bands||[]).map(b=>[b.key,b.price]));
-  const pwBands=Object.fromEntries((pw.pricing_model?.bands||[]).map(b=>[b.key,b.price]));
-  const pwAddons=pw.pricing_model?.addons||{};
-  const freq=pricingConfigData.frequency_multipliers||{};
+  const{baseRates,extras,bands,addons,freq}=pricingConfigData;
+  const bySize=pkg=>Object.fromEntries(baseRates.filter(r=>r.package===pkg).map(r=>[r.bed_size,r.price]));
+  const fo=bySize('front_only'),fb=bySize('front_and_back'),fallback=bySize('fallback');
+  const ex=Object.fromEntries(extras.map(r=>[r.feature_key,r.price]));
+  const gBands=Object.fromEntries(bands.filter(b=>b.service_code==='gutter_cleaning').map(b=>[b.band_key,b.price]));
+  const pwBands=Object.fromEntries(bands.filter(b=>b.service_code==='pressure_washing').map(b=>[b.band_key,b.price]));
+  const pwAddons=Object.fromEntries(addons.filter(a=>a.service_code==='pressure_washing').map(a=>[a.addon_key,a.price]));
+  const freqMap=Object.fromEntries(freq.map(f=>[f.frequency_weeks,f.multiplier]));
   el.innerHTML=`
     <div class="page-header"><div><div class="page-title">Pricing</div><div class="page-sub">Rates used by the WhatsApp booking agent</div></div></div>
 
@@ -2511,7 +2518,7 @@ async function renderPricingConfig(){
           <div class="field"><label>5 Bed</label><input id="pr-wc-fb-5" type="number" step="0.50" min="0" value="${fb['5_bed']??''}"></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr;gap:10px;max-width:220px;margin-bottom:14px">
-          <div class="field"><label>Extra bedroom (6+, £/bed)</label><input id="pr-wc-extra" type="number" step="0.50" min="0" value="${fallback.per_extra_bedroom??''}"></div>
+          <div class="field"><label>Extra bedroom (6+, £/bed)</label><input id="pr-wc-extra" type="number" step="0.50" min="0" value="${fallback['per_extra_bedroom']??''}"></div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="savePricingWindowBase()">Save base rates</button>
       </div>
@@ -2564,95 +2571,86 @@ async function renderPricingConfig(){
       <div class="detail-row"><span class="detail-value" style="font-size:14px;font-weight:600">Frequency Multipliers</span></div>
       <div style="padding:14px 16px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div class="field"><label>Every 1 week</label><input id="pr-freq-1" type="number" step="0.05" min="0" value="${freq['1']??''}"></div>
-          <div class="field"><label>Every 2 weeks</label><input id="pr-freq-2" type="number" step="0.05" min="0" value="${freq['2']??''}"></div>
-          <div class="field"><label>Every 4 weeks</label><input id="pr-freq-4" type="number" step="0.05" min="0" value="${freq['4']??''}"></div>
-          <div class="field"><label>Every 6 weeks</label><input id="pr-freq-6" type="number" step="0.05" min="0" value="${freq['6']??''}"></div>
-          <div class="field"><label>Every 8 weeks</label><input id="pr-freq-8" type="number" step="0.05" min="0" value="${freq['8']??''}"></div>
-          <div class="field"><label>Every 12 weeks</label><input id="pr-freq-12" type="number" step="0.05" min="0" value="${freq['12']??''}"></div>
-          <div class="field"><label>One-off</label><input id="pr-freq-one_off" type="number" step="0.05" min="0" value="${freq['one_off']??''}"></div>
+          <div class="field"><label>Every 1 week</label><input id="pr-freq-1" type="number" step="0.05" min="0" value="${freqMap['1']??''}"></div>
+          <div class="field"><label>Every 2 weeks</label><input id="pr-freq-2" type="number" step="0.05" min="0" value="${freqMap['2']??''}"></div>
+          <div class="field"><label>Every 4 weeks</label><input id="pr-freq-4" type="number" step="0.05" min="0" value="${freqMap['4']??''}"></div>
+          <div class="field"><label>Every 6 weeks</label><input id="pr-freq-6" type="number" step="0.05" min="0" value="${freqMap['6']??''}"></div>
+          <div class="field"><label>Every 8 weeks</label><input id="pr-freq-8" type="number" step="0.05" min="0" value="${freqMap['8']??''}"></div>
+          <div class="field"><label>Every 12 weeks</label><input id="pr-freq-12" type="number" step="0.05" min="0" value="${freqMap['12']??''}"></div>
+          <div class="field"><label>One-off</label><input id="pr-freq-one_off" type="number" step="0.05" min="0" value="${freqMap['one_off']??''}"></div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="savePricingFrequency()">Save frequency multipliers</button>
       </div>
     </div>`;
 }
-async function savePricingRulesPatch(newPricingRules){
-  await sb(`business_configs?business_id=eq.${BUSINESS_ID}`,{method:'PATCH',body:JSON.stringify({pricing_rules:newPricingRules}),prefer:'return=minimal'});
-  pricingConfigData.pricing_rules=newPricingRules;
+async function upsertPricingRows(table,rows,conflictCols){
+  await sb(`${table}?on_conflict=${conflictCols}`,{method:'POST',body:JSON.stringify(rows),prefer:'resolution=merge-duplicates,return=minimal'});
 }
 async function savePricingWindowBase(){
   try{
-    const pr=JSON.parse(JSON.stringify(pricingConfigData.pricing_rules||{}));
-    pr.window_cleaning=pr.window_cleaning||{};
-    pr.window_cleaning.front_only={'2_bed':numOrNull('pr-wc-fo-2'),'3_bed':numOrNull('pr-wc-fo-3'),'4_bed':numOrNull('pr-wc-fo-4'),'5_bed':numOrNull('pr-wc-fo-5')};
-    pr.window_cleaning.front_and_back={'2_bed':numOrNull('pr-wc-fb-2'),'3_bed':numOrNull('pr-wc-fb-3'),'4_bed':numOrNull('pr-wc-fb-4'),'5_bed':numOrNull('pr-wc-fb-5')};
-    pr.window_cleaning.fallback={per_extra_bedroom:numOrNull('pr-wc-extra')};
-    await savePricingRulesPatch(pr);
+    const rows=[
+      {business_id:BUSINESS_ID,package:'front_only',bed_size:'2_bed',price:numOrNull('pr-wc-fo-2')},
+      {business_id:BUSINESS_ID,package:'front_only',bed_size:'3_bed',price:numOrNull('pr-wc-fo-3')},
+      {business_id:BUSINESS_ID,package:'front_only',bed_size:'4_bed',price:numOrNull('pr-wc-fo-4')},
+      {business_id:BUSINESS_ID,package:'front_only',bed_size:'5_bed',price:numOrNull('pr-wc-fo-5')},
+      {business_id:BUSINESS_ID,package:'front_and_back',bed_size:'2_bed',price:numOrNull('pr-wc-fb-2')},
+      {business_id:BUSINESS_ID,package:'front_and_back',bed_size:'3_bed',price:numOrNull('pr-wc-fb-3')},
+      {business_id:BUSINESS_ID,package:'front_and_back',bed_size:'4_bed',price:numOrNull('pr-wc-fb-4')},
+      {business_id:BUSINESS_ID,package:'front_and_back',bed_size:'5_bed',price:numOrNull('pr-wc-fb-5')},
+      {business_id:BUSINESS_ID,package:'fallback',bed_size:'per_extra_bedroom',price:numOrNull('pr-wc-extra')},
+    ];
+    await upsertPricingRows('pricing_window_base_rates',rows,'business_id,package,bed_size');
     showToast('Base rates saved','success');
   }catch(e){showToast(e.message,'error');}
 }
 async function savePricingWindowExtras(){
   try{
-    const pr=JSON.parse(JSON.stringify(pricingConfigData.pricing_rules||{}));
-    pr.window_feature_surcharges={
-      skylight:numOrNull('pr-ex-skylight'),
-      bifold_door:numOrNull('pr-ex-bifold_door'),
-      french_door:numOrNull('pr-ex-french_door'),
-      patio_door:numOrNull('pr-ex-patio_door'),
-      conservatory_windows:numOrNull('pr-ex-conservatory_windows'),
-      roof_lantern:numOrNull('pr-ex-roof_lantern'),
-      roof_access_required:numOrNull('pr-ex-roof_access_required'),
-    };
-    await savePricingRulesPatch(pr);
+    const labels={skylight:'Skylight',bifold_door:'Bifold door',french_door:'French door',patio_door:'Patio door',conservatory_windows:'Conservatory windows',roof_lantern:'Roof lantern',roof_access_required:'Roof access charge'};
+    const units={skylight:'per_item',bifold_door:'per_pane',french_door:'flat',patio_door:'flat',conservatory_windows:'per_pane',roof_lantern:'per_item',roof_access_required:'flat'};
+    const keys=['skylight','bifold_door','french_door','patio_door','conservatory_windows','roof_lantern','roof_access_required'];
+    const rows=keys.map(k=>({business_id:BUSINESS_ID,feature_key:k,label:labels[k],unit:units[k],price:numOrNull('pr-ex-'+k)}));
+    await upsertPricingRows('pricing_window_extras',rows,'business_id,feature_key');
     showToast('Extras saved','success');
   }catch(e){showToast(e.message,'error');}
 }
-async function savePricingCatalogPatch(newCatalog){
-  await sb(`business_configs?business_id=eq.${BUSINESS_ID}`,{method:'PATCH',body:JSON.stringify({service_catalog:newCatalog}),prefer:'return=minimal'});
-  pricingConfigData.service_catalog=newCatalog;
-}
 async function savePricingGutter(){
   try{
-    const cat=JSON.parse(JSON.stringify(pricingConfigData.service_catalog||[]));
-    const gutter=cat.find(s=>s.service_code==='gutter_cleaning');
-    if(!gutter){showToast('Gutter cleaning not found in catalog','error');return;}
-    gutter.pricing_model.bands=[
-      {key:'terraced',price:numOrNull('pr-gc-terraced')},
-      {key:'semi_detached',price:numOrNull('pr-gc-semi_detached')},
-      {key:'detached',price:numOrNull('pr-gc-detached')},
+    const rows=[
+      {business_id:BUSINESS_ID,service_code:'gutter_cleaning',band_key:'terraced',price:numOrNull('pr-gc-terraced')},
+      {business_id:BUSINESS_ID,service_code:'gutter_cleaning',band_key:'semi_detached',price:numOrNull('pr-gc-semi_detached')},
+      {business_id:BUSINESS_ID,service_code:'gutter_cleaning',band_key:'detached',price:numOrNull('pr-gc-detached')},
     ];
-    await savePricingCatalogPatch(cat);
+    await upsertPricingRows('pricing_service_bands',rows,'business_id,service_code,band_key');
     showToast('Gutter cleaning saved','success');
   }catch(e){showToast(e.message,'error');}
 }
 async function savePricingPressureWashing(){
   try{
-    const cat=JSON.parse(JSON.stringify(pricingConfigData.service_catalog||[]));
-    const pw=cat.find(s=>s.service_code==='pressure_washing');
-    if(!pw){showToast('Pressure washing not found in catalog','error');return;}
-    pw.pricing_model.bands=[
-      {key:'small',price:numOrNull('pr-pw-small')},
-      {key:'medium',price:numOrNull('pr-pw-medium')},
-      {key:'large',price:numOrNull('pr-pw-large')},
+    const bandRows=[
+      {business_id:BUSINESS_ID,service_code:'pressure_washing',band_key:'small',price:numOrNull('pr-pw-small')},
+      {business_id:BUSINESS_ID,service_code:'pressure_washing',band_key:'medium',price:numOrNull('pr-pw-medium')},
+      {business_id:BUSINESS_ID,service_code:'pressure_washing',band_key:'large',price:numOrNull('pr-pw-large')},
     ];
-    pw.pricing_model.addons={block_paving_resanding:numOrNull('pr-pw-addon-block_paving_resanding')};
-    await savePricingCatalogPatch(cat);
+    const addonRows=[
+      {business_id:BUSINESS_ID,service_code:'pressure_washing',addon_key:'block_paving_resanding',price:numOrNull('pr-pw-addon-block_paving_resanding')},
+    ];
+    await upsertPricingRows('pricing_service_bands',bandRows,'business_id,service_code,band_key');
+    await upsertPricingRows('pricing_service_addons',addonRows,'business_id,service_code,addon_key');
     showToast('Pressure washing saved','success');
   }catch(e){showToast(e.message,'error');}
 }
 async function savePricingFrequency(){
   try{
-    const freq={
-      '1':numOrNull('pr-freq-1'),
-      '2':numOrNull('pr-freq-2'),
-      '4':numOrNull('pr-freq-4'),
-      '6':numOrNull('pr-freq-6'),
-      '8':numOrNull('pr-freq-8'),
-      '12':numOrNull('pr-freq-12'),
-      one_off:numOrNull('pr-freq-one_off'),
-    };
-    await sb(`business_configs?business_id=eq.${BUSINESS_ID}`,{method:'PATCH',body:JSON.stringify({frequency_multipliers:freq}),prefer:'return=minimal'});
-    pricingConfigData.frequency_multipliers=freq;
+    const rows=[
+      {business_id:BUSINESS_ID,frequency_weeks:'1',multiplier:numOrNull('pr-freq-1')},
+      {business_id:BUSINESS_ID,frequency_weeks:'2',multiplier:numOrNull('pr-freq-2')},
+      {business_id:BUSINESS_ID,frequency_weeks:'4',multiplier:numOrNull('pr-freq-4')},
+      {business_id:BUSINESS_ID,frequency_weeks:'6',multiplier:numOrNull('pr-freq-6')},
+      {business_id:BUSINESS_ID,frequency_weeks:'8',multiplier:numOrNull('pr-freq-8')},
+      {business_id:BUSINESS_ID,frequency_weeks:'12',multiplier:numOrNull('pr-freq-12')},
+      {business_id:BUSINESS_ID,frequency_weeks:'one_off',multiplier:numOrNull('pr-freq-one_off')},
+    ];
+    await upsertPricingRows('pricing_frequency_multipliers',rows,'business_id,frequency_weeks');
     showToast('Frequency multipliers saved','success');
   }catch(e){showToast(e.message,'error');}
 }
