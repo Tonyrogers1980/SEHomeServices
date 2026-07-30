@@ -595,8 +595,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='73';
-const BUILD_DATE='27 Jul 2026 16:20';
+const BUILD_VERSION='74';
+const BUILD_DATE='30 Jul 2026 09:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -789,6 +789,9 @@ const NAV_SECTIONS=[
     {id:'round',label:'Round',icon:ICON_ROUND},
     {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
   ]},
+  {section:'Escalations',items:[
+    {id:'escalations',label:'Escalations',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>'},
+  ]},
   {section:'Customers',items:[
     {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
     {id:'owing',label:'Owing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>'},
@@ -887,6 +890,7 @@ function navigate(page){
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
   if(page==='round')renderRound();
+  else if(page==='escalations')renderEscalations();
   else if(page==='jobs')renderJobs();
   else if(page==='customers')renderCustomers();
   else if(page==='quotes')renderQuotes();
@@ -976,6 +980,62 @@ function populateServiceSelect(id,selected=''){
 
 
 // ── ROUND ─────────────────────────────────────────────────────────────────────
+// ── ESCALATIONS ──────────────────────────────────────────────────────────────
+function escTimeAgo(iso){
+  if(!iso)return'—';
+  const diffMs=Date.now()-new Date(iso).getTime();
+  const mins=Math.floor(diffMs/60000);
+  if(mins<1)return'just now';
+  if(mins<60)return`${mins}m ago`;
+  const hrs=Math.floor(mins/60);
+  if(hrs<24)return`${hrs}h ago`;
+  const days=Math.floor(hrs/24);
+  if(days<30)return`${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+function escReasonLabel(reason){
+  if(!reason)return'Needs review';
+  return String(reason).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+async function renderEscalations(){
+  document.getElementById('topbarPage').textContent='Escalations';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  let rows;
+  try{
+    rows=await sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Escalations</div><div class="page-sub">${rows.length} open — resolving hands the conversation back to the AI</div></div></div>
+    ${!rows.length?`<div class="empty"><div class="empty-title">All caught up</div><div style="color:var(--text-muted);font-size:13px;margin-top:4px">No open escalations right now.</div></div>`:''}
+    <div class="detail-section">
+      ${rows.map(r=>{
+        const conv=r.conversations||{};
+        return `<div class="detail-row" style="align-items:flex-start;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${esc(conv.customer_phone||'')}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--danger-light);color:var(--danger)">${esc(escReasonLabel(r.reason_code))}</span>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Resolve &amp; resume AI</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+async function resolveEscalation(escalationId,conversationId){
+  try{
+    await sb(`escalations?id=eq.${escalationId}`,{method:'PATCH',body:JSON.stringify({status:'RESOLVED',resolved_at:new Date().toISOString(),resolved_by:currentUser?.id||null}),prefer:'return=minimal'});
+    await sb(`conversations?id=eq.${conversationId}`,{method:'PATCH',body:JSON.stringify({ai_paused:false,controlled_by:'ai',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
+    showToast('Resolved — AI will reply to their next message','success');
+    renderEscalations();
+  }catch(e){showToast(e.message,'error');}
+}
+
 async function renderRound(){
   document.getElementById('topbarPage').textContent="Today's Round";
   document.getElementById('topbarAction').innerHTML='';
