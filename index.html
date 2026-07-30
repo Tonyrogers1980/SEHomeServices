@@ -595,8 +595,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='74';
-const BUILD_DATE='30 Jul 2026 09:30';
+const BUILD_VERSION='75';
+const BUILD_DATE='30 Jul 2026 10:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1005,12 +1005,22 @@ async function renderEscalations(){
   try{
     rows=await sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  let messagesByConv={};
+  if(rows.length){
+    try{
+      const ids=[...new Set(rows.map(r=>r.conversation_id))].join(',');
+      const msgs=await sb(`messages?conversation_id=in.(${ids})&select=conversation_id,direction,message_text,created_at&order=created_at.asc`);
+      msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
+    }catch(e){/* transcript is a nice-to-have — still show the card if this fails */}
+  }
   el.innerHTML=`
     <div class="page-header"><div><div class="page-title">Escalations</div><div class="page-sub">${rows.length} open — resolving hands the conversation back to the AI</div></div></div>
     ${!rows.length?`<div class="empty"><div class="empty-title">All caught up</div><div style="color:var(--text-muted);font-size:13px;margin-top:4px">No open escalations right now.</div></div>`:''}
     <div class="detail-section">
       ${rows.map(r=>{
         const conv=r.conversations||{};
+        const msgs=messagesByConv[r.conversation_id]||[];
+        const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
         return `<div class="detail-row" style="align-items:flex-start;flex-direction:column;gap:8px">
           <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
             <div>
@@ -1022,6 +1032,16 @@ async function renderEscalations(){
               <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
             </div>
           </div>
+          ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}</div>`:''}
+          ${msgs.length?`<details style="width:100%">
+            <summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:600;list-style:none">View full conversation (${msgs.length} messages)</summary>
+            <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
+              ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
+                <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}</div>
+              </div>`).join('')}
+            </div>
+          </details>`:''}
           <button class="btn btn-primary btn-sm" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Resolve &amp; resume AI</button>
         </div>`;
       }).join('')}
