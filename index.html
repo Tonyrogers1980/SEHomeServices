@@ -582,6 +582,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="markStageModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-title">Mark conversation</div>
+      <button class="modal-close" onclick="closeModal('markStageModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div style="padding:4px 0 16px;font-size:14px;color:var(--text);line-height:1.5" id="markStageModalText"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('markStageModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmMarkConversationStage()">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -595,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='77';
-const BUILD_DATE='30 Jul 2026 13:05';
+const BUILD_VERSION='78';
+const BUILD_DATE='30 Jul 2026 14:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1086,18 +1100,27 @@ function renderConvCard(conv,msgs,badge){
     </details>`:''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <span style="font-size:11px;color:var(--text-muted);align-self:center">Mark as:</span>
-      <button class="btn btn-ghost btn-sm" onclick="markConversationStage('${conv.id}','BOOKED','${esc(conv.customer_name||'this conversation')}')">Booked</button>
-      <button class="btn btn-ghost btn-sm" onclick="markConversationStage('${conv.id}','FAILED_TO_CONVERT','${esc(conv.customer_name||'this conversation')}')">Failed to convert</button>
-      <button class="btn btn-ghost btn-sm" onclick="markConversationStage('${conv.id}','TIME_WASTER','${esc(conv.customer_name||'this conversation')}')">Time waster</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
     </div>
   </div>`;
 }
-async function markConversationStage(conversationId,stage,customerName){
+let messagingConvById={},markStageConvId=null,markStageValue=null;
+function openMarkStageModal(conversationId,stage){
+  markStageConvId=conversationId;markStageValue=stage;
   const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster'};
-  if(!confirm(`Mark ${customerName} as "${labels[stage]}"? This closes the conversation and stops the AI from replying further.`))return;
+  const conv=messagingConvById[conversationId];
+  const name=conv?.customer_name||'this conversation';
+  document.getElementById('markStageModalText').textContent=`Mark ${name} as "${labels[stage]}"? This closes the conversation and stops the AI from replying further.`;
+  document.getElementById('markStageModal').classList.add('open');
+}
+async function confirmMarkConversationStage(){
+  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster'};
   try{
-    await sb(`conversations?id=eq.${conversationId}`,{method:'PATCH',body:JSON.stringify({stage,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
-    showToast(`Marked as ${labels[stage]}`,'success');
+    await sb(`conversations?id=eq.${markStageConvId}`,{method:'PATCH',body:JSON.stringify({stage:markStageValue,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
+    closeModal('markStageModal');
+    showToast(`Marked as ${labels[markStageValue]}`,'success');
     renderMessaging();
   }catch(e){showToast(e.message,'error');}
 }
@@ -1112,6 +1135,8 @@ async function renderMessaging(){
       sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&order=last_message_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  messagingConvById={};
+  [...responseRequired,...aiHandling].forEach(c=>{messagingConvById[c.id]=c;});
   let messagesByConv={};
   const allIds=[...new Set([...responseRequired,...aiHandling].map(c=>c.id))];
   if(allIds.length){
@@ -3050,7 +3075,7 @@ if('serviceWorker' in navigator){
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
-['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal','teamModal'].forEach(id=>{
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal','teamModal','markStageModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
