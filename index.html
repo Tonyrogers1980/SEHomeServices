@@ -595,8 +595,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='76';
-const BUILD_DATE='30 Jul 2026 11:20';
+const BUILD_VERSION='77';
+const BUILD_DATE='30 Jul 2026 13:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1084,7 +1084,22 @@ function renderConvCard(conv,msgs,badge){
         </div>`).join('')}
       </div>
     </details>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text-muted);align-self:center">Mark as:</span>
+      <button class="btn btn-ghost btn-sm" onclick="markConversationStage('${conv.id}','BOOKED','${esc(conv.customer_name||'this conversation')}')">Booked</button>
+      <button class="btn btn-ghost btn-sm" onclick="markConversationStage('${conv.id}','FAILED_TO_CONVERT','${esc(conv.customer_name||'this conversation')}')">Failed to convert</button>
+      <button class="btn btn-ghost btn-sm" onclick="markConversationStage('${conv.id}','TIME_WASTER','${esc(conv.customer_name||'this conversation')}')">Time waster</button>
+    </div>
   </div>`;
+}
+async function markConversationStage(conversationId,stage,customerName){
+  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster'};
+  if(!confirm(`Mark ${customerName} as "${labels[stage]}"? This closes the conversation and stops the AI from replying further.`))return;
+  try{
+    await sb(`conversations?id=eq.${conversationId}`,{method:'PATCH',body:JSON.stringify({stage,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
+    showToast(`Marked as ${labels[stage]}`,'success');
+    renderMessaging();
+  }catch(e){showToast(e.message,'error');}
 }
 async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
