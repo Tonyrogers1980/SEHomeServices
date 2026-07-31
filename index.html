@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='79';
-const BUILD_DATE='30 Jul 2026 15:20';
+const BUILD_VERSION='80';
+const BUILD_DATE='31 Jul 2026 14:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1104,7 +1104,34 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
       <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
     </div>
+    <div style="display:flex;gap:8px;width:100%">
+      <textarea id="reply-${conv.id}" placeholder="Type a reply…" rows="2" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      <button class="btn btn-primary btn-sm" id="send-btn-${conv.id}" style="align-self:flex-end" onclick="sendManualReply('${conv.id}')">Send</button>
+    </div>
   </div>`;
+}
+const MANUAL_REPLY_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/5455cd72-8598-4d3c-82f0-f58554a35b18/cr-send-manual-reply-9f2a7c';
+async function sendManualReply(conversationId){
+  const ta=document.getElementById('reply-'+conversationId);
+  const text=ta.value.trim();
+  if(!text){showToast('Type a message first','error');return;}
+  const conv=messagingConvById[conversationId];
+  if(!conv||!conv.customer_phone){showToast('Missing customer phone number for this conversation','error');return;}
+  const btn=document.getElementById('send-btn-'+conversationId);
+  btn.disabled=true;btn.textContent='Sending…';
+  try{
+    const res=await fetch(MANUAL_REPLY_WEBHOOK_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({conversation_id:conversationId,customer_phone:conv.customer_phone,message_text:text,sender_user_id:currentUser?.id||null})
+    });
+    if(!res.ok)throw new Error('Failed to send reply');
+    showToast('Reply sent','success');
+    renderMessaging();
+  }catch(e){
+    showToast(e.message,'error');
+    btn.disabled=false;btn.textContent='Send';
+  }
 }
 let messagingConvById={},markStageConvId=null,markStageValue=null;
 function openMarkStageModal(conversationId,stage){
