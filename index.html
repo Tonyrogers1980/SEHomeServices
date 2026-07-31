@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='80';
-const BUILD_DATE='31 Jul 2026 14:05';
+const BUILD_VERSION='81';
+const BUILD_DATE='31 Jul 2026 14:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1110,7 +1110,7 @@ function renderConvCard(conv,msgs,badge){
     </div>
   </div>`;
 }
-const MANUAL_REPLY_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/5455cd72-8598-4d3c-82f0-f58554a35b18/cr-send-manual-reply-9f2a7c';
+const MANUAL_REPLY_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/cr-send-manual-reply-9f2a7c';
 async function sendManualReply(conversationId){
   const ta=document.getElementById('reply-'+conversationId);
   const text=ta.value.trim();
