@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='81';
-const BUILD_DATE='31 Jul 2026 14:15';
+const BUILD_VERSION='82';
+const BUILD_DATE='03 Aug 2026 09:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1027,7 +1027,7 @@ async function renderEscalations(){
   if(rows.length){
     try{
       const ids=[...new Set(rows.map(r=>r.conversation_id))].join(',');
-      const msgs=await sb(`messages?conversation_id=in.(${ids})&select=conversation_id,direction,message_text,created_at&order=created_at.asc`);
+      const msgs=await sb(`messages?conversation_id=in.(${ids})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
       msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
     }catch(e){/* transcript is a nice-to-have — still show the card if this fails */}
   }
@@ -1050,13 +1050,13 @@ async function renderEscalations(){
               <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
             </div>
           </div>
-          ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}</div>`:''}
+          ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
           ${msgs.length?`<details style="width:100%">
             <summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:600;list-style:none">View full conversation (${msgs.length} messages)</summary>
             <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
               ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
                 <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
-                <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}</div>
+                <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}${renderMessageMedia(m)}</div>
               </div>`).join('')}
             </div>
           </details>`:''}
@@ -1075,6 +1075,11 @@ async function resolveEscalation(escalationId,conversationId){
 }
 
 // ── MESSAGING ─────────────────────────────────────────────────────────────────
+const MEDIA_PROXY_URL='https://uetdrzzgydintdscvckn.supabase.co/functions/v1/twilio-media-proxy';
+function renderMessageMedia(m){
+  if(!Array.isArray(m.media_urls)||!m.media_urls.length) return '';
+  return m.media_urls.map(u=>`<img src="${MEDIA_PROXY_URL}?url=${encodeURIComponent(u)}" loading="lazy" style="max-width:100%;max-height:220px;border-radius:8px;display:block;margin-top:4px;object-fit:contain;cursor:pointer" onclick="window.open('${MEDIA_PROXY_URL}?url=${encodeURIComponent(u)}','_blank')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'[image unavailable]',style:'font-size:12px;color:var(--text-muted);font-style:italic'}))">`).join('');
+}
 function renderConvCard(conv,msgs,badge){
   const lastInbound=[...(msgs||[])].reverse().find(m=>m.direction==='inbound');
   return `<div class="detail-row" style="align-items:flex-start;flex-direction:column;gap:8px">
@@ -1088,13 +1093,13 @@ function renderConvCard(conv,msgs,badge){
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(conv.last_message_at)}</div>
       </div>
     </div>
-    ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}</div>`:''}
+    ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
     ${(msgs||[]).length?`<details style="width:100%">
       <summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:600;list-style:none">View full conversation (${msgs.length} messages)</summary>
       <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
         ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
           <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
-          <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}</div>
+          <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}${renderMessageMedia(m)}</div>
         </div>`).join('')}
       </div>
     </details>`:''}
@@ -1168,7 +1173,7 @@ async function renderMessaging(){
   const allIds=[...new Set([...responseRequired,...aiHandling].map(c=>c.id))];
   if(allIds.length){
     try{
-      const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,created_at&order=created_at.asc`);
+      const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
       msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
