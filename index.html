@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='86';
-const BUILD_DATE='12 Aug 2026 00:20';
+const BUILD_VERSION='87';
+const BUILD_DATE='12 Aug 2026 00:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -803,9 +803,6 @@ const NAV_SECTIONS=[
     {id:'round',label:'Round',icon:ICON_ROUND},
     {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
   ]},
-  {section:'Escalations',items:[
-    {id:'escalations',label:'Escalations',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>'},
-  ]},
   {section:'Messaging',items:[
     {id:'messaging',label:'Conversations',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-6l-4 4v-4z"/></svg>'},
   ]},
@@ -907,7 +904,6 @@ function navigate(page){
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
   if(page==='round')renderRound();
-  else if(page==='escalations')renderEscalations();
   else if(page==='messaging')renderMessaging();
   else if(page==='jobs')renderJobs();
   else if(page==='customers')renderCustomers();
@@ -998,7 +994,7 @@ function populateServiceSelect(id,selected=''){
 
 
 // ── ROUND ─────────────────────────────────────────────────────────────────────
-// ── ESCALATIONS ──────────────────────────────────────────────────────────────
+// ── ESCALATIONS (rendered as a tab within Conversations — see renderMessaging) ─
 function escTimeAgo(iso){
   if(!iso)return'—';
   const diffMs=Date.now()-new Date(iso).getTime();
@@ -1015,62 +1011,40 @@ function escReasonLabel(reason){
   if(!reason)return'Needs review';
   return String(reason).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 }
-async function renderEscalations(){
-  document.getElementById('topbarPage').textContent='Escalations';
-  const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let rows;
-  try{
-    rows=await sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
-  let messagesByConv={};
-  if(rows.length){
-    try{
-      const ids=[...new Set(rows.map(r=>r.conversation_id))].join(',');
-      const msgs=await sb(`messages?conversation_id=in.(${ids})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
-      msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
-    }catch(e){/* transcript is a nice-to-have — still show the card if this fails */}
-  }
-  el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Escalations</div><div class="page-sub">${rows.length} open — resolving hands the conversation back to the AI</div></div></div>
-    ${!rows.length?`<div class="empty"><div class="empty-title">All caught up</div><div style="color:var(--text-muted);font-size:13px;margin-top:4px">No open escalations right now.</div></div>`:''}
-    <div class="detail-section">
-      ${rows.map(r=>{
-        const conv=r.conversations||{};
-        const msgs=messagesByConv[r.conversation_id]||[];
-        const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
-        return `<div class="detail-row" style="align-items:flex-start;flex-direction:column;gap:8px">
-          <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
-            <div>
-              <div style="font-size:14px;font-weight:600;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
-              <div style="font-size:12px;color:var(--text-muted)">${esc(conv.customer_phone||'')}</div>
-            </div>
-            <div style="text-align:right;flex-shrink:0">
-              <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--danger-light);color:var(--danger)">${esc(escReasonLabel(r.reason_code))}</span>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
-            </div>
-          </div>
-          ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
-          ${msgs.length?`<details style="width:100%">
-            <summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:600;list-style:none">View full conversation (${msgs.length} messages)</summary>
-            <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
-              ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
-                <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
-                <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}${renderMessageMedia(m)}</div>
-              </div>`).join('')}
-            </div>
-          </details>`:''}
-          <button class="btn btn-primary btn-sm" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Resolve &amp; resume AI</button>
-        </div>`;
-      }).join('')}
-    </div>`;
+function escalationCardHtml(r,msgs){
+  msgs=msgs||[];
+  const conv=r.conversations||{};
+  const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
+  return `<div class="detail-row" style="align-items:flex-start;flex-direction:column;gap:8px">
+    <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${esc(conv.customer_phone||'')}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--danger-light);color:var(--danger)">${esc(escReasonLabel(r.reason_code))}</span>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
+      </div>
+    </div>
+    ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
+    ${msgs.length?`<details style="width:100%">
+      <summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:600;list-style:none">View full conversation (${msgs.length} messages)</summary>
+      <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
+        ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
+          <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}${renderMessageMedia(m)}</div>
+        </div>`).join('')}
+      </div>
+    </details>`:''}
+    <button class="btn btn-primary btn-sm" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Resolve &amp; resume AI</button>
+  </div>`;
 }
 async function resolveEscalation(escalationId,conversationId){
   try{
     await sb(`escalations?id=eq.${escalationId}`,{method:'PATCH',body:JSON.stringify({status:'RESOLVED',resolved_at:new Date().toISOString(),resolved_by:currentUser?.id||null}),prefer:'return=minimal'});
     await sb(`conversations?id=eq.${conversationId}`,{method:'PATCH',body:JSON.stringify({ai_paused:false,controlled_by:'ai',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
     showToast('Resolved — AI will reply to their next message','success');
-    renderEscalations();
+    renderMessaging();
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -1163,23 +1137,23 @@ function getConvBadge(c){
   return {label:c.stage||'Active',style:'background:var(--border);color:var(--text-muted)'};
 }
 let convTab=localStorage.getItem('convTab')||'responseRequired';
-let convSectionCache=null; // {responseRequired, aiHandling, allActive, messagesByConv} — cached so tab switches don't refetch
+let convSectionCache=null; // {responseRequired, aiHandling, allActive, escalations, messagesByConv} — cached so tab switches don't refetch
 function setConvTab(name){
   convTab=name;
   localStorage.setItem('convTab',name);
   renderMessagingFromCache();
 }
 function convTabBar(counts){
-  const tabs=[['responseRequired','Response Required',counts.responseRequired],['aiHandling','AI Handling',counts.aiHandling],['allActive','All Conversations',counts.allActive]];
+  const tabs=[['responseRequired','Response Required',counts.responseRequired],['aiHandling','AI Handling',counts.aiHandling],['escalations','Escalations',counts.escalations],['allActive','All Conversations',counts.allActive]];
   return `<div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px;width:fit-content;max-width:100%;overflow-x:auto">
     ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
-  const {responseRequired,aiHandling,allActive,messagesByConv}=convSectionCache;
+  const {responseRequired,aiHandling,allActive,escalations,messagesByConv}=convSectionCache;
   const el=document.getElementById('mainContent');
-  const counts={responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length};
+  const counts={responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length,escalations:escalations.length};
   let listHtml='',emptyTitle='',subHtml='';
   if(convTab==='responseRequired'){
     listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger-light);color:var(--danger)'})).join('');
@@ -1187,6 +1161,10 @@ function renderMessagingFromCache(){
   }else if(convTab==='aiHandling'){
     listHtml=aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',style:'background:rgba(212,175,55,.15);color:var(--gold)'})).join('');
     emptyTitle='No conversations with the AI right now';
+  }else if(convTab==='escalations'){
+    listHtml=escalations.map(r=>escalationCardHtml(r,messagesByConv[r.conversation_id])).join('');
+    emptyTitle='All caught up';
+    subHtml='<div class="page-sub" style="margin:-4px 0 8px">Resolving hands the conversation back to the AI.</div>';
   }else{
     listHtml=allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
     emptyTitle='Nothing active right now';
@@ -1194,7 +1172,7 @@ function renderMessagingFromCache(){
   }
   const currentCount=counts[convTab];
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.aiHandling} being handled by AI · ${counts.allActive} active in total</div></div></div>
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.aiHandling} being handled by AI · ${counts.escalations} escalated · ${counts.allActive} active in total</div></div></div>
     ${convTabBar(counts)}
     ${subHtml}
     ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:`<div class="detail-section">${listHtml}</div>`}`;
@@ -1203,25 +1181,26 @@ async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let responseRequired=[],aiHandling=[],allActive=[];
+  let responseRequired=[],aiHandling=[],allActive=[],escalations=[];
   try{
-    [responseRequired,aiHandling,allActive]=await Promise.all([
+    [responseRequired,aiHandling,allActive,escalations]=await Promise.all([
       sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=in.(NEW,QUALIFYING,QUOTED)&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&order=last_message_at.desc`),
+      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
   [...responseRequired,...aiHandling,...allActive].forEach(c=>{messagingConvById[c.id]=c;});
   let messagesByConv={};
-  const allIds=[...new Set([...responseRequired,...aiHandling,...allActive].map(c=>c.id))];
+  const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id)])];
   if(allIds.length){
     try{
       const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
       msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
-  convSectionCache={responseRequired,aiHandling,allActive,messagesByConv};
+  convSectionCache={responseRequired,aiHandling,allActive,escalations,messagesByConv};
   renderMessagingFromCache();
 }
 
