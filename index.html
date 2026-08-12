@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='84';
-const BUILD_DATE='12 Aug 2026 00:00';
+const BUILD_VERSION='85';
+const BUILD_DATE='12 Aug 2026 00:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1162,6 +1162,44 @@ function getConvBadge(c){
   if(c.controlled_by==='human'&&c.last_message_direction==='outbound') return {label:'You replied',style:'background:rgba(96,165,250,.15);color:#60a5fa'};
   return {label:c.stage||'Active',style:'background:var(--border);color:var(--text-muted)'};
 }
+let collapsedConvSections=new Set(JSON.parse(localStorage.getItem('collapsedConvSections')||'[]'));
+let convSectionCache=null; // {responseRequired, allActive, messagesByConv} — cached so toggling doesn't refetch
+function toggleConvSection(name){
+  if(collapsedConvSections.has(name))collapsedConvSections.delete(name);
+  else collapsedConvSections.add(name);
+  localStorage.setItem('collapsedConvSections',JSON.stringify([...collapsedConvSections]));
+  renderMessagingFromCache();
+}
+function convSectionHeader(name,label,count,color){
+  const collapsed=collapsedConvSections.has(name);
+  return `<div style="font-size:13px;font-weight:600;color:${color};text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none" onclick="toggleConvSection('${name}')">
+    <span>${label} (${count})</span>
+    <svg style="width:12px;height:12px;transition:transform .15s;transform:rotate(${collapsed?'-90deg':'0deg'});flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+  </div>`;
+}
+function renderMessagingFromCache(){
+  if(!convSectionCache)return;
+  const {responseRequired,allActive,messagesByConv}=convSectionCache;
+  const el=document.getElementById('mainContent');
+  const rrCollapsed=collapsedConvSections.has('responseRequired');
+  const aaCollapsed=collapsedConvSections.has('allActive');
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${responseRequired.length} need a reply · ${allActive.length} active in total</div></div></div>
+
+    ${convSectionHeader('responseRequired','Response Required',responseRequired.length,'var(--danger)')}
+    ${rrCollapsed?'':(!responseRequired.length?`<div class="empty"><div class="empty-title">Nothing waiting on you</div></div>`:`
+    <div class="detail-section">
+      ${responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger-light);color:var(--danger)'})).join('')}
+    </div>`)}
+
+    ${convSectionHeader('allActive','All Conversations',allActive.length,'var(--text-muted)')}
+    ${aaCollapsed?'':`
+    <div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster.</div>
+    ${!allActive.length?`<div class="empty"><div class="empty-title">Nothing active right now</div></div>`:`
+    <div class="detail-section">
+      ${allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('')}
+    </div>`}`}`;
+}
 async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
@@ -1183,21 +1221,8 @@ async function renderMessaging(){
       msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
-  el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${responseRequired.length} need a reply · ${allActive.length} active in total</div></div></div>
-
-    <div style="font-size:13px;font-weight:600;color:var(--danger);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px">Response Required (${responseRequired.length})</div>
-    ${!responseRequired.length?`<div class="empty"><div class="empty-title">Nothing waiting on you</div></div>`:''}
-    <div class="detail-section">
-      ${responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger-light);color:var(--danger)'})).join('')}
-    </div>
-
-    <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin:20px 0 8px">All Conversations (${allActive.length})</div>
-    <div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster.</div>
-    ${!allActive.length?`<div class="empty"><div class="empty-title">Nothing active right now</div></div>`:''}
-    <div class="detail-section">
-      ${allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('')}
-    </div>`;
+  convSectionCache={responseRequired,allActive,messagesByConv};
+  renderMessagingFromCache();
 }
 
 async function renderRound(){
