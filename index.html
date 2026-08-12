@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='85';
-const BUILD_DATE='12 Aug 2026 00:10';
+const BUILD_VERSION='86';
+const BUILD_DATE='12 Aug 2026 00:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1162,66 +1162,66 @@ function getConvBadge(c){
   if(c.controlled_by==='human'&&c.last_message_direction==='outbound') return {label:'You replied',style:'background:rgba(96,165,250,.15);color:#60a5fa'};
   return {label:c.stage||'Active',style:'background:var(--border);color:var(--text-muted)'};
 }
-let collapsedConvSections=new Set(JSON.parse(localStorage.getItem('collapsedConvSections')||'[]'));
-let convSectionCache=null; // {responseRequired, allActive, messagesByConv} — cached so toggling doesn't refetch
-function toggleConvSection(name){
-  if(collapsedConvSections.has(name))collapsedConvSections.delete(name);
-  else collapsedConvSections.add(name);
-  localStorage.setItem('collapsedConvSections',JSON.stringify([...collapsedConvSections]));
+let convTab=localStorage.getItem('convTab')||'responseRequired';
+let convSectionCache=null; // {responseRequired, aiHandling, allActive, messagesByConv} — cached so tab switches don't refetch
+function setConvTab(name){
+  convTab=name;
+  localStorage.setItem('convTab',name);
   renderMessagingFromCache();
 }
-function convSectionHeader(name,label,count,color){
-  const collapsed=collapsedConvSections.has(name);
-  return `<div style="font-size:13px;font-weight:600;color:${color};text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none" onclick="toggleConvSection('${name}')">
-    <span>${label} (${count})</span>
-    <svg style="width:12px;height:12px;transition:transform .15s;transform:rotate(${collapsed?'-90deg':'0deg'});flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+function convTabBar(counts){
+  const tabs=[['responseRequired','Response Required',counts.responseRequired],['aiHandling','AI Handling',counts.aiHandling],['allActive','All Conversations',counts.allActive]];
+  return `<div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px;width:fit-content;max-width:100%;overflow-x:auto">
+    ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
-  const {responseRequired,allActive,messagesByConv}=convSectionCache;
+  const {responseRequired,aiHandling,allActive,messagesByConv}=convSectionCache;
   const el=document.getElementById('mainContent');
-  const rrCollapsed=collapsedConvSections.has('responseRequired');
-  const aaCollapsed=collapsedConvSections.has('allActive');
+  const counts={responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length};
+  let listHtml='',emptyTitle='',subHtml='';
+  if(convTab==='responseRequired'){
+    listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger-light);color:var(--danger)'})).join('');
+    emptyTitle='Nothing waiting on you';
+  }else if(convTab==='aiHandling'){
+    listHtml=aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',style:'background:rgba(212,175,55,.15);color:var(--gold)'})).join('');
+    emptyTitle='No conversations with the AI right now';
+  }else{
+    listHtml=allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
+    emptyTitle='Nothing active right now';
+    subHtml='<div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster.</div>';
+  }
+  const currentCount=counts[convTab];
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${responseRequired.length} need a reply · ${allActive.length} active in total</div></div></div>
-
-    ${convSectionHeader('responseRequired','Response Required',responseRequired.length,'var(--danger)')}
-    ${rrCollapsed?'':(!responseRequired.length?`<div class="empty"><div class="empty-title">Nothing waiting on you</div></div>`:`
-    <div class="detail-section">
-      ${responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger-light);color:var(--danger)'})).join('')}
-    </div>`)}
-
-    ${convSectionHeader('allActive','All Conversations',allActive.length,'var(--text-muted)')}
-    ${aaCollapsed?'':`
-    <div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster.</div>
-    ${!allActive.length?`<div class="empty"><div class="empty-title">Nothing active right now</div></div>`:`
-    <div class="detail-section">
-      ${allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('')}
-    </div>`}`}`;
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.aiHandling} being handled by AI · ${counts.allActive} active in total</div></div></div>
+    ${convTabBar(counts)}
+    ${subHtml}
+    ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:`<div class="detail-section">${listHtml}</div>`}`;
 }
 async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let responseRequired=[],allActive=[];
+  let responseRequired=[],aiHandling=[],allActive=[];
   try{
-    [responseRequired,allActive]=await Promise.all([
+    [responseRequired,aiHandling,allActive]=await Promise.all([
       sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=in.(NEW,QUALIFYING,QUOTED)&order=last_message_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&order=last_message_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
-  [...responseRequired,...allActive].forEach(c=>{messagingConvById[c.id]=c;});
+  [...responseRequired,...aiHandling,...allActive].forEach(c=>{messagingConvById[c.id]=c;});
   let messagesByConv={};
-  const allIds=[...new Set([...responseRequired,...allActive].map(c=>c.id))];
+  const allIds=[...new Set([...responseRequired,...aiHandling,...allActive].map(c=>c.id))];
   if(allIds.length){
     try{
       const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
       msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
-  convSectionCache={responseRequired,allActive,messagesByConv};
+  convSectionCache={responseRequired,aiHandling,allActive,messagesByConv};
   renderMessagingFromCache();
 }
 
