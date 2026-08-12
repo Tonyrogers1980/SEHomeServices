@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='83';
-const BUILD_DATE='03 Aug 2026 13:40';
+const BUILD_VERSION='84';
+const BUILD_DATE='12 Aug 2026 00:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1166,18 +1166,17 @@ async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let responseRequired=[],aiHandling=[],allActive=[];
+  let responseRequired=[],allActive=[];
   try{
-    [responseRequired,aiHandling,allActive]=await Promise.all([
+    [responseRequired,allActive]=await Promise.all([
       sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=in.(NEW,QUALIFYING,QUOTED)&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&order=last_message_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
-  [...responseRequired,...aiHandling,...allActive].forEach(c=>{messagingConvById[c.id]=c;});
+  [...responseRequired,...allActive].forEach(c=>{messagingConvById[c.id]=c;});
   let messagesByConv={};
-  const allIds=[...new Set([...responseRequired,...aiHandling,...allActive].map(c=>c.id))];
+  const allIds=[...new Set([...responseRequired,...allActive].map(c=>c.id))];
   if(allIds.length){
     try{
       const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
@@ -1185,7 +1184,7 @@ async function renderMessaging(){
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${responseRequired.length} need a reply · ${aiHandling.length} being handled by AI · ${allActive.length} active in total</div></div></div>
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${responseRequired.length} need a reply · ${allActive.length} active in total</div></div></div>
 
     <div style="font-size:13px;font-weight:600;color:var(--danger);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px">Response Required (${responseRequired.length})</div>
     ${!responseRequired.length?`<div class="empty"><div class="empty-title">Nothing waiting on you</div></div>`:''}
@@ -1193,14 +1192,8 @@ async function renderMessaging(){
       ${responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger-light);color:var(--danger)'})).join('')}
     </div>
 
-    <div style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;margin:20px 0 8px">AI Handling (${aiHandling.length})</div>
-    ${!aiHandling.length?`<div class="empty"><div class="empty-title">No conversations with the AI right now</div></div>`:''}
-    <div class="detail-section">
-      ${aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',style:'background:rgba(212,175,55,.15);color:var(--gold)'})).join('')}
-    </div>
-
-    <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin:20px 0 8px">All Active Conversations (${allActive.length})</div>
-    <div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster — includes conversations you're handling manually, so nothing drops out of view once you reply.</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin:20px 0 8px">All Conversations (${allActive.length})</div>
+    <div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster.</div>
     ${!allActive.length?`<div class="empty"><div class="empty-title">Nothing active right now</div></div>`:''}
     <div class="detail-section">
       ${allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('')}
