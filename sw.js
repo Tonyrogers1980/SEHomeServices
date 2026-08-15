@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v5';
+const CACHE = 'clearround-v6';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html'];
 
 self.addEventListener('install', e => {
@@ -14,10 +14,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Always go network-first for HTML so app always updates
+  // Always go network-first for HTML so app always updates.
+  // cache:'no-store' is essential here — without it, fetch() still honours the
+  // browser's ordinary HTTP cache (GitHub Pages sends ~10min max-age), so
+  // "network-first" was silently serving a stale disk-cached response instead
+  // of actually hitting the network. no-store forces a real round-trip every time.
   if (e.request.url.includes('index.html') || e.request.url.endsWith('/SEHomeServices/') || e.request.url.endsWith('/SEHomeServices')) {
     e.respondWith(
-      fetch(e.request).then(r => {
+      fetch(e.request, { cache: 'no-store' }).then(r => {
         const clone = r.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
         return r;
@@ -34,3 +38,4 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
 });
+
