@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='91';
-const BUILD_DATE='15 Aug 2026 10:50';
+const BUILD_VERSION='92';
+const BUILD_DATE='15 Aug 2026 11:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1102,11 +1102,10 @@ function renderConvCard(conv,msgs,badge){
       </div>
     </details>`:''}
     <hr class="conv-divider">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <span class="conv-mark-label">Mark as</span>
-      <button class="btn btn-done btn-sm" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
-      <button class="btn btn-outline-danger btn-sm" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
-      <button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
+    <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
+      <button class="btn btn-done btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
+      <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
+      <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
     </div>
     ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:10px 12px">
       <span style="font-size:12px;font-weight:600;color:var(--text)">24h reply window closed — free text is blocked until they reply</span>
