@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='88';
-const BUILD_DATE='15 Aug 2026 06:45';
+const BUILD_VERSION='89';
+const BUILD_DATE='15 Aug 2026 07:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1054,6 +1054,19 @@ function renderMessageMedia(m){
   if(!Array.isArray(m.media_urls)||!m.media_urls.length) return '';
   return m.media_urls.map(u=>`<img src="${MEDIA_PROXY_URL}?url=${encodeURIComponent(u)}" loading="lazy" style="max-width:100%;max-height:220px;border-radius:8px;display:block;margin-top:4px;object-fit:contain;cursor:pointer" onclick="window.open('${MEDIA_PROXY_URL}?url=${encodeURIComponent(u)}','_blank')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'[image unavailable]',style:'font-size:12px;color:var(--text-muted);font-style:italic'}))">`).join('');
 }
+function followupStatusPills(conv,msgs){
+  const pills=[];
+  const manualFollowup=[...(msgs||[])].reverse().find(m=>m.message_type==='template');
+  if(manualFollowup){
+    pills.push(`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(212,175,55,.12);color:var(--gold)">Manual follow-up sent ${escTimeAgo(manualFollowup.created_at)}</span>`);
+  }
+  if(conv.follow_up_stage==='day1_sent'){
+    pills.push(`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--navy-900);color:var(--text-muted)">Auto Day 1 sent ${escTimeAgo(conv.follow_up_last_sent_at)} · Day 3 pending</span>`);
+  }else if(conv.follow_up_stage==='cold'){
+    pills.push(`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--navy-900);color:var(--text-muted)">Auto Day 1 + Day 3 sent · Cold</span>`);
+  }
+  return pills.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;width:100%">${pills.join('')}</div>`:'';
+}
 function renderConvCard(conv,msgs,badge){
   const lastInbound=[...(msgs||[])].reverse().find(m=>m.direction==='inbound');
   const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
@@ -1069,6 +1082,7 @@ function renderConvCard(conv,msgs,badge){
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(conv.last_message_at)}</div>
       </div>
     </div>
+    ${followupStatusPills(conv,msgs)}
     ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
     ${(msgs||[]).length?`<details style="width:100%">
       <summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:600;list-style:none">View full conversation (${msgs.length} messages)</summary>
