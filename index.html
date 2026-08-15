@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='92';
-const BUILD_DATE='15 Aug 2026 11:05';
+const BUILD_VERSION='93';
+const BUILD_DATE='15 Aug 2026 11:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1107,9 +1107,9 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
       <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
     </div>
-    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:10px 12px">
-      <span style="font-size:12px;font-weight:600;color:var(--text)">24h reply window closed — free text is blocked until they reply</span>
-      <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
+    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 10px">
+      <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
+      <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
     </div>`:''}
     <div style="display:flex;gap:8px;width:100%">
       <textarea id="reply-${conv.id}" placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}" rows="2" ${windowClosed?'disabled':''} style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;${windowClosed?'opacity:.5':''}"></textarea>
