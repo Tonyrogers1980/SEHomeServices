@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v6';
+const CACHE = 'clearround-v7';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html'];
 
 self.addEventListener('install', e => {
@@ -36,6 +36,33 @@ self.addEventListener('fetch', e => {
   // Cache-first for static assets (logo, manifest)
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
+  );
+});
+
+self.addEventListener('push', e => {
+  let data = { title: 'ClearRound', body: '', url: '/SEHomeServices/' };
+  try { data = { ...data, ...e.data.json() }; } catch (err) { /* fall back to defaults */ }
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/SEHomeServices/logo.png',
+      badge: '/SEHomeServices/logo.png',
+      data: { url: data.url || '/SEHomeServices/' },
+      tag: data.tag || undefined
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const targetUrl = e.notification.data && e.notification.data.url ? e.notification.data.url : '/SEHomeServices/';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      for (const client of clients) {
+        if (client.url.includes('/SEHomeServices/') && 'focus' in client) return client.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    })
   );
 });
 
