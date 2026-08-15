@@ -609,8 +609,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='87';
-const BUILD_DATE='12 Aug 2026 00:40';
+const BUILD_VERSION='88';
+const BUILD_DATE='15 Aug 2026 06:45';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1056,6 +1056,8 @@ function renderMessageMedia(m){
 }
 function renderConvCard(conv,msgs,badge){
   const lastInbound=[...(msgs||[])].reverse().find(m=>m.direction==='inbound');
+  const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
+  const windowClosed=staleMs>24*60*60*1000;
   return `<div class="detail-row" style="align-items:flex-start;flex-direction:column;gap:8px">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
@@ -1083,13 +1085,37 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
       <button class="btn btn-ghost btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
     </div>
+    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.25);border-radius:8px;padding:8px 10px">
+      <span style="font-size:12px;color:var(--text-muted)">24h reply window closed — free text is blocked until they reply</span>
+      <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
+    </div>`:''}
     <div style="display:flex;gap:8px;width:100%">
-      <textarea id="reply-${conv.id}" placeholder="Type a reply…" rows="2" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
-      <button class="btn btn-primary btn-sm" id="send-btn-${conv.id}" style="align-self:flex-end" onclick="sendManualReply('${conv.id}')">Send</button>
+      <textarea id="reply-${conv.id}" placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}" rows="2" ${windowClosed?'disabled':''} style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;${windowClosed?'opacity:.5':''}"></textarea>
+      <button class="btn btn-primary btn-sm" id="send-btn-${conv.id}" style="align-self:flex-end" ${windowClosed?'disabled':''} onclick="sendManualReply('${conv.id}')">Send</button>
     </div>
   </div>`;
 }
 const MANUAL_REPLY_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/cr-send-manual-reply-9f2a7c';
+const FOLLOWUP_TEMPLATE_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/cr-send-followup-template';
+async function sendFollowupTemplate(conversationId){
+  const conv=messagingConvById[conversationId];
+  if(!conv||!conv.customer_phone){showToast('Missing customer phone number for this conversation','error');return;}
+  const btn=document.getElementById('followup-btn-'+conversationId);
+  btn.disabled=true;btn.textContent='Sending…';
+  try{
+    const res=await fetch(FOLLOWUP_TEMPLATE_WEBHOOK_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({conversation_id:conversationId,customer_phone:conv.customer_phone,customer_name:conv.customer_name||null,sender_user_id:currentUser?.id||null})
+    });
+    if(!res.ok)throw new Error('Failed to send follow-up');
+    showToast('Follow-up sent — free text unlocks once they reply','success');
+    renderMessaging();
+  }catch(e){
+    showToast(e.message,'error');
+    btn.disabled=false;btn.textContent='Send follow-up';
+  }
+}
 async function sendManualReply(conversationId){
   const ta=document.getElementById('reply-'+conversationId);
   const text=ta.value.trim();
