@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='94';
-const BUILD_DATE='15 Aug 2026 11:50';
+const BUILD_VERSION='95';
+const BUILD_DATE='15 Aug 2026 12:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3126,6 +3126,10 @@ function urlBase64ToUint8Array(base64String){
 }
 async function loadNotifSettings(){
   const el=document.getElementById('notifSettings');if(!el)return;
+  if(currentUser?.view_mode==='round_only'){
+    el.innerHTML='<div class="detail-row"><span style="font-size:13px;color:var(--text-muted)">Notifications are only available on admin accounts</span></div>';
+    return;
+  }
   if(!('serviceWorker' in navigator)||!('PushManager' in window)){
     el.innerHTML='<div class="detail-row"><span style="font-size:13px;color:var(--text-muted)">Push notifications aren\'t supported on this browser</span></div>';
     return;
@@ -3143,6 +3147,7 @@ async function loadNotifSettings(){
   }catch(e){el.innerHTML=`<div class="detail-row"><span style="font-size:13px;color:var(--danger)">Could not check notification status</span></div>`;}
 }
 async function enablePushNotifications(){
+  if(currentUser?.view_mode==='round_only'){showToast('Notifications are only available on admin accounts','error');return;}
   try{
     const perm=await Notification.requestPermission();
     if(perm!=='granted'){showToast('Notifications blocked — enable in your browser/app settings','error');return;}
