@@ -1,5 +1,5 @@
-const CACHE = 'clearround-v7';
-const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html'];
+const CACHE = 'clearround-v8';
+const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
@@ -40,21 +40,41 @@ self.addEventListener('fetch', e => {
 });
 
 self.addEventListener('push', e => {
-  let data = { title: 'ClearRound', body: '', url: '/SEHomeServices/' };
+  let data = { title: 'ClearRound', body: '', url: '/SEHomeServices/', kind: '' };
   try { data = { ...data, ...e.data.json() }; } catch (err) { /* fall back to defaults */ }
+
+  // Per-type presentation. `kind` is sent by the poller (escalation | new_lead | stale_response).
+  const KINDS = {
+    escalation:     { prefix: '🔴', vibrate: [200, 100, 200, 100, 200], requireInteraction: true },
+    new_lead:       { prefix: '🟡', vibrate: [200, 100, 200] },
+    stale_response: { prefix: '⏰', vibrate: [300, 150, 300] }
+  };
+  const style = KINDS[data.kind] || { prefix: '', vibrate: [200, 100, 200] };
+  const title = style.prefix ? style.prefix + ' ' + data.title : data.title;
+
   e.waitUntil(
-    self.registration.showNotification(data.title, {
+    self.registration.showNotification(title, {
       body: data.body,
       icon: '/SEHomeServices/logo.png',
-      badge: '/SEHomeServices/logo.png',
-      data: { url: data.url || '/SEHomeServices/' },
-      tag: data.tag || undefined
+      badge: '/SEHomeServices/badge.png',
+      vibrate: style.vibrate,
+      timestamp: Date.now(),
+      requireInteraction: !!style.requireInteraction,
+      // Group by conversation so repeat alerts replace rather than stack up.
+      tag: data.tag || data.conversation_id || undefined,
+      renotify: true,
+      data: { url: data.url || '/SEHomeServices/', kind: data.kind || '' },
+      actions: [
+        { action: 'open', title: 'Open' },
+        { action: 'dismiss', title: 'Dismiss' }
+      ]
     })
   );
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  if (e.action === 'dismiss') return;
   const targetUrl = e.notification.data && e.notification.data.url ? e.notification.data.url : '/SEHomeServices/';
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
