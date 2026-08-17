@@ -1,5 +1,5 @@
-const CACHE = 'clearround-v8';
-const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png'];
+const CACHE = 'clearround-v9';
+const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png', '/SEHomeServices/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
@@ -55,7 +55,7 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(title, {
       body: data.body,
-      icon: '/SEHomeServices/logo.png',
+      icon: '/SEHomeServices/icon-192.png',
       badge: '/SEHomeServices/badge.png',
       vibrate: style.vibrate,
       timestamp: Date.now(),

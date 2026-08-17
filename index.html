@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='96';
-const BUILD_DATE='17 Aug 2026 14:35';
+const BUILD_VERSION='97';
+const BUILD_DATE='17 Aug 2026 14:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3137,11 +3137,16 @@ async function loadNotifSettings(){
   try{
     const reg=await navigator.serviceWorker.ready;
     const sub=await reg.pushManager.getSubscription();
+    const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+    const browserWarning=standalone?'':`<div class="detail-row" style="background:var(--warn-light)">
+        <div style="font-size:12px;color:var(--warn);line-height:1.5">You're in the browser, not the installed app. Notifications will show as coming from your browser. For ClearRound-branded alerts: open ClearRound from your home screen, then turn notifications off and on again here.</div>
+      </div>`;
     if(sub){
-      el.innerHTML=`<div class="detail-row"><span style="font-size:13px;color:var(--done)">✓ Notifications enabled on this device</span></div>
+      el.innerHTML=`${browserWarning}<div class="detail-row"><span style="font-size:13px;color:var(--done)">✓ Notifications enabled on this device</span></div>
+        <div class="detail-row"><span class="detail-label">Registered via</span><span class="detail-value" style="font-size:12px">${standalone?'Installed app':'Browser'}</span></div>
         <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full btn-sm" onclick="disablePushNotifications()">Turn off notifications</button></div>`;
     }else{
-      el.innerHTML=`<div class="detail-row"><span style="font-size:13px;color:var(--text-muted)">Get alerted on this phone for escalations, new leads, and replies you've missed for 2+ hours</span></div>
+      el.innerHTML=`${browserWarning}<div class="detail-row"><span style="font-size:13px;color:var(--text-muted)">Get alerted on this phone for escalations, new leads, and replies you've missed for 2+ hours</span></div>
         <div class="detail-row" style="padding:12px 16px"><button class="btn btn-primary btn-full btn-sm" onclick="enablePushNotifications()">Enable notifications</button></div>`;
     }
   }catch(e){el.innerHTML=`<div class="detail-row"><span style="font-size:13px;color:var(--danger)">Could not check notification status</span></div>`;}
