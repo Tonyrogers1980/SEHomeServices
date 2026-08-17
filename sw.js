@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v9';
+const CACHE = 'clearround-v10';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png', '/SEHomeServices/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -52,22 +52,32 @@ self.addEventListener('push', e => {
   const style = KINDS[data.kind] || { prefix: '', vibrate: [200, 100, 200] };
   const title = style.prefix ? style.prefix + ' ' + data.title : data.title;
 
+  // renotify:true is ONLY legal alongside a non-empty tag — setting it without one
+  // makes showNotification() throw and nothing appears at all. Derive tag defensively.
+  const tag = data.tag || data.conversation_id || '';
+  const opts = {
+    body: data.body,
+    icon: '/SEHomeServices/icon-192.png',
+    badge: '/SEHomeServices/badge.png',
+    vibrate: style.vibrate,
+    timestamp: Date.now(),
+    requireInteraction: !!style.requireInteraction,
+    data: { url: data.url || '/SEHomeServices/', kind: data.kind || '' },
+    actions: [
+      { action: 'open', title: 'Open' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ]
+  };
+  if (tag) { opts.tag = tag; opts.renotify = true; }
+
   e.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body,
-      icon: '/SEHomeServices/icon-192.png',
-      badge: '/SEHomeServices/badge.png',
-      vibrate: style.vibrate,
-      timestamp: Date.now(),
-      requireInteraction: !!style.requireInteraction,
-      // Group by conversation so repeat alerts replace rather than stack up.
-      tag: data.tag || data.conversation_id || undefined,
-      renotify: true,
-      data: { url: data.url || '/SEHomeServices/', kind: data.kind || '' },
-      actions: [
-        { action: 'open', title: 'Open' },
-        { action: 'dismiss', title: 'Dismiss' }
-      ]
+    self.registration.showNotification(title, opts).catch(() => {
+      // Never let a presentation option swallow the alert entirely — retry bare-bones.
+      return self.registration.showNotification(title, {
+        body: data.body,
+        icon: '/SEHomeServices/icon-192.png',
+        data: { url: data.url || '/SEHomeServices/' }
+      });
     })
   );
 });
