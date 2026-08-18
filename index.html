@@ -1718,6 +1718,21 @@ async function showCustomer(id){
            </div>`
       }
     </div>
+    <div class="detail-section">
+      <div class="detail-section-header">Google review</div>
+      ${c.review_left_at
+        ?`<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" style="color:var(--done)">✓ Review left ${fmtShort(String(c.review_left_at).split('T')[0])}</span></div>
+           <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full btn-sm" onclick="setReviewLeft('${c.id}',false)">Undo — not reviewed</button></div>`
+        :`<div class="detail-row"><span class="detail-label">Asked</span><span class="detail-value">${(c.review_ask_count||0)} of 3${c.review_last_asked_at?` · last ${fmtShort(String(c.review_last_asked_at).split('T')[0])}`:''}</span></div>
+           ${c.review_opt_out
+             ?`<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" style="color:var(--text-muted)">Opted out — never ask</span></div>
+                <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full btn-sm" onclick="setReviewOptOut('${c.id}',false)">Allow review requests</button></div>`
+             :`<div class="detail-row" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+                  <button class="btn btn-primary btn-full btn-sm" onclick="setReviewLeft('${c.id}',true)">✓ Mark as reviewed (stop asking)</button>
+                  <button class="btn btn-ghost btn-full btn-sm" onclick="setReviewOptOut('${c.id}',true)">Never ask this customer</button>
+                </div>`}`
+      }
+    </div>
       <div class="detail-section-header">Jobs<button class="btn btn-primary btn-sm" onclick="openAddJob('${c.id}')">+ Schedule</button></div>
       <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
     </div>
@@ -1726,6 +1741,25 @@ async function showCustomer(id){
     </div>`;
   loadCustomerJobs(id);
   if(c.stripe_customer_id)loadPaymentMethod(c.stripe_customer_id);
+}
+
+async function setReviewLeft(id,left){
+  try{
+    await sb(`wc_customers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({review_left_at:left?new Date().toISOString():null}),prefer:'return=minimal'});
+    showToast(left?'Marked as reviewed — no more requests':'Review status cleared','success');
+    const idx=customers.findIndex(x=>x.id===id);
+    if(idx>-1)customers[idx].review_left_at=left?new Date().toISOString():null;
+    showCustomer(id);
+  }catch(e){showToast(e.message,'error');}
+}
+async function setReviewOptOut(id,optOut){
+  try{
+    await sb(`wc_customers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({review_opt_out:optOut}),prefer:'return=minimal'});
+    showToast(optOut?'Will never ask for a review':'Review requests re-enabled','success');
+    const idx=customers.findIndex(x=>x.id===id);
+    if(idx>-1)customers[idx].review_opt_out=optOut;
+    showCustomer(id);
+  }catch(e){showToast(e.message,'error');}
 }
 
 async function loadPaymentMethod(stripeCustomerId){
