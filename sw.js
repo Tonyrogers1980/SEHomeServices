@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v10';
+const CACHE = 'clearround-v11';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png', '/SEHomeServices/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -86,11 +86,25 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   if (e.action === 'dismiss') return;
   const targetUrl = e.notification.data && e.notification.data.url ? e.notification.data.url : '/SEHomeServices/';
+  const convMatch = targetUrl.match(/#conv=([a-zA-Z0-9-]+)/);
+  const conversationId = convMatch ? convMatch[1] : null;
+
   e.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      for (const client of clients) {
-        if (client.url.includes('/SEHomeServices/') && 'focus' in client) return client.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes('/SEHomeServices/') && 'focus' in client) {
+          // App is already open — focusing alone previously left it wherever the
+          // user last had it, ignoring the notification's target entirely. Tell
+          // the page (already loaded, so it won't re-read location.hash) which
+          // conversation to jump to, then focus it.
+          if (conversationId && 'postMessage' in client) {
+            client.postMessage({ type: 'OPEN_CONVERSATION', conversationId });
+          }
+          return client.focus();
+        }
       }
+      // No open window — a fresh load will read the #conv= hash itself once
+      // logged in (see consumeDeepLinkConvId in index.html).
       return self.clients.openWindow(targetUrl);
     })
   );

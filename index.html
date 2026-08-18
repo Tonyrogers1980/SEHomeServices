@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='98';
-const BUILD_DATE='17 Aug 2026 15:05';
+const BUILD_VERSION='99';
+const BUILD_DATE='17 Aug 2026 18:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -791,8 +791,47 @@ function launchApp(){
   document.getElementById('topbarUser').textContent=currentUser.name.split(' ')[0];
   buildNav();
   loadConfig();
-  navigate('round');
+  const deepLinkConvId=consumeDeepLinkConvId();
+  if(deepLinkConvId){
+    convTab='allActive';
+    navigate('messaging');
+    scrollToConvCardWhenReady(deepLinkConvId);
+  }else{
+    navigate('round');
+  }
 }
+// Deep-link support: a push notification's URL may carry #conv=<conversation_id>
+// so tapping it opens straight to that conversation instead of a generic home
+// screen. Without this, duplicate customer names (multiple "Michelle"s etc.)
+// make it easy to open the wrong thread.
+function consumeDeepLinkConvId(){
+  const m=location.hash.match(/#conv=([a-zA-Z0-9-]+)/);
+  if(!m)return null;
+  history.replaceState(null,'',location.pathname+location.search);
+  return m[1];
+}
+function scrollToConvCardWhenReady(convId,attemptsLeft){
+  attemptsLeft=attemptsLeft===undefined?20:attemptsLeft;
+  const el=document.getElementById('conv-card-'+convId);
+  if(el){
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.style.transition='box-shadow .3s ease';
+    el.style.boxShadow='0 0 0 3px var(--gold)';
+    setTimeout(()=>{el.style.boxShadow='';},2500);
+    return;
+  }
+  if(attemptsLeft>0)setTimeout(()=>scrollToConvCardWhenReady(convId,attemptsLeft-1),150);
+}
+// Handle a deep link arriving while the app is already open (service worker
+// posts this instead of relying on window.location, since notificationclick
+// can't navigate an already-open same-origin client directly on all browsers).
+navigator.serviceWorker&&navigator.serviceWorker.addEventListener&&navigator.serviceWorker.addEventListener('message',e=>{
+  if(e.data&&e.data.type==='OPEN_CONVERSATION'&&e.data.conversationId){
+    convTab='allActive';
+    navigate('messaging');
+    scrollToConvCardWhenReady(e.data.conversationId);
+  }
+});
 
 function logout(){
   localStorage.removeItem('cr_user');
@@ -1023,7 +1062,7 @@ function escalationCardHtml(r,msgs){
   msgs=msgs||[];
   const conv=r.conversations||{};
   const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
-  return `<div class="conv-card" style="border-color:rgba(239,68,68,.35)">
+  return `<div class="conv-card" id="conv-card-${r.conversation_id}" style="border-color:rgba(239,68,68,.35)">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
         <div style="font-size:15px;font-weight:700;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
@@ -1079,7 +1118,7 @@ function renderConvCard(conv,msgs,badge){
   const lastInbound=[...(msgs||[])].reverse().find(m=>m.direction==='inbound');
   const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
   const windowClosed=staleMs>24*60*60*1000;
-  return `<div class="conv-card">
+  return `<div class="conv-card" id="conv-card-${conv.id}">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
         <div style="font-size:15px;font-weight:700;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
