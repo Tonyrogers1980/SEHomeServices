@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='99';
-const BUILD_DATE='17 Aug 2026 18:20';
+const BUILD_VERSION='100';
+const BUILD_DATE='8 Sep 2026 18:26';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1119,6 +1119,7 @@ function renderConvCard(conv,msgs,badge){
   const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
   const windowClosed=staleMs>24*60*60*1000;
   return `<div class="conv-card" id="conv-card-${conv.id}">
+    ${conv.on_hold?'<div style="width:100%;font-size:11px;font-weight:700;color:var(--gold);background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:6px;padding:4px 8px">ON HOLD</div>':''}
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
         <div style="font-size:15px;font-weight:700;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
@@ -1145,6 +1146,7 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-done btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
       <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
+      ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
     </div>
     ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 10px">
       <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
@@ -1217,6 +1219,13 @@ async function confirmMarkConversationStage(){
     renderMessaging();
   }catch(e){showToast(e.message,'error');}
 }
+async function setConvHold(conversationId,hold){
+  try{
+    await sb(`conversations?id=eq.${conversationId}`,{method:'PATCH',body:JSON.stringify({on_hold:hold}),prefer:'return=minimal'});
+    showToast(hold?'Marked as On Hold':'Taken off hold','success');
+    renderMessaging();
+  }catch(e){showToast(e.message,'error');}
+}
 function getConvBadge(c){
   if(c.controlled_by==='human'&&c.last_message_direction==='inbound') return {label:'Awaiting your reply',style:'background:var(--danger);color:var(--white)'};
   if(c.controlled_by==='ai') return {label:'AI',style:'background:var(--gold);color:var(--navy-900)'};
@@ -1231,16 +1240,16 @@ function setConvTab(name){
   renderMessagingFromCache();
 }
 function convTabBar(counts){
-  const tabs=[['responseRequired','Response Required',counts.responseRequired],['aiHandling','AI Handling',counts.aiHandling],['escalations','Escalations',counts.escalations],['allActive','All Conversations',counts.allActive]];
+  const tabs=[['responseRequired','Response Required',counts.responseRequired],['aiHandling','AI Handling',counts.aiHandling],['escalations','Escalations',counts.escalations],['allActive','All Conversations',counts.allActive],['onHold','On Hold',counts.onHold]];
   return `<div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px;width:fit-content;max-width:100%;overflow-x:auto">
     ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
-  const {responseRequired,aiHandling,allActive,escalations,messagesByConv}=convSectionCache;
+  const {responseRequired,aiHandling,allActive,escalations,onHold,messagesByConv}=convSectionCache;
   const el=document.getElementById('mainContent');
-  const counts={responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length,escalations:escalations.length};
+  const counts={responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length,escalations:escalations.length,onHold:onHold.length};
   let listHtml='',emptyTitle='',subHtml='';
   if(convTab==='responseRequired'){
     listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger);color:var(--white)'})).join('');
@@ -1252,6 +1261,10 @@ function renderMessagingFromCache(){
     listHtml=escalations.map(r=>escalationCardHtml(r,messagesByConv[r.conversation_id])).join('');
     emptyTitle='All caught up';
     subHtml='<div class="page-sub" style="margin:-4px 0 8px">Resolving hands the conversation back to the AI.</div>';
+  }else if(convTab==='onHold'){
+    listHtml=onHold.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
+    emptyTitle='Nothing on hold';
+    subHtml='<div class="page-sub" style="margin:-4px 0 8px">The AI keeps handling these normally \u2014 hold is just a marker for you.</div>';
   }else{
     listHtml=allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
     emptyTitle='Nothing active right now';
@@ -1259,7 +1272,7 @@ function renderMessagingFromCache(){
   }
   const currentCount=counts[convTab];
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.aiHandling} being handled by AI · ${counts.escalations} escalated · ${counts.allActive} active in total</div></div></div>
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.aiHandling} being handled by AI · ${counts.escalations} escalated · ${counts.allActive} active in total · ${counts.onHold} on hold</div></div></div>
     ${convTabBar(counts)}
     ${subHtml}
     ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:listHtml}`;
@@ -1268,26 +1281,27 @@ async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let responseRequired=[],aiHandling=[],allActive=[],escalations=[];
+  let responseRequired=[],aiHandling=[],allActive=[],escalations=[],onHold=[];
   try{
-    [responseRequired,aiHandling,allActive,escalations]=await Promise.all([
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=in.(NEW,QUALIFYING,QUOTED)&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&order=last_message_at.desc`),
+    [responseRequired,aiHandling,allActive,escalations,onHold]=await Promise.all([
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=in.(NEW,QUALIFYING,QUOTED)&on_hold=eq.false&order=last_message_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&order=last_message_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&on_hold=eq.false&order=last_message_at.desc`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&on_hold=eq.true&order=last_message_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
-  [...responseRequired,...aiHandling,...allActive].forEach(c=>{messagingConvById[c.id]=c;});
+  [...responseRequired,...aiHandling,...allActive,...onHold].forEach(c=>{messagingConvById[c.id]=c;});
   let messagesByConv={};
-  const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id)])];
+  const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id),...onHold.map(c=>c.id)])];
   if(allIds.length){
     try{
       const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
       msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
-  convSectionCache={responseRequired,aiHandling,allActive,escalations,messagesByConv};
+  convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,messagesByConv};
   renderMessagingFromCache();
 }
 
