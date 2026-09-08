@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='102';
-const BUILD_DATE='8 Sep 2026 18:40';
+const BUILD_VERSION='103';
+const BUILD_DATE='8 Sep 2026 18:43';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1083,7 +1083,9 @@ function escalationCardHtml(r,msgs){
         </div>`).join('')}
       </div>
     </details>`:''}
-    <button class="btn btn-primary btn-sm" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Resolve &amp; resume AI</button>
+    <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
+      <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
+    </div>
   </div>`;
 }
 async function resolveEscalation(escalationId,conversationId){
