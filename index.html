@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='100';
-const BUILD_DATE='8 Sep 2026 18:26';
+const BUILD_VERSION='101';
+const BUILD_DATE='8 Sep 2026 18:37';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1147,6 +1147,7 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
       <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
       ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
+      ${conv.controlled_by==='human'?`<button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="closeConversationBau('${conv.id}')">Close</button>`:''}
     </div>
     ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 10px">
       <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
@@ -1216,6 +1217,13 @@ async function confirmMarkConversationStage(){
     await sb(`conversations?id=eq.${markStageConvId}`,{method:'PATCH',body:JSON.stringify({stage:markStageValue,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
     closeModal('markStageModal');
     showToast(`Marked as ${labels[markStageValue]}`,'success');
+    renderMessaging();
+  }catch(e){showToast(e.message,'error');}
+}
+async function closeConversationBau(conversationId){
+  try{
+    await sb(`conversations?id=eq.${conversationId}`,{method:'PATCH',body:JSON.stringify({controlled_by:'ai',ai_paused:false,needs_human:false,manual_review_required:false}),prefer:'return=minimal'});
+    showToast('Closed — AI will keep handling if they message again','success');
     renderMessaging();
   }catch(e){showToast(e.message,'error');}
 }
