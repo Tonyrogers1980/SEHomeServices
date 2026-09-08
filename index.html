@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='103';
-const BUILD_DATE='8 Sep 2026 18:43';
+const BUILD_VERSION='104';
+const BUILD_DATE='8 Sep 2026 18:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3328,6 +3328,17 @@ async function deleteSettingsItem(type,id,name){
 // ── PWA ───────────────────────────────────────────────────────────────────────
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  // Without this, a new deploy installs a new SW in the background (skipWaiting+
+  // clients.claim already force it to take control), but the JS already running
+  // in an open tab/app keeps executing the OLD code until something reloads the
+  // page — so new features silently "don't show up" until the app is force-closed.
+  // Auto-reload once, the moment the new SW takes over, closes that gap.
+  let swRefreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(swRefreshing)return;
+    swRefreshing=true;
+    location.reload();
+  });
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
