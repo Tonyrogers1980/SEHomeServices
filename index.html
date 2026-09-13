@@ -604,6 +604,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="deleteConversationModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-title">Delete conversation</div>
+      <button class="modal-close" onclick="closeModal('deleteConversationModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div style="padding:4px 0 16px;font-size:14px;color:var(--text);line-height:1.5" id="deleteConversationModalText"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('deleteConversationModal')">Cancel</button>
+      <button class="btn btn-outline-danger" onclick="confirmDeleteConversation()">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -617,8 +631,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='107';
-const BUILD_DATE='13 Sep 2026 12:30';
+const BUILD_VERSION='108';
+const BUILD_DATE='13 Sep 2026 13:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1085,6 +1099,7 @@ function escalationCardHtml(r,msgs){
     </details>`:''}
     <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
+      <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${r.conversation_id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
     </div>
   </div>`;
 }
@@ -1150,6 +1165,7 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
       ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="closeConversationBau('${conv.id}')">Close</button>
+      <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${conv.id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
     </div>
     ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 10px">
       <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
@@ -1204,7 +1220,7 @@ async function sendManualReply(conversationId){
     btn.disabled=false;btn.textContent='Send';
   }
 }
-let messagingConvById={},markStageConvId=null,markStageValue=null;
+let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null;
 function openMarkStageModal(conversationId,stage){
   markStageConvId=conversationId;markStageValue=stage;
   const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster'};
@@ -1219,6 +1235,20 @@ async function confirmMarkConversationStage(){
     await sb(`conversations?id=eq.${markStageConvId}`,{method:'PATCH',body:JSON.stringify({stage:markStageValue,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
     closeModal('markStageModal');
     showToast(`Marked as ${labels[markStageValue]}`,'success');
+    renderMessaging();
+  }catch(e){showToast(e.message,'error');}
+}
+function openDeleteConversationModal(conversationId,customerName){
+  deleteConvId=conversationId;
+  const name=customerName||messagingConvById[conversationId]?.customer_name||'this conversation';
+  document.getElementById('deleteConversationModalText').textContent=`Permanently delete the conversation with ${name}? This removes all messages and cannot be undone — use this for junk/spam, not real customers.`;
+  document.getElementById('deleteConversationModal').classList.add('open');
+}
+async function confirmDeleteConversation(){
+  try{
+    await sb(`conversations?id=eq.${deleteConvId}`,{method:'DELETE',prefer:'return=minimal'});
+    closeModal('deleteConversationModal');
+    showToast('Conversation deleted','success');
     renderMessaging();
   }catch(e){showToast(e.message,'error');}
 }
@@ -3366,7 +3396,7 @@ if('serviceWorker' in navigator){
 }
 
 // ── MODAL CLOSE ON BACKDROP ───────────────────────────────────────────────────
-['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal','teamModal','markStageModal'].forEach(id=>{
+['customerModal','jobModal','skipModal','quoteModal','invoiceModal','rescheduleModal','stripeLinkModal','paymentChoiceModal','moreMenuModal','teamModal','markStageModal','deleteConversationModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 
