@@ -144,6 +144,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .conv-card{background:var(--navy-800);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;}
 .conv-divider{width:100%;border:none;border-top:1px solid var(--border);margin:0;}
 .conv-transcript-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);padding:6px 12px;border-radius:20px;}
+.conv-actions-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--text);background:var(--navy-700);border:1px solid var(--border);padding:6px 12px;border-radius:20px;}
+.conv-actions-toggle::-webkit-details-marker{display:none;}
+.conv-actions-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;width:100%;}
+.conv-actions-list .btn{width:100%;justify-content:center;}
 .conv-mark-label{font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.4px;align-self:center;}
 .back-btn{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--gold);cursor:pointer;background:none;border:none;padding:0;margin-bottom:16px;min-height:44px;}
 .back-btn svg{width:16px;height:16px;}
@@ -631,8 +635,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='108';
-const BUILD_DATE='13 Sep 2026 13:00';
+const BUILD_VERSION='109';
+const BUILD_DATE='13 Sep 2026 13:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1159,14 +1163,17 @@ function renderConvCard(conv,msgs,badge){
       </div>
     </details>`:''}
     <hr class="conv-divider">
-    <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
-      <button class="btn btn-done btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
-      <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
-      <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
-      ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
-      <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="closeConversationBau('${conv.id}')">Close</button>
-      <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${conv.id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
-    </div>
+    <details style="width:100%">
+      <summary class="conv-actions-toggle">Actions ▾</summary>
+      <div class="conv-actions-list">
+        <button class="btn btn-primary btn-sm" onclick="closeConversationBau('${conv.id}')">Close</button>
+        <button class="btn btn-done btn-sm" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
+        ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
+        <button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
+        <button class="btn btn-outline-danger btn-sm" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
+        <button class="btn btn-outline-danger btn-sm" onclick="openDeleteConversationModal('${conv.id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
+      </div>
+    </details>
     ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 10px">
       <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
       <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
