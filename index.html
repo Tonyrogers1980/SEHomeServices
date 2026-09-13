@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='106';
-const BUILD_DATE='13 Sep 2026 12:15';
+const BUILD_VERSION='107';
+const BUILD_DATE='13 Sep 2026 12:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1300,7 +1300,11 @@ async function renderMessaging(){
       // that a reply is owed; gating on stage as well made those messages invisible in every
       // tab (Response Required excluded BOOKED, All Conversations excludes BOOKED/TIME_WASTER
       // stage too) — see 2026-09-13 fix.
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&on_hold=eq.false&order=last_message_at.desc`),
+      // Excludes TIME_WASTER by design (per Tony 2026-09-13): once marked a time waster, a
+      // conversation should never resurface in Response Required even if it gets a new inbound
+      // message. BOOKED/FAILED_TO_CONVERT are deliberately NOT excluded here — see the fix
+      // above this comment's history for why (a booked customer can still need a real reply).
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=neq.TIME_WASTER&on_hold=eq.false&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&on_hold=eq.false&order=last_message_at.desc`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`),
