@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='104';
-const BUILD_DATE='8 Sep 2026 18:50';
+const BUILD_VERSION='105';
+const BUILD_DATE='13 Sep 2026 12:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1294,7 +1294,13 @@ async function renderMessaging(){
   let responseRequired=[],aiHandling=[],allActive=[],escalations=[],onHold=[];
   try{
     [responseRequired,aiHandling,allActive,escalations,onHold]=await Promise.all([
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=in.(NEW,QUALIFYING,QUOTED)&on_hold=eq.false&order=last_message_at.desc`),
+      // No stage filter here deliberately — a BOOKED (or FAILED_TO_CONVERT) conversation can
+      // still get a new inbound message needing a reply (e.g. a booked customer asking a
+      // question). controlled_by=human + last_message_direction=inbound is the actual signal
+      // that a reply is owed; gating on stage as well made those messages invisible in every
+      // tab (Response Required excluded BOOKED, All Conversations excludes BOOKED/TIME_WASTER
+      // stage too) — see 2026-09-13 fix.
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&on_hold=eq.false&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&on_hold=eq.false&order=last_message_at.desc`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`),
