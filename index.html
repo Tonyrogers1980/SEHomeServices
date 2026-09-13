@@ -617,8 +617,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='105';
-const BUILD_DATE='13 Sep 2026 12:00';
+const BUILD_VERSION='106';
+const BUILD_DATE='13 Sep 2026 12:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1313,8 +1313,22 @@ async function renderMessaging(){
   const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id),...onHold.map(c=>c.id)])];
   if(allIds.length){
     try{
-      const msgs=await sb(`messages?conversation_id=in.(${allIds.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`);
-      msgs.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
+      // Batch this — with stage filters relaxed (2026-09-13 fix), allIds can now run into the
+      // dozens, and a single conversation_id=in.(...) request that large was failing silently
+      // (caught below, leaving messagesByConv empty for every card — the symptom was every
+      // card showing no message preview and no transcript at all). 25 ids per request keeps
+      // each URL comfortably short.
+      const idChunks=[];
+      for(let i=0;i<allIds.length;i+=25) idChunks.push(allIds.slice(i,i+25));
+      const chunkResults=await Promise.allSettled(idChunks.map(chunk=>
+        sb(`messages?conversation_id=in.(${chunk.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`)
+      ));
+      chunkResults.filter(r=>r.status==='fulfilled').forEach(r=>{
+        r.value.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
+      });
+      // A failed chunk (status 'rejected') only leaves that batch of conversations without a
+      // transcript — it no longer blanks every card's messages the way one giant failing
+      // request used to.
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
   convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,messagesByConv};
