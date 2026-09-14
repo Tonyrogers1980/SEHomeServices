@@ -341,10 +341,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="field"><label>Address *</label><input id="f-address" placeholder="Street address" autocomplete="street-address"></div>
       <div class="form-row">
         <div class="field"><label>Postcode *</label><input id="f-postcode" placeholder="SE9 1AA" autocomplete="postal-code"></div>
-        <div class="field"><label>Phone *</label><input id="f-phone" type="tel" maxlength="12" placeholder="07700 900000" autocomplete="tel"></div>
+        <div class="field"><label>Phone *</label><input id="f-phone" type="tel" maxlength="14" placeholder="+447700900000" autocomplete="tel"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>WhatsApp</label><input id="f-whatsapp" type="tel" maxlength="12" placeholder="+447700900000"></div>
+        <div class="field"><label>WhatsApp</label><input id="f-whatsapp" type="tel" maxlength="14" placeholder="+447700900000"></div>
         <div class="field"><label>Email *</label><input id="f-email" type="email" placeholder="email@example.com" autocomplete="email"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Access codes, dogs, gate codes…"></textarea></div>
@@ -462,10 +462,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
           <input id="nc-address" placeholder="Street address *" autocomplete="street-address" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <input id="nc-postcode" placeholder="Postcode *" autocomplete="postal-code" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
-            <input id="nc-phone" type="tel" maxlength="12" placeholder="Phone" autocomplete="tel" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-phone" type="tel" maxlength="14" placeholder="+447700900000" autocomplete="tel" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input id="nc-whatsapp" type="tel" maxlength="12" placeholder="WhatsApp" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
+            <input id="nc-whatsapp" type="tel" maxlength="14" placeholder="+447700900000 (WhatsApp)" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
             <input id="nc-email" type="email" placeholder="Email" autocomplete="email" style="padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-800);outline:none">
           </div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -636,8 +636,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='111';
-const BUILD_DATE='14 Sep 2026 14:45';
+const BUILD_VERSION='112';
+const BUILD_DATE='14 Sep 2026 15:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1928,20 +1928,36 @@ function openEditCustomer(id){
   updateSlider();
   document.getElementById('customerModal').classList.add('open');
 }
+function normalizePhoneUK(raw){
+  if(!raw)return null;
+  let v=String(raw).trim();
+  if(!v)return null;
+  const digits=v.replace(/\D/g,'');
+  if(!digits)return null;
+  if(v.startsWith('+'))return '+'+digits;
+  if(digits.startsWith('44'))return '+'+digits;
+  if(digits.startsWith('0'))return '+44'+digits.slice(1);
+  return '+44'+digits; // assume UK number typed without leading 0
+}
+function isValidUKPhone(v){
+  return !!v && /^\+44\d{9,10}$/.test(v);
+}
 async function saveCustomer(){
   const name=document.getElementById('f-name').value.trim();
   const address=document.getElementById('f-address').value.trim();
   const postcode=document.getElementById('f-postcode').value.trim();
-  const phone=document.getElementById('f-phone').value.trim();
+  const phone=normalizePhoneUK(document.getElementById('f-phone').value.trim());
   const email=document.getElementById('f-email').value.trim();
   if(!name||!address||!postcode){showToast('Name, address and postcode are required','error');return;}
   if(!phone){showToast('Phone number is required','error');return;}
+  if(!isValidUKPhone(phone)){showToast('Enter a valid UK phone number, e.g. +447700900000','error');return;}
   if(!email){showToast('Email address is required','error');return;}
   const autoInvoice=document.getElementById('f-auto-invoice').checked;
-  let whatsapp=document.getElementById('f-whatsapp').value.trim()||null;
-  // Auto-fill whatsapp from phone if mobile and not already set
-  if(!whatsapp&&phone&&phone.match(/^(\+447|07)/)){
-    whatsapp=phone.startsWith('07')?'+44'+phone.slice(1):phone;
+  let whatsapp=normalizePhoneUK(document.getElementById('f-whatsapp').value.trim());
+  if(whatsapp&&!isValidUKPhone(whatsapp)){showToast('Enter a valid WhatsApp number, e.g. +447700900000','error');return;}
+  // Auto-fill whatsapp from phone if it's a UK mobile and WhatsApp wasn't set separately
+  if(!whatsapp&&/^\+447\d{9}$/.test(phone)){
+    whatsapp=phone;
   }
   const payload={name,address,postcode,phone,email,
     whatsapp_number:whatsapp,
@@ -2260,11 +2276,18 @@ async function saveInlineCustomer(){
   const address=document.getElementById('nc-address').value.trim();
   const postcode=document.getElementById('nc-postcode').value.trim();
   if(!name||!address||!postcode){showToast('Name, address and postcode required','error');return;}
+  const phoneRaw=document.getElementById('nc-phone').value.trim();
+  const phone=phoneRaw?normalizePhoneUK(phoneRaw):null;
+  if(phoneRaw&&!isValidUKPhone(phone)){showToast('Enter a valid UK phone number, e.g. +447700900000','error');return;}
+  const whatsappRaw=document.getElementById('nc-whatsapp').value.trim();
+  let whatsapp=whatsappRaw?normalizePhoneUK(whatsappRaw):null;
+  if(whatsappRaw&&!isValidUKPhone(whatsapp)){showToast('Enter a valid WhatsApp number, e.g. +447700900000','error');return;}
+  if(!whatsapp&&phone&&/^\+447\d{9}$/.test(phone)){whatsapp=phone;}
   try{
     const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify({
       name,address,postcode,
-      phone:document.getElementById('nc-phone').value.trim()||null,
-      whatsapp_number:document.getElementById('nc-whatsapp').value.trim()||null,
+      phone,
+      whatsapp_number:whatsapp,
       email:document.getElementById('nc-email').value.trim()||null,
       active:true,business_id:BUSINESS_ID
     }),prefer:'return=representation'});
