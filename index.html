@@ -647,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='116';
-const BUILD_DATE='15 Sep 2026 10:55';
+const BUILD_VERSION='117';
+const BUILD_DATE='15 Sep 2026 11:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1397,18 +1397,16 @@ async function renderMessaging(){
   let responseRequired=[],aiHandling=[],allActive=[],escalations=[],onHold=[],quoteSent=[],archive=[];
   try{
     [responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive]=await Promise.all([
-      // No stage filter here deliberately — a BOOKED (or FAILED_TO_CONVERT) conversation can
-      // still get a new inbound message needing a reply (e.g. a booked customer asking a
-      // question). controlled_by=human + last_message_direction=inbound is the actual signal
-      // that a reply is owed; gating on stage as well made those messages invisible in every
-      // tab (Response Required excluded BOOKED, All Conversations excludes BOOKED/TIME_WASTER
-      // stage too) — see 2026-09-13 fix.
-      // Excludes TIME_WASTER and CLOSED by design: once a conversation is marked done, it
-      // should never resurface here even if the (now-frozen) old row gets a stray inbound —
-      // a real reply from that customer creates a fresh conversation row instead (2026-09-15
-      // freshness fix). BOOKED/FAILED_TO_CONVERT are deliberately NOT excluded — a booked
-      // customer can still need a real reply.
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(TIME_WASTER,CLOSED)&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
+      // Excludes all four terminal stages (BOOKED, FAILED_TO_CONVERT, TIME_WASTER, CLOSED) —
+      // marking a conversation with any of these is Tony's signal that no more reply is owed
+      // on it, so it should stop showing up here even if the last message on file is still
+      // inbound. This used to carve out an exception for BOOKED/FAILED_TO_CONVERT on the
+      // theory that a booked customer could still send a real follow-up needing a reply — but
+      // the 2026-09-15 freshness fix means a genuine follow-up from a marked-done customer now
+      // creates a brand new conversation row (starting fresh in AI Handling) rather than
+      // reusing this one, so that old carve-out no longer serves a purpose and was just making
+      // marked conversations linger here forever if Tony marked them without replying first.
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
       // Truly everything non-deleted — live and archived alike.
       sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc`),
