@@ -647,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='115';
-const BUILD_DATE='15 Sep 2026 10:40';
+const BUILD_VERSION='116';
+const BUILD_DATE='15 Sep 2026 10:55';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1292,6 +1292,15 @@ async function setConvHold(conversationId,hold){
   }catch(e){showToast(e.message,'error');}
 }
 const TERMINAL_STAGE_LABELS={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
+const TONE_STYLE={
+  urgent:{color:'var(--danger)',onColor:'var(--white)'},
+  ai:{color:'var(--gold)',onColor:'var(--navy-900)'},
+  hold:{color:'var(--navy-400)',onColor:'var(--white)'},
+  quoted:{color:'#60a5fa',onColor:'var(--navy-900)'},
+  replied:{color:'#60a5fa',onColor:'var(--navy-900)'},
+  archived:{color:'var(--text-muted)',onColor:'var(--white)'},
+  neutral:{color:'var(--text-soft)',onColor:'var(--navy-900)'},
+};
 function getConvBadge(c){
   if(TERMINAL_STAGE_LABELS[c.stage]) return {label:TERMINAL_STAGE_LABELS[c.stage],tone:'archived'};
   if(c.on_hold) return {label:'On hold',tone:'hold'};
@@ -1315,15 +1324,16 @@ function setArchiveFilter(stage){
   renderMessagingFromCache();
 }
 function convTabBar(counts){
-  const tabs=[['responseRequired','Response Required',counts.responseRequired],['escalations','Escalations',counts.escalations],['quoteSent','Quote Sent',counts.quoteSent],['aiHandling','AI Handling',counts.aiHandling],['onHold','On Hold',counts.onHold],['archive','Archive',counts.archive],['allActive','All Conversations',counts.allActive]];
+  const tabs=[['responseRequired','Response Required',counts.responseRequired,'urgent'],['escalations','Escalations',counts.escalations,'urgent'],['quoteSent','Quote Sent',counts.quoteSent,'quoted'],['aiHandling','AI Handling',counts.aiHandling,'ai'],['onHold','On Hold',counts.onHold,'hold'],['archive','Archive',counts.archive,'archived'],['allActive','All Conversations',counts.allActive,'neutral']];
   return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
-    ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;border:1px solid ${convTab===id?'var(--gold)':'var(--border)'};cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
+    ${tabs.map(([id,label,count,tone])=>{const t=TONE_STYLE[tone],active=convTab===id;return `<button onclick="setConvTab('${id}')" style="padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;border:1.5px solid ${t.color};cursor:pointer;white-space:nowrap;background:${active?t.color:'transparent'};color:${active?t.onColor:t.color}">${label} (${count})</button>`;}).join('')}
   </div>`;
 }
 function archiveFilterBar(counts){
   const opts=[['ALL','All',counts.archive],['BOOKED','Booked',counts.archiveBooked],['FAILED_TO_CONVERT','Failed to convert',counts.archiveFailed],['TIME_WASTER','Time waster',counts.archiveTimeWaster],['CLOSED','Closed',counts.archiveClosed]];
+  const t=TONE_STYLE.archived;
   return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px">
-    ${opts.map(([id,label,count])=>`<button onclick="setArchiveFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid ${archiveFilter===id?'var(--gold)':'var(--border)'};cursor:pointer;white-space:nowrap;background:${archiveFilter===id?'var(--gold)':'transparent'};color:${archiveFilter===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
+    ${opts.map(([id,label,count])=>{const active=archiveFilter===id;return `<button onclick="setArchiveFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid ${t.color};cursor:pointer;white-space:nowrap;background:${active?t.color:'transparent'};color:${active?t.onColor:t.color}">${label} (${count})</button>`;}).join('')}
   </div>`;
 }
 function renderMessagingFromCache(){
