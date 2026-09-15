@@ -647,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='117';
-const BUILD_DATE='15 Sep 2026 11:10';
+const BUILD_VERSION='118';
+const BUILD_DATE='15 Sep 2026 11:25';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1100,7 +1100,8 @@ function escalationCardHtml(r,msgs){
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div class="conv-tag">${esc(escReasonLabel(r.reason_code))}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${esc(STAGE_LABELS[conv.stage]||conv.stage||'New')}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escTimeAgo(r.created_at)}</div>
       </div>
     </div>
     ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
@@ -1152,6 +1153,8 @@ function renderConvCard(conv,msgs,badge){
   const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
   const windowClosed=staleMs>24*60*60*1000;
   const toneClass=badge?.tone?`conv-tone-${badge.tone}`:'';
+  const stageLabel=STAGE_LABELS[conv.stage]||conv.stage||'New';
+  const showStageLine=!badge||badge.label!==stageLabel;
   return `<div class="conv-card ${toneClass}" id="conv-card-${conv.id}">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
@@ -1161,6 +1164,7 @@ function renderConvCard(conv,msgs,badge){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
         <div style="text-align:right">
           ${badge?`<div class="conv-tag">${esc(badge.label)}</div>`:''}
+          ${showStageLine?`<div style="font-size:10px;color:var(--text-muted);margin-top:1px">${esc(stageLabel)}</div>`:''}
           <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escTimeAgo(conv.last_message_at)}</div>
         </div>
         <details class="conv-actions-corner">
@@ -1292,6 +1296,7 @@ async function setConvHold(conversationId,hold){
   }catch(e){showToast(e.message,'error');}
 }
 const TERMINAL_STAGE_LABELS={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
+const STAGE_LABELS={NEW:'New',QUALIFYING:'Qualifying',QUOTED:'Quote sent',BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
 const TONE_STYLE={
   urgent:{color:'var(--danger)',onColor:'var(--white)'},
   ai:{color:'var(--gold)',onColor:'var(--navy-900)'},
@@ -1410,7 +1415,7 @@ async function renderMessaging(){
       sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
       // Truly everything non-deleted — live and archived alike.
       sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc`),
-      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations!inner(customer_name,customer_phone,last_message_at)&conversations.deleted_at=is.null&order=created_at.desc`),
+      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations!inner(customer_name,customer_phone,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&on_hold=eq.true&deleted_at=is.null&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=eq.QUOTED&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&order=last_message_at.desc`),
