@@ -636,8 +636,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='113';
-const BUILD_DATE='15 Sep 2026 09:35';
+const BUILD_VERSION='114';
+const BUILD_DATE='15 Sep 2026 10:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1156,6 +1156,7 @@ function renderConvCard(conv,msgs,badge){
           <summary class="conv-actions-toggle">Update ▾</summary>
           <div class="conv-actions-list">
             <button class="btn btn-primary btn-sm" onclick="closeConversationBau('${conv.id}')">Close</button>
+            <button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${conv.id}','QUOTED')">Quote sent</button>
             <button class="btn btn-done btn-sm" onclick="openMarkStageModal('${conv.id}','BOOKED')">Booked</button>
             ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
             <button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
@@ -1233,14 +1234,17 @@ async function sendManualReply(conversationId){
 let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null;
 function openMarkStageModal(conversationId,stage){
   markStageConvId=conversationId;markStageValue=stage;
-  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
+  const labels={QUOTED:'Quote sent',BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
   const conv=messagingConvById[conversationId];
   const name=conv?.customer_name||'this conversation';
-  document.getElementById('markStageModalText').textContent=`Mark ${name} as "${labels[stage]}"? This closes the conversation and stops the AI from replying further.`;
+  const stopsAi=stage!=='QUOTED';
+  document.getElementById('markStageModalText').textContent=stopsAi
+    ?`Mark ${name} as "${labels[stage]}"? This closes the conversation and stops the AI from replying further.`
+    :`Mark ${name} as "Quote sent"? Use this when you've sent a quote yourself (manual escalation, or still via Squeegee) — the AI won't keep asking for quote details, but you'll still see their reply if they get back to you.`;
   document.getElementById('markStageModal').classList.add('open');
 }
 async function confirmMarkConversationStage(){
-  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
+  const labels={QUOTED:'Quote sent',BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
   try{
     await sb(`conversations?id=eq.${markStageConvId}`,{method:'PATCH',body:JSON.stringify({stage:markStageValue,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
     closeModal('markStageModal');
@@ -1299,8 +1303,8 @@ function setArchiveFilter(stage){
 }
 function convTabBar(counts){
   const tabs=[['responseRequired','Response Required',counts.responseRequired],['escalations','Escalations',counts.escalations],['quoteSent','Quote Sent',counts.quoteSent],['aiHandling','AI Handling',counts.aiHandling],['onHold','On Hold',counts.onHold],['archive','Archive',counts.archive],['allActive','All Conversations',counts.allActive]];
-  return `<div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px;width:fit-content;max-width:100%;overflow-x:auto">
-    ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;margin-bottom:14px;width:100%;box-sizing:border-box">
+    ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:6px 11px;border-radius:6px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
 function archiveFilterBar(counts){
