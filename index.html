@@ -1276,7 +1276,9 @@ async function setConvHold(conversationId,hold){
     renderMessaging();
   }catch(e){showToast(e.message,'error');}
 }
+const TERMINAL_STAGE_LABELS={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
 function getConvBadge(c){
+  if(TERMINAL_STAGE_LABELS[c.stage]) return {label:TERMINAL_STAGE_LABELS[c.stage],style:'background:var(--navy-600);color:var(--white)'};
   if(c.controlled_by==='human'&&c.last_message_direction==='inbound') return {label:'Awaiting your reply',style:'background:var(--danger);color:var(--white)'};
   if(c.controlled_by==='ai') return {label:'AI',style:'background:var(--gold);color:var(--navy-900)'};
   if(c.controlled_by==='human'&&c.last_message_direction==='outbound') return {label:'You replied',style:'background:#60a5fa;color:var(--navy-900)'};
