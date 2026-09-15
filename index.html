@@ -636,8 +636,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='112';
-const BUILD_DATE='14 Sep 2026 15:20';
+const BUILD_VERSION='113';
+const BUILD_DATE='15 Sep 2026 09:35';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1160,6 +1160,7 @@ function renderConvCard(conv,msgs,badge){
             ${conv.on_hold?`<button class="btn btn-neutral btn-sm" style="background:var(--gold);color:var(--navy-900)" onclick="setConvHold('${conv.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" onclick="setConvHold('${conv.id}',true)">Hold</button>`}
             <button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${conv.id}','TIME_WASTER')">Time waster</button>
             <button class="btn btn-outline-danger btn-sm" onclick="openMarkStageModal('${conv.id}','FAILED_TO_CONVERT')">Failed to convert</button>
+            <button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${conv.id}','CLOSED')">Mark closed</button>
             <button class="btn btn-outline-danger btn-sm" onclick="openDeleteConversationModal('${conv.id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
           </div>
         </details>
@@ -1232,14 +1233,14 @@ async function sendManualReply(conversationId){
 let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null;
 function openMarkStageModal(conversationId,stage){
   markStageConvId=conversationId;markStageValue=stage;
-  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster'};
+  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
   const conv=messagingConvById[conversationId];
   const name=conv?.customer_name||'this conversation';
   document.getElementById('markStageModalText').textContent=`Mark ${name} as "${labels[stage]}"? This closes the conversation and stops the AI from replying further.`;
   document.getElementById('markStageModal').classList.add('open');
 }
 async function confirmMarkConversationStage(){
-  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster'};
+  const labels={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
   try{
     await sb(`conversations?id=eq.${markStageConvId}`,{method:'PATCH',body:JSON.stringify({stage:markStageValue,ai_paused:true,controlled_by:'human',manual_review_required:false,needs_human:false}),prefer:'return=minimal'});
     closeModal('markStageModal');
@@ -1250,12 +1251,12 @@ async function confirmMarkConversationStage(){
 function openDeleteConversationModal(conversationId,customerName){
   deleteConvId=conversationId;
   const name=customerName||messagingConvById[conversationId]?.customer_name||'this conversation';
-  document.getElementById('deleteConversationModalText').textContent=`Permanently delete the conversation with ${name}? This removes all messages and cannot be undone — use this for junk/spam, not real customers.`;
+  document.getElementById('deleteConversationModalText').textContent=`Delete the conversation with ${name}? This hides it from every view — use this for junk/spam, not real customers.`;
   document.getElementById('deleteConversationModal').classList.add('open');
 }
 async function confirmDeleteConversation(){
   try{
-    await sb(`conversations?id=eq.${deleteConvId}`,{method:'DELETE',prefer:'return=minimal'});
+    await sb(`conversations?id=eq.${deleteConvId}`,{method:'PATCH',body:JSON.stringify({deleted_at:new Date().toISOString()}),prefer:'return=minimal'});
     closeModal('deleteConversationModal');
     showToast('Conversation deleted','success');
     renderMessaging();
@@ -1282,23 +1283,42 @@ function getConvBadge(c){
   return {label:c.stage||'Active',style:'background:var(--navy-600);color:var(--white)'};
 }
 let convTab=localStorage.getItem('convTab')||'responseRequired';
-let convSectionCache=null; // {responseRequired, aiHandling, allActive, escalations, messagesByConv} — cached so tab switches don't refetch
+let archiveFilter=localStorage.getItem('archiveFilter')||'ALL';
+let convSectionCache=null; // {responseRequired, aiHandling, allActive, escalations, onHold, quoteSent, archive, messagesByConv} — cached so tab switches don't refetch
 function setConvTab(name){
   convTab=name;
   localStorage.setItem('convTab',name);
   renderMessagingFromCache();
 }
+function setArchiveFilter(stage){
+  archiveFilter=stage;
+  localStorage.setItem('archiveFilter',stage);
+  renderMessagingFromCache();
+}
 function convTabBar(counts){
-  const tabs=[['responseRequired','Response Required',counts.responseRequired],['aiHandling','AI Handling',counts.aiHandling],['escalations','Escalations',counts.escalations],['allActive','All Conversations',counts.allActive],['onHold','On Hold',counts.onHold]];
+  const tabs=[['responseRequired','Response Required',counts.responseRequired],['escalations','Escalations',counts.escalations],['quoteSent','Quote Sent',counts.quoteSent],['aiHandling','AI Handling',counts.aiHandling],['onHold','On Hold',counts.onHold],['archive','Archive',counts.archive],['allActive','All Conversations',counts.allActive]];
   return `<div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px;width:fit-content;max-width:100%;overflow-x:auto">
     ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
+function archiveFilterBar(counts){
+  const opts=[['ALL','All',counts.archive],['BOOKED','Booked',counts.archiveBooked],['FAILED_TO_CONVERT','Failed to convert',counts.archiveFailed],['TIME_WASTER','Time waster',counts.archiveTimeWaster],['CLOSED','Closed',counts.archiveClosed]];
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px">
+    ${opts.map(([id,label,count])=>`<button onclick="setArchiveFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);cursor:pointer;white-space:nowrap;background:${archiveFilter===id?'var(--gold)':'transparent'};color:${archiveFilter===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
+  </div>`;
+}
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
-  const {responseRequired,aiHandling,allActive,escalations,onHold,messagesByConv}=convSectionCache;
+  const {responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv}=convSectionCache;
   const el=document.getElementById('mainContent');
-  const counts={responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length,escalations:escalations.length,onHold:onHold.length};
+  const counts={
+    responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length,
+    escalations:escalations.length,onHold:onHold.length,quoteSent:quoteSent.length,archive:archive.length,
+    archiveBooked:archive.filter(c=>c.stage==='BOOKED').length,
+    archiveFailed:archive.filter(c=>c.stage==='FAILED_TO_CONVERT').length,
+    archiveTimeWaster:archive.filter(c=>c.stage==='TIME_WASTER').length,
+    archiveClosed:archive.filter(c=>c.stage==='CLOSED').length,
+  };
   let listHtml='',emptyTitle='',subHtml='';
   if(convTab==='responseRequired'){
     listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger);color:var(--white)'})).join('');
@@ -1314,14 +1334,29 @@ function renderMessagingFromCache(){
     listHtml=onHold.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
     emptyTitle='Nothing on hold';
     subHtml='<div class="page-sub" style="margin:-4px 0 8px">The AI keeps handling these normally \u2014 hold is just a marker for you.</div>';
+  }else if(convTab==='quoteSent'){
+    listHtml=quoteSent.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
+    emptyTitle='No quotes out right now';
+    subHtml='<div class="page-sub" style="margin:-4px 0 8px">Sent, not yet accepted.</div>';
+  }else if(convTab==='archive'){
+    const filtered=archiveFilter==='ALL'?archive:archive.filter(c=>c.stage===archiveFilter);
+    listHtml=filtered.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
+    emptyTitle='Nothing archived yet';
+    subHtml=archiveFilterBar(counts);
+    const currentCount=filtered.length;
+    el.innerHTML=`
+      <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.escalations} escalated · ${counts.quoteSent} quote sent · ${counts.aiHandling} being handled by AI · ${counts.onHold} on hold · ${counts.archive} archived</div></div></div>
+      ${convTabBar(counts)}
+      ${subHtml}
+      ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:listHtml}`;
+    return;
   }else{
     listHtml=allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
-    emptyTitle='Nothing active right now';
-    subHtml='<div class="page-sub" style="margin:-4px 0 8px">Everything not marked Booked or Time Waster.</div>';
+    emptyTitle='No conversations yet';
   }
   const currentCount=counts[convTab];
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.aiHandling} being handled by AI · ${counts.escalations} escalated · ${counts.allActive} active in total · ${counts.onHold} on hold</div></div></div>
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.escalations} escalated · ${counts.quoteSent} quote sent · ${counts.aiHandling} being handled by AI · ${counts.onHold} on hold · ${counts.archive} archived</div></div></div>
     ${convTabBar(counts)}
     ${subHtml}
     ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:listHtml}`;
@@ -1330,30 +1365,34 @@ async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let responseRequired=[],aiHandling=[],allActive=[],escalations=[],onHold=[];
+  let responseRequired=[],aiHandling=[],allActive=[],escalations=[],onHold=[],quoteSent=[],archive=[];
   try{
-    [responseRequired,aiHandling,allActive,escalations,onHold]=await Promise.all([
+    [responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive]=await Promise.all([
       // No stage filter here deliberately — a BOOKED (or FAILED_TO_CONVERT) conversation can
       // still get a new inbound message needing a reply (e.g. a booked customer asking a
       // question). controlled_by=human + last_message_direction=inbound is the actual signal
       // that a reply is owed; gating on stage as well made those messages invisible in every
       // tab (Response Required excluded BOOKED, All Conversations excludes BOOKED/TIME_WASTER
       // stage too) — see 2026-09-13 fix.
-      // Excludes TIME_WASTER by design (per Tony 2026-09-13): once marked a time waster, a
-      // conversation should never resurface in Response Required even if it gets a new inbound
-      // message. BOOKED/FAILED_TO_CONVERT are deliberately NOT excluded here — see the fix
-      // above this comment's history for why (a booked customer can still need a real reply).
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=neq.TIME_WASTER&on_hold=eq.false&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=not.in.(BOOKED,TIME_WASTER)&on_hold=eq.false&order=last_message_at.desc`),
-      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations(customer_name,customer_phone,last_message_at)&order=created_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&on_hold=eq.true&order=last_message_at.desc`),
+      // Excludes TIME_WASTER and CLOSED by design: once a conversation is marked done, it
+      // should never resurface here even if the (now-frozen) old row gets a stray inbound —
+      // a real reply from that customer creates a fresh conversation row instead (2026-09-15
+      // freshness fix). BOOKED/FAILED_TO_CONVERT are deliberately NOT excluded — a booked
+      // customer can still need a real reply.
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(TIME_WASTER,CLOSED)&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
+      // Truly everything non-deleted — live and archived alike.
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc`),
+      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations!inner(customer_name,customer_phone,last_message_at)&conversations.deleted_at=is.null&order=created_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&on_hold=eq.true&deleted_at=is.null&order=last_message_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=eq.QUOTED&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&order=last_message_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
-  [...responseRequired,...aiHandling,...allActive,...onHold].forEach(c=>{messagingConvById[c.id]=c;});
+  [...responseRequired,...aiHandling,...allActive,...onHold,...quoteSent,...archive].forEach(c=>{messagingConvById[c.id]=c;});
   let messagesByConv={};
-  const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id),...onHold.map(c=>c.id)])];
+  const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id),...onHold.map(c=>c.id),...quoteSent.map(c=>c.id),...archive.map(c=>c.id)])];
   if(allIds.length){
     try{
       // Batch this — with stage filters relaxed (2026-09-13 fix), allIds can now run into the
@@ -1374,7 +1413,7 @@ async function renderMessaging(){
       // request used to.
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
-  convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,messagesByConv};
+  convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv};
   renderMessagingFromCache();
 }
 
