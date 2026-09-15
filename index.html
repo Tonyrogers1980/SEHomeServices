@@ -141,7 +141,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .detail-row:last-child{border-bottom:none;}
 .detail-label{color:var(--text-muted);flex-shrink:0;}
 .detail-value{font-weight:500;color:var(--text);text-align:right;}
-.conv-card{background:var(--navy-800);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;}
+.conv-card{background:var(--navy-800);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 14px 14px 18px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.conv-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--navy-600);}
+.conv-tone-urgent{box-shadow:0 4px 18px rgba(239,68,68,.18);border-color:rgba(239,68,68,.4);}
+.conv-tone-urgent::before{background:var(--danger);}
+.conv-tone-ai::before{background:var(--gold);}
+.conv-tone-hold::before{background:var(--navy-400);}
+.conv-tone-quoted::before{background:#60a5fa;}
+.conv-tone-replied::before{background:#60a5fa;}
+.conv-tone-archived{opacity:.78;}
+.conv-tone-archived::before{background:var(--text-muted);}
+.conv-name-hero{font-size:17px;font-weight:700;color:var(--white);}
+.conv-tag{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--text-soft);margin-top:2px;}
 .conv-divider{width:100%;border:none;border-top:1px solid var(--border);margin:0;}
 .conv-transcript-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);padding:6px 12px;border-radius:20px;}
 .conv-actions-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--navy-900);background:var(--gold);border:1px solid var(--gold);padding:6px 14px;border-radius:20px;}
@@ -636,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='114';
-const BUILD_DATE='15 Sep 2026 10:05';
+const BUILD_VERSION='115';
+const BUILD_DATE='15 Sep 2026 10:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1081,14 +1092,14 @@ function escalationCardHtml(r,msgs){
   msgs=msgs||[];
   const conv=r.conversations||{};
   const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
-  return `<div class="conv-card" id="conv-card-${r.conversation_id}" style="border-color:rgba(239,68,68,.35)">
+  return `<div class="conv-card conv-tone-urgent" id="conv-card-${r.conversation_id}">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
+        <div class="conv-name-hero">${esc(conv.customer_name||'Unknown customer')}</div>
         <div style="font-size:12px;color:var(--text-soft)">${esc(conv.customer_phone||'')}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--danger);color:var(--white)">${esc(escReasonLabel(r.reason_code))}</span>
+        <div class="conv-tag">${esc(escReasonLabel(r.reason_code))}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(r.created_at)}</div>
       </div>
     </div>
@@ -1140,17 +1151,17 @@ function renderConvCard(conv,msgs,badge){
   const lastInbound=[...(msgs||[])].reverse().find(m=>m.direction==='inbound');
   const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
   const windowClosed=staleMs>24*60*60*1000;
-  return `<div class="conv-card" id="conv-card-${conv.id}">
-    ${conv.on_hold?'<div style="width:100%;font-size:11px;font-weight:700;color:var(--gold);background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:6px;padding:4px 8px">ON HOLD</div>':''}
+  const toneClass=badge?.tone?`conv-tone-${badge.tone}`:'';
+  return `<div class="conv-card ${toneClass}" id="conv-card-${conv.id}">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--white)">${esc(conv.customer_name||'Unknown customer')}</div>
+        <div class="conv-name-hero">${esc(conv.customer_name||'Unknown customer')}</div>
         <div style="font-size:12px;color:var(--text-soft)">${esc(conv.customer_phone||'')}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
         <div style="text-align:right">
-          ${badge?`<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;${badge.style}">${esc(badge.label)}</span>`:''}
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escTimeAgo(conv.last_message_at)}</div>
+          ${badge?`<div class="conv-tag">${esc(badge.label)}</div>`:''}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escTimeAgo(conv.last_message_at)}</div>
         </div>
         <details class="conv-actions-corner">
           <summary class="conv-actions-toggle">Update ▾</summary>
@@ -1282,11 +1293,13 @@ async function setConvHold(conversationId,hold){
 }
 const TERMINAL_STAGE_LABELS={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
 function getConvBadge(c){
-  if(TERMINAL_STAGE_LABELS[c.stage]) return {label:TERMINAL_STAGE_LABELS[c.stage],style:'background:var(--navy-600);color:var(--white)'};
-  if(c.controlled_by==='human'&&c.last_message_direction==='inbound') return {label:'Awaiting your reply',style:'background:var(--danger);color:var(--white)'};
-  if(c.controlled_by==='ai') return {label:'AI',style:'background:var(--gold);color:var(--navy-900)'};
-  if(c.controlled_by==='human'&&c.last_message_direction==='outbound') return {label:'You replied',style:'background:#60a5fa;color:var(--navy-900)'};
-  return {label:c.stage||'Active',style:'background:var(--navy-600);color:var(--white)'};
+  if(TERMINAL_STAGE_LABELS[c.stage]) return {label:TERMINAL_STAGE_LABELS[c.stage],tone:'archived'};
+  if(c.on_hold) return {label:'On hold',tone:'hold'};
+  if(c.controlled_by==='human'&&c.last_message_direction==='inbound') return {label:'Awaiting your reply',tone:'urgent'};
+  if(c.stage==='QUOTED') return {label:'Quote sent',tone:'quoted'};
+  if(c.controlled_by==='ai') return {label:'AI',tone:'ai'};
+  if(c.controlled_by==='human'&&c.last_message_direction==='outbound') return {label:'You replied',tone:'replied'};
+  return {label:c.stage||'Active',tone:'neutral'};
 }
 let convTab=localStorage.getItem('convTab')||'responseRequired';
 let archiveFilter=localStorage.getItem('archiveFilter')||'ALL';
@@ -1303,14 +1316,14 @@ function setArchiveFilter(stage){
 }
 function convTabBar(counts){
   const tabs=[['responseRequired','Response Required',counts.responseRequired],['escalations','Escalations',counts.escalations],['quoteSent','Quote Sent',counts.quoteSent],['aiHandling','AI Handling',counts.aiHandling],['onHold','On Hold',counts.onHold],['archive','Archive',counts.archive],['allActive','All Conversations',counts.allActive]];
-  return `<div style="display:flex;flex-wrap:wrap;gap:4px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;margin-bottom:14px;width:100%;box-sizing:border-box">
-    ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:6px 11px;border-radius:6px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+    ${tabs.map(([id,label,count])=>`<button onclick="setConvTab('${id}')" style="padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;border:1px solid ${convTab===id?'var(--gold)':'var(--border)'};cursor:pointer;white-space:nowrap;background:${convTab===id?'var(--gold)':'transparent'};color:${convTab===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
 function archiveFilterBar(counts){
   const opts=[['ALL','All',counts.archive],['BOOKED','Booked',counts.archiveBooked],['FAILED_TO_CONVERT','Failed to convert',counts.archiveFailed],['TIME_WASTER','Time waster',counts.archiveTimeWaster],['CLOSED','Closed',counts.archiveClosed]];
   return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px">
-    ${opts.map(([id,label,count])=>`<button onclick="setArchiveFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);cursor:pointer;white-space:nowrap;background:${archiveFilter===id?'var(--gold)':'transparent'};color:${archiveFilter===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
+    ${opts.map(([id,label,count])=>`<button onclick="setArchiveFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid ${archiveFilter===id?'var(--gold)':'var(--border)'};cursor:pointer;white-space:nowrap;background:${archiveFilter===id?'var(--gold)':'transparent'};color:${archiveFilter===id?'var(--navy-900)':'var(--text-soft)'}">${label} (${count})</button>`).join('')}
   </div>`;
 }
 function renderMessagingFromCache(){
@@ -1327,10 +1340,10 @@ function renderMessagingFromCache(){
   };
   let listHtml='',emptyTitle='',subHtml='';
   if(convTab==='responseRequired'){
-    listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',style:'background:var(--danger);color:var(--white)'})).join('');
+    listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',tone:'urgent'})).join('');
     emptyTitle='Nothing waiting on you';
   }else if(convTab==='aiHandling'){
-    listHtml=aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',style:'background:var(--gold);color:var(--navy-900)'})).join('');
+    listHtml=aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',tone:'ai'})).join('');
     emptyTitle='No conversations with the AI right now';
   }else if(convTab==='escalations'){
     listHtml=escalations.map(r=>escalationCardHtml(r,messagesByConv[r.conversation_id])).join('');
