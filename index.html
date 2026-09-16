@@ -647,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='121';
-const BUILD_DATE='16 Sep 2026 13:50';
+const BUILD_VERSION='122';
+const BUILD_DATE='16 Sep 2026 17:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1725,6 +1725,9 @@ async function autoInvoiceJob(jobId){
     if(c.auto_invoice===false)return; // opted out
     if(!c.email&&!c.whatsapp_number&&!c.phone)return; // no contact — skip silently
 
+    const PAYMENT_TERMS_DAYS=7; // Tony's confirmed payment terms — keep in sync with any other due-date logic
+    const dueDate=(()=>{const d=new Date();d.setDate(d.getDate()+PAYMENT_TERMS_DAYS);return localDateStr(d);})();
+
     // Create invoice
     const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
       business_id:BUSINESS_ID,
@@ -1733,6 +1736,7 @@ async function autoInvoiceJob(jobId){
       amount:job.price,
       notes:job.service_type||null,
       status:'sent',
+      due_date:dueDate,
       sent_at:new Date().toISOString()
     }),prefer:'return=representation'});
 
@@ -1745,7 +1749,7 @@ async function autoInvoiceJob(jobId){
         customer_email:c.email||'',
         amount:job.price,
         service_type:job.service_type||'Window Cleaning',
-        due_date:'',notes:''
+        due_date:dueDate,notes:''
       })}).catch(()=>{});
       showToast('Invoice sent to '+c.name,'success');
     }
