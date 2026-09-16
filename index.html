@@ -647,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='119';
-const BUILD_DATE='15 Sep 2026 11:50';
+const BUILD_VERSION='120';
+const BUILD_DATE='16 Sep 2026 12:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1088,7 +1088,7 @@ function escReasonLabel(reason){
   if(!reason)return'Needs review';
   return String(reason).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 }
-function escalationCardHtml(r,msgs){
+function escalationCardHtml(r,msgs,lead){
   msgs=msgs||[];
   const conv=r.conversations||{};
   const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
@@ -1115,6 +1115,7 @@ function escalationCardHtml(r,msgs){
       </div>
     </details>`:''}
     <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
+      ${lead?`<button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="openQuoteFromLead('${r.conversation_id}')">Send Quote</button>`:''}
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${r.conversation_id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
     </div>
@@ -1248,7 +1249,7 @@ async function sendManualReply(conversationId){
     btn.disabled=false;btn.textContent='Send';
   }
 }
-let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null;
+let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null,messagingLeadsByConv={};
 function openMarkStageModal(conversationId,stage){
   markStageConvId=conversationId;markStageValue=stage;
   const labels={QUOTED:'Quote sent',BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
@@ -1367,7 +1368,7 @@ function renderMessagingFromCache(){
     listHtml=aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',tone:'ai'})).join('');
     emptyTitle='No conversations with the AI right now';
   }else if(convTab==='escalations'){
-    listHtml=escalations.map(r=>escalationCardHtml(r,messagesByConv[r.conversation_id])).join('');
+    listHtml=escalations.map(r=>escalationCardHtml(r,messagesByConv[r.conversation_id],messagingLeadsByConv[r.conversation_id])).join('');
     emptyTitle='All caught up';
     subHtml='<div class="page-sub" style="margin:-4px 0 8px">Resolving hands the conversation back to the AI.</div>';
   }else if(convTab==='onHold'){
@@ -1454,6 +1455,14 @@ async function renderMessaging(){
       // transcript — it no longer blanks every card's messages the way one giant failing
       // request used to.
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
+  }
+  messagingLeadsByConv={};
+  const escConvIds=[...new Set(escalations.map(r=>r.conversation_id).filter(Boolean))];
+  if(escConvIds.length){
+    try{
+      const leadRows=await sb(`leads?conversation_id=in.(${escConvIds.join(',')})&order=updated_at.desc`);
+      leadRows.forEach(l=>{if(!messagingLeadsByConv[l.conversation_id])messagingLeadsByConv[l.conversation_id]=l;});
+    }catch(e){/* Send Quote pre-fill is a nice-to-have — still show escalation cards if this fails */}
   }
   convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv};
   renderMessagingFromCache();
@@ -2413,6 +2422,45 @@ async function openEditQuote(id){
   document.getElementById('quoteModal').classList.add('open');
 }
 async function openQuoteForCustomer(customerId){await openNewQuote();document.getElementById('q-customer').value=customerId;}
+function leadFrequencySelectValue(lead){
+  if(!lead)return'4-weekly';
+  if(lead.frequency==='one_off')return'one-off';
+  const map={1:'weekly',2:'fortnightly',3:'3-weekly',4:'4-weekly',6:'6-weekly',8:'8-weekly',12:'12-weekly',26:'26-weekly'};
+  return map[lead.frequency_weeks]||'4-weekly';
+}
+function leadNotesSummary(lead){
+  if(!lead)return'';
+  const parts=[];
+  if(lead.service_type)parts.push(`Service (AI): ${String(lead.service_type).replace(/_/g,' ')}`);
+  if(lead.property_type)parts.push(`Property: ${String(lead.property_type).replace(/_/g,' ')}`);
+  if(lead.bedrooms)parts.push(`${lead.bedrooms} bedrooms`);
+  if(lead.front_back)parts.push(String(lead.front_back).replace(/_/g,' '));
+  if(lead.frequency_raw)parts.push(`Requested frequency: ${lead.frequency_raw}`);
+  if(lead.manual_review_reason)parts.push(`Flagged for: ${String(lead.manual_review_reason).replace(/_/g,' ').toLowerCase()}`);
+  if(lead.quote_amount)parts.push(`AI partial estimate: £${lead.quote_amount}`);
+  return parts.join(' · ');
+}
+async function openQuoteFromLead(conversationId){
+  const lead=messagingLeadsByConv[conversationId];
+  if(!lead){showToast('No lead details found for this conversation','error');return;}
+  await openNewQuote();
+  document.getElementById('quoteModalTitle').textContent='Send Quote (from AI lead)';
+  if(lead.wc_customer_id){
+    document.getElementById('q-customer').value=lead.wc_customer_id;
+  }else{
+    toggleInlineCustomer();
+    document.getElementById('nc-name').value=lead.customer_name||'';
+    document.getElementById('nc-address').value=lead.full_address||'';
+    document.getElementById('nc-postcode').value=lead.postcode||'';
+    document.getElementById('nc-phone').value=lead.customer_phone||'';
+    document.getElementById('nc-whatsapp').value=lead.customer_phone||'';
+    document.getElementById('nc-email').value=lead.email||'';
+  }
+  document.getElementById('q-price').value=lead.quote_amount||'';
+  document.getElementById('q-frequency').value=leadFrequencySelectValue(lead);
+  document.getElementById('q-notes').value=leadNotesSummary(lead);
+  document.getElementById('quoteModal').classList.add('open');
+}
 async function saveQuote(status){
   const customerId=document.getElementById('q-customer').value;
   const price=parseFloat(document.getElementById('q-price').value);
