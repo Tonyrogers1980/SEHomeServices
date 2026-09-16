@@ -647,8 +647,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='120';
-const BUILD_DATE='16 Sep 2026 12:00';
+const BUILD_VERSION='121';
+const BUILD_DATE='16 Sep 2026 13:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -665,6 +665,9 @@ let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 // getFullYear/getMonth/getDate instead.
 function localDateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function todayStr(){return localDateStr(new Date());}
+const MIN_LEAD_DAYS=2; // No same-day or next-day jobs — planning required. Keep in sync with the Quote Accept workflow's Check Ready To Schedule node.
+function minLeadDateStr(){const d=new Date();d.setDate(d.getDate()+MIN_LEAD_DAYS);return localDateStr(d);}
+function isDateTooSoon(dateStr){if(!dateStr)return false;return dateStr<minLeadDateStr();}
 function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return localDateStr(d);}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
 function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
@@ -1776,7 +1779,9 @@ let rescheduleJobId=null,rescheduleSeriesId=null;
 function openReschedule(jobId, seriesId){
   rescheduleJobId=jobId;
   rescheduleSeriesId=seriesId;
-  document.getElementById('reschedule-date').value='';
+  const dateEl=document.getElementById('reschedule-date');
+  dateEl.min=minLeadDateStr();
+  dateEl.value='';
   document.getElementById('rs-single').checked=true;
   // Only show "all series" option if job belongs to a series
   document.getElementById('rs-all-label').style.display=seriesId?'flex':'none';
@@ -1786,6 +1791,7 @@ function openReschedule(jobId, seriesId){
 async function confirmReschedule(){
   const newDate=document.getElementById('reschedule-date').value;
   if(!newDate){showToast('Select a new date','error');return;}
+  if(isDateTooSoon(newDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const scope=document.querySelector('input[name="reschedule-scope"]:checked').value;
   try{
     if(scope==='single'||!rescheduleSeriesId){
@@ -1984,6 +1990,7 @@ async function loadCustomerJobs(customerId){
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--white)">£${parseFloat(j.price||0).toFixed(2)}</span>
         <span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span>
+        ${j.status==='scheduled'?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅</button>`:''}
       </div>
     </div>`).join('');
   }catch(e){}
@@ -2246,7 +2253,9 @@ async function openAddJob(customerId){
   jobCustomerId=customerId;
   document.getElementById('j-price').value='';
   document.getElementById('j-frequency').value='4-weekly';
-  document.getElementById('j-date').value=todayStr();
+  const dateEl=document.getElementById('j-date');
+  dateEl.min=minLeadDateStr();
+  dateEl.value=minLeadDateStr();
   document.getElementById('j-day').value='';
   document.getElementById('j-notes').value='';
   await Promise.all([loadConfig(),loadUsers()]);
@@ -2262,6 +2271,7 @@ async function saveJob(){
   const frequency=document.getElementById('j-frequency').value||'one-off';
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
+  if(isDateTooSoon(date)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   try{
     await sb('wc_jobs',{method:'POST',body:JSON.stringify({
       customer_id:jobCustomerId,business_id:BUSINESS_ID,price,
@@ -2399,6 +2409,7 @@ async function openNewQuote(){
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   ['q-price','q-notes'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('q-frequency').value='4-weekly';document.getElementById('q-day').value='';
+  document.getElementById('q-start-date').min=minLeadDateStr();
   document.getElementById('q-start-date').value='';
   populateServiceSelect('q-service');populateRoundSelect('q-round');
   document.getElementById('quoteModal').classList.add('open');
@@ -2416,6 +2427,7 @@ async function openEditQuote(id){
   document.getElementById('q-price').value=q.price||'';
   document.getElementById('q-frequency').value=q.frequency||'4-weekly';
   document.getElementById('q-day').value=q.day_of_week||'';
+  document.getElementById('q-start-date').min=minLeadDateStr();
   document.getElementById('q-start-date').value=q.start_date||'';
   document.getElementById('q-notes').value=q.notes||'';
   populateServiceSelect('q-service',q.service_type||'');populateRoundSelect('q-round',q.round_name||'');
@@ -2466,13 +2478,15 @@ async function saveQuote(status){
   const price=parseFloat(document.getElementById('q-price').value);
   if(!customerId){showToast('Select a customer','error');return;}
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
+  const startDate=document.getElementById('q-start-date').value||null;
+  if(isDateTooSoon(startDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const payload={customer_id:customerId,business_id:BUSINESS_ID,price,status,
     frequency:document.getElementById('q-frequency').value||'one-off',
     service_type:document.getElementById('q-service').value||null,
     round_name:document.getElementById('q-round').value||null,
     day_of_week:document.getElementById('q-day').value||null,
     notes:document.getElementById('q-notes').value.trim()||null,
-    start_date:document.getElementById('q-start-date').value||null,
+    start_date:startDate,
     sent_at:status==='sent'?new Date().toISOString():null};
   try{
     let quoteId=editingQuoteId;
