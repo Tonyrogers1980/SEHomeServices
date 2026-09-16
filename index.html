@@ -642,13 +642,14 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const BUSINESS_ID='bb0171c3-6c39-48a9-af56-e81123c131d7';
 const N8N_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-quote-send';
 const N8N_INVOICE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-send';
+const N8N_CONFIRM_SCHEDULE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-confirm-schedule';
 const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-invoice-accept';
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='122';
-const BUILD_DATE='16 Sep 2026 17:10';
+const BUILD_VERSION='123';
+const BUILD_DATE='16 Sep 2026 17:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2497,6 +2498,8 @@ async function saveQuote(status){
     if(editingQuoteId){
       await sb(`wc_quotes?id=eq.${editingQuoteId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
       showToast('Quote updated','success');
+      // Fire-and-forget: if this quote is already accepted and now has a round+date, this creates the job and confirms the date to the customer. No-ops safely otherwise.
+      fetch(N8N_CONFIRM_SCHEDULE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quote_id:editingQuoteId})}).catch(()=>{});
     }else{
       // Use return=representation to get the new quote's ID
       const [newQuote]=await sb('wc_quotes?select=id',{method:'POST',body:JSON.stringify(payload),prefer:'return=representation'});
