@@ -221,6 +221,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .badge-scheduled{background:rgba(74,122,181,.2);color:var(--navy-400);}
 .badge-skipped{background:var(--warn-light);color:var(--warn);}
 .badge-cant{background:var(--danger-light);color:var(--danger);}
+.badge-pending{background:var(--warn-light);color:var(--warn);}
 .empty{text-align:center;padding:60px 20px;color:var(--text-muted);}
 .empty svg{width:48px;height:48px;margin-bottom:14px;opacity:.2;}
 .empty-title{font-size:16px;font-weight:600;color:var(--text-soft);margin-bottom:8px;}
@@ -648,8 +649,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='124';
-const BUILD_DATE='17 Sep 2026 16:10';
+const BUILD_VERSION='125';
+const BUILD_DATE='17 Sep 2026 17:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -673,8 +674,8 @@ function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);
 function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
 function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':'badge-scheduled';}
-function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":'Scheduled';}
+function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':s==='pending_assignment'?'badge-pending':'badge-scheduled';}
+function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":s==='pending_assignment'?'Needs round':'Scheduled';}
 function mapsUrl(address,postcode){
   const q=[address,postcode].filter(Boolean).join(', ');
   const enc=encodeURIComponent(q);
@@ -1984,6 +1985,28 @@ async function loadPaymentMethod(stripeCustomerId){
   }
 }
 
+async function assignRoundToJob(jobId, quoteId){
+  if(!quoteId){showToast('No linked quote found for this job','error');return;}
+  let q;
+  try{[q]=await sb(`wc_quotes?id=eq.${quoteId}`);}catch(e){showToast('Could not load quote','error');return;}
+  if(!q){showToast('Quote not found','error');return;}
+  editingQuoteId=quoteId;
+  document.getElementById('quoteModalTitle').textContent='Assign Round';
+  document.getElementById('inlineCustomerForm').style.display='none';
+  document.getElementById('newCustBtn').textContent='+ New';
+  await Promise.all([loadConfig(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
+  const sel=document.getElementById('q-customer');
+  sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  sel.value=q.customer_id||'';
+  document.getElementById('q-price').value=q.price||'';
+  document.getElementById('q-frequency').value=q.frequency||'4-weekly';
+  document.getElementById('q-day').value=q.day_of_week||'';
+  document.getElementById('q-start-date').min=minLeadDateStr();
+  document.getElementById('q-start-date').value=q.start_date||'';
+  document.getElementById('q-notes').value=q.notes||'';
+  populateServiceSelect('q-service',q.service_type||'');populateRoundSelect('q-round',q.round_name||'');
+  document.getElementById('quoteModal').classList.add('open');
+}
 async function loadCustomerJobs(customerId){
   try{
     const jobs=await sb(`wc_jobs?customer_id=eq.${customerId}&order=next_due.desc.nullslast,created_at.desc&limit=20`);
@@ -1996,6 +2019,7 @@ async function loadCustomerJobs(customerId){
         <span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--white)">£${parseFloat(j.price||0).toFixed(2)}</span>
         <span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span>
         ${j.status==='scheduled'?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅</button>`:''}
+        ${j.status==='pending_assignment'?`<button class="btn btn-primary btn-sm" style="padding:4px 10px;font-size:12px" onclick="assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
       </div>
     </div>`).join('');
   }catch(e){}
