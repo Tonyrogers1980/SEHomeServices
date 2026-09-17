@@ -648,8 +648,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='123';
-const BUILD_DATE='16 Sep 2026 17:20';
+const BUILD_VERSION='124';
+const BUILD_DATE='17 Sep 2026 16:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3432,6 +3432,10 @@ async function renderSettings(){
   el.innerHTML=`
     <div class="page-header"><div class="page-title">Settings</div></div>
     <div class="detail-section" style="margin-bottom:14px">
+      <div class="detail-section-header">Messaging</div>
+      <div id="messagingKillSwitch"><div class="loading" style="padding:20px"><div class="spinner"></div></div></div>
+    </div>
+    <div class="detail-section" style="margin-bottom:14px">
       <div class="detail-section-header">Notifications</div>
       <div id="notifSettings"><div class="loading" style="padding:20px"><div class="spinner"></div></div></div>
     </div>
@@ -3448,6 +3452,44 @@ async function renderSettings(){
     </div>`;
   loadDataAudit();
   loadNotifSettings();
+  loadMessagingKillSwitch();
+}
+
+async function loadMessagingKillSwitch(){
+  const el=document.getElementById('messagingKillSwitch');
+  try{
+    const [s]=await sb('app_settings?id=eq.true');
+    const paused=s&&s.messaging_paused;
+    el.innerHTML=`
+      <div class="detail-row" style="padding:16px">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:${paused?'#ef4444':'var(--white)'}">
+            ${paused?'⏸ All WhatsApp sending is PAUSED':'▶ WhatsApp sending is active'}
+          </div>
+          ${paused?`<div style="font-size:12px;color:var(--text-muted);margin-top:4px">${s.paused_reason?esc(s.paused_reason):'Paused manually'}${s.paused_at?' · '+fmtShort(s.paused_at):''}</div>`:
+            '<div style="font-size:12px;color:var(--text-muted);margin-top:4px">Quotes, reminders, confirmations and AI replies all send normally</div>'}
+        </div>
+      </div>
+      <div class="detail-row" style="padding:0 16px 16px">
+        <button class="btn ${paused?'btn-primary':'btn-outline-danger'} btn-full" onclick="toggleMessagingPause(${paused})">
+          ${paused?'Resume all WhatsApp sending':'⏸ Pause all WhatsApp sending'}
+        </button>
+      </div>`;
+  }catch(e){el.innerHTML='<div class="detail-row" style="padding:16px;color:var(--text-muted)">Could not load messaging status</div>';}
+}
+
+async function toggleMessagingPause(currentlyPaused){
+  const willPause=!currentlyPaused;
+  if(willPause&&!confirm('Pause all outbound WhatsApp sending? Email will continue. You can resume anytime from here.'))return;
+  try{
+    await sb('app_settings?id=eq.true',{method:'PATCH',body:JSON.stringify({
+      messaging_paused:willPause,
+      paused_reason:willPause?'Paused manually by '+currentUser.name:null,
+      paused_at:willPause?new Date().toISOString():null
+    }),prefer:'return=minimal'});
+    showToast(willPause?'WhatsApp sending paused':'WhatsApp sending resumed','success');
+    loadMessagingKillSwitch();
+  }catch(e){showToast(e.message,'error');}
 }
 
 const VAPID_PUBLIC_KEY='BDo4dVkxBeY10Dgz1anN4bshHPHLNh6nwNQ206n0-BrvNwRBhU7BkiGSAghiXC-qCPkFf6B_DiHmNM2Hz8MVNRQ';
