@@ -154,6 +154,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .conv-tone-archived::before{background:var(--text-muted);}
 .conv-name-hero{font-size:17px;font-weight:700;color:var(--white);}
 .conv-tag{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--text-soft);margin-top:2px;}
+.conv-badge-pill{display:inline-flex;align-items:center;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+.conv-badge-pill-muted{background:rgba(111,136,166,.16);color:var(--text-muted);}
 .conv-divider{width:100%;border:none;border-top:1px solid var(--border);margin:0;}
 .conv-transcript-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(255,178,0,.1);border:1px solid rgba(255,178,0,.3);padding:6px 12px;border-radius:20px;}
 .conv-actions-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--navy-900);background:var(--gold);border:1px solid var(--gold);padding:6px 14px;border-radius:20px;}
@@ -192,6 +194,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-addr{font-size:13px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .job-card-svc{font-size:12px;color:var(--text-muted);margin-top:3px;}
 .job-card-round{font-size:11px;color:var(--navy-400);font-weight:500;}
+.job-card-detail-rows{display:flex;flex-direction:column;}
+.job-card-detail-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+.job-card-detail-row:last-child{border-bottom:none;}
+.job-card-detail-row span:first-child{color:var(--text-muted);flex-shrink:0;}
+.job-card-detail-row span:last-child{color:var(--text);font-weight:600;text-align:right;}
 .job-card-note{font-size:12px;color:var(--warn);margin-top:4px;font-weight:500;}
 .job-card-price{font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--gold);flex-shrink:0;white-space:nowrap;}
 .job-card-chevron{width:14px;height:14px;color:var(--text-muted);transition:transform .15s;flex-shrink:0;}
@@ -652,8 +659,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='131';
-const BUILD_DATE='18 Sep 2026 12:38';
+const BUILD_VERSION='132';
+const BUILD_DATE='18 Sep 2026 13:18';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1177,17 +1184,24 @@ function renderConvCard(conv,msgs,badge){
   const stageLabel=STAGE_LABELS[conv.stage]||conv.stage||'New';
   const showStageLine=!badge||badge.label!==stageLabel;
   const showHoldMarker=conv.on_hold&&badge?.tone!=='hold';
+  const badgeStyle=badge?TONE_STYLE[badge.tone]:null;
+  const initial=esc((conv.customer_name||'?').trim().charAt(0).toUpperCase()||'?');
   return `<div class="conv-card ${toneClass}" id="conv-card-${conv.id}">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
-      <div>
-        <div class="conv-name-hero">${esc(conv.customer_name||'Unknown customer')}</div>
-        <div style="font-size:12px;color:var(--text-soft)">${esc(conv.customer_phone||'')}</div>
+      <div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
+        <div class="card-avatar" style="width:38px;height:38px;font-size:14px;flex-shrink:0">${initial}</div>
+        <div style="min-width:0">
+          <div class="conv-name-hero">${esc(conv.customer_name||'Unknown customer')}</div>
+          <div style="font-size:12px;color:var(--text-soft)">${esc(conv.customer_phone||'')}</div>
+        </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
         <div style="text-align:right">
-          ${badge?`<div class="conv-tag">${esc(badge.label)}</div>`:''}
-          ${showHoldMarker?`<div style="font-size:10px;font-weight:600;color:var(--navy-400)">⏸ On hold</div>`:''}
-          ${showStageLine?`<div style="font-size:10px;color:var(--text-muted);margin-top:1px">${esc(stageLabel)}</div>`:''}
+          <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
+            ${badge&&badgeStyle?`<span class="conv-badge-pill" style="background:${badgeStyle.color};color:${badgeStyle.onColor}">${esc(badge.label)}</span>`:''}
+            ${showHoldMarker?`<span class="conv-badge-pill conv-badge-pill-muted">On hold</span>`:''}
+          </div>
+          ${showStageLine?`<div style="font-size:10px;color:var(--text-muted);margin-top:4px">${esc(stageLabel)}</div>`:''}
           <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escTimeAgo(conv.last_message_at)}</div>
         </div>
         <details class="conv-actions-corner">
@@ -1570,9 +1584,9 @@ function jobCard(j,num){
   const numClass=isDone?'done':'';
   const isAdmin=currentUser?.view_mode!=='round_only';
   const cardId='jc-'+j.id;
-  const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" class="job-action action-navigate" onclick="event.stopPropagation()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</a>`;
+  const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" class="job-action action-navigate" onclick="event.stopPropagation()" style="background:transparent;border:1.5px solid var(--teal);color:var(--teal)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</a>`;
   const chargeBtn=`<button class="job-action action-charge" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`;
-  const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>`;
+  const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')" style="background:transparent;border:1.5px solid var(--violet);color:var(--violet)">📅 Reschedule</button>`;
   const actions=isSched
     ?`<div class="job-card-actions" style="grid-template-columns:repeat(${isAdmin?5:4},1fr)">
         <button class="job-action action-done" onclick="event.stopPropagation();markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
@@ -1598,8 +1612,10 @@ function jobCard(j,num){
       ${hasDetails?`<svg class="job-card-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`:''}
     </div>
     ${hasDetails?`<div class="job-card-details" style="display:none">
-      ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
-      ${j.round_name?`<div class="job-card-round">${esc(j.round_name)}</div>`:''}
+      ${(j.service_type||j.round_name)?`<div class="job-card-detail-rows">
+        ${j.service_type?`<div class="job-card-detail-row"><span>Service</span><span>${esc(j.service_type)}</span></div>`:''}
+        ${j.round_name?`<div class="job-card-detail-row"><span>Round</span><span style="color:var(--teal)">${esc(j.round_name)}</span></div>`:''}
+      </div>`:''}
       ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
       ${j.notes?`<div class="job-card-note" style="color:var(--text-muted)">📝 ${esc(j.notes)}</div>`:''}
     </div>`:''}
