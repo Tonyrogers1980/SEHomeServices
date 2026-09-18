@@ -659,8 +659,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='132';
-const BUILD_DATE='18 Sep 2026 13:18';
+const BUILD_VERSION='133';
+const BUILD_DATE='18 Sep 2026 14:43';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1536,7 +1536,7 @@ async function renderRound(){
   el.innerHTML=`
     ${roundViewBar()}
     ${pendingJobs.length?`<div class="detail-section" style="margin-bottom:14px;border-color:var(--warn)">
-      <div class="detail-section-header" style="color:var(--warn)">🧭 Unassigned — needs a round (${pendingJobs.length})</div>
+      <div class="detail-section-header" style="color:var(--warn)">🧭 Needs a round (${pendingJobs.length})</div>
       ${pendingJobs.map(j=>`<div class="detail-row">
         <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(j.wc_customers?.name||'Unknown')}</div>
         <div style="font-size:12px;color:var(--text-muted)">${esc(j.service_type||j.frequency||'')}</div></div>
@@ -3081,12 +3081,13 @@ function toggleJobsAssignee(key){
 
 function jobsOverviewCard(j){
   const c=j.wc_customers||{};
-  const pending=j.status==='pending_assignment';
+  const needsRound=j.status==='pending_assignment'; // round/date not yet set — scheduling admin, doesn't block the work itself
+  const needsPerson=!j.assigned_to; // nobody assigned to actually do the job — this is what matters
   const assigneeName=j.assigned_to?(wcUsers.find(u=>u.id===j.assigned_to)?.name||'Unknown'):'Unassigned';
-  return`<div class="job-card" style="${pending?'border-color:var(--warn)':''}">
+  return`<div class="job-card" style="${needsPerson?'border-color:var(--danger)':needsRound?'border-color:var(--warn)':''}">
     <div class="job-card-header" style="cursor:pointer" onclick="showCustomer('${c.id}')">
       <div class="job-card-body">
-        <div class="job-card-name">${esc(c.name||'Unknown')}${pending?' <span class="badge badge-pending" style="margin-left:6px;font-size:10px;vertical-align:middle">Needs round</span>':''}</div>
+        <div class="job-card-name">${esc(c.name||'Unknown')}${needsPerson?' <span class="badge" style="margin-left:6px;font-size:10px;vertical-align:middle;background:rgba(255,92,114,.16);color:var(--danger)">Needs person</span>':needsRound?' <span class="badge badge-pending" style="margin-left:6px;font-size:10px;vertical-align:middle">Needs round</span>':''}</div>
         <div class="job-card-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
@@ -3094,12 +3095,12 @@ function jobsOverviewCard(j){
     <div style="padding:0 12px 12px 46px;display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:12px;color:var(--text-muted)">
       <div>🧹 ${esc(j.service_type||'—')}</div>
       <div>🔁 ${freqLabel(j.frequency)}</div>
-      <div>📅 ${pending?'Needs date':'Next: '+(j.next_due?fmtShort(j.next_due):'—')}</div>
-      <div>🧭 ${pending?'Unassigned':esc(j.round_name||'No round')}</div>
-      <div style="grid-column:1/-1">👤 ${esc(assigneeName)}</div>
+      <div>📅 ${needsRound?'Needs date':'Next: '+(j.next_due?fmtShort(j.next_due):'—')}</div>
+      <div>🧭 ${needsRound?'No round yet':esc(j.round_name||'No round')}</div>
+      <div style="grid-column:1/-1;${needsPerson?'color:var(--danger);font-weight:600':''}">👤 ${esc(assigneeName)}</div>
       <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding-top:4px">
         <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditJob('${j.id}','${c.id}')">✏️ Edit</button>
-        ${pending?`<button class="btn btn-primary btn-sm" style="flex:1;margin-left:8px" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
+        ${needsRound?`<button class="btn btn-primary btn-sm" style="flex:1;margin-left:8px" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
       </div>
     </div>
   </div>`;
