@@ -6,19 +6,20 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ClearRound">
-<meta name="theme-color" content="#1e3a5f">
+<meta name="theme-color" content="#101f30">
 <title>ClearRound – SE Home Services</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231e3a5f'/><text x='96' y='130' font-size='100' text-anchor='middle' font-family='sans-serif' font-weight='700' fill='%23f0a500'>SE</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%23050d17'/><text x='96' y='130' font-size='100' text-anchor='middle' font-family='sans-serif' font-weight='700' fill='%23ffb200'>SE</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
 :root{
-  --navy-900:#0d1f35;--navy-800:#1e3a5f;--navy-700:#243f6a;--navy-600:#2d4f80;--navy-400:#4a7ab5;
-  --gold:#f0a500;--gold-dark:#c47f00;
-  --white:#ffffff;--text:#e8edf5;--text-soft:#8fa8c8;--text-muted:#5a7a9e;
-  --border:#243f6a;--done:#10b981;--done-light:rgba(16,185,129,.15);
-  --warn:#f59e0b;--warn-light:rgba(245,158,11,.15);
-  --danger:#ef4444;--danger-light:rgba(239,68,68,.15);
+  --navy-900:#050d17;--navy-800:#101f30;--navy-700:#16263c;--navy-600:#1c3350;--navy-400:#00e0cf;
+  --gold:#ffb200;--gold-dark:#cc8f00;
+  --teal:#00e0cf;--violet:#b18bff;
+  --white:#ffffff;--text:#f2f6fb;--text-soft:#aac0dc;--text-muted:#6f88a6;
+  --border:#2c4a6e;--done:#34f5ab;--done-light:rgba(52,245,171,.15);
+  --warn:#ffcf4d;--warn-light:rgba(255,207,77,.15);
+  --danger:#ff5c72;--danger-light:rgba(255,92,114,.15);
   --radius:12px;--radius-sm:8px;
   --bottom-nav:64px;
   --safe-bottom:env(safe-area-inset-bottom,0px);
@@ -36,7 +37,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .login-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;align-self:flex-start;width:100%;max-width:320px;}
 .user-pick{display:flex;gap:10px;width:100%;max-width:300px;margin-bottom:20px;}
 .user-btn{flex:1;padding:14px 8px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--navy-800);color:var(--text-soft);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;}
-.user-btn.selected{border-color:var(--gold);background:rgba(240,165,0,.1);color:var(--gold);}
+.user-btn.selected{border-color:var(--gold);background:rgba(255,178,0,.1);color:var(--gold);}
 .pin-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;align-self:flex-start;width:100%;max-width:320px;}
 .pin-display{display:flex;gap:12px;margin-bottom:20px;}
 .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background .15s,border-color .15s;}
@@ -84,11 +85,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 
 /* CARDS */
 .card-list{display:flex;flex-direction:column;gap:8px;}
-.card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s;}
+.card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s;box-shadow:0 3px 10px rgba(0,0,0,.4);}
 .card:active{background:var(--navy-700);}
 .card-avatar{width:42px;height:42px;border-radius:10px;background:var(--navy-600);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:var(--gold);flex-shrink:0;}
 .card-info{flex:1;min-width:0;}
-.card-name{font-size:15px;font-weight:600;color:var(--white);}
+.card-name{font-size:15px;font-weight:700;color:var(--white);}
 .card-sub{font-size:12px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* BUTTONS */
@@ -141,20 +142,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .detail-row:last-child{border-bottom:none;}
 .detail-label{color:var(--text-muted);flex-shrink:0;}
 .detail-value{font-weight:500;color:var(--text);text-align:right;}
-.conv-card{background:var(--navy-800);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 14px 14px 18px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.conv-card{background:var(--navy-800);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 14px 14px 18px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.35);}
 .conv-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--navy-600);}
-.conv-tone-urgent{box-shadow:0 4px 18px rgba(239,68,68,.18);border-color:rgba(239,68,68,.4);}
+.conv-tone-urgent{box-shadow:0 4px 18px rgba(255,92,114,.18);border-color:rgba(255,92,114,.4);}
 .conv-tone-urgent::before{background:var(--danger);}
-.conv-tone-ai::before{background:var(--gold);}
-.conv-tone-hold::before{background:var(--navy-400);}
-.conv-tone-quoted::before{background:#60a5fa;}
-.conv-tone-replied::before{background:#60a5fa;}
+.conv-tone-ai::before{background:var(--violet);}
+.conv-tone-hold::before{background:var(--text-muted);}
+.conv-tone-quoted::before{background:var(--teal);}
+.conv-tone-replied::before{background:var(--teal);}
 .conv-tone-archived{opacity:.78;}
 .conv-tone-archived::before{background:var(--text-muted);}
 .conv-name-hero{font-size:17px;font-weight:700;color:var(--white);}
 .conv-tag{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--text-soft);margin-top:2px;}
 .conv-divider{width:100%;border:none;border-top:1px solid var(--border);margin:0;}
-.conv-transcript-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);padding:6px 12px;border-radius:20px;}
+.conv-transcript-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(255,178,0,.1);border:1px solid rgba(255,178,0,.3);padding:6px 12px;border-radius:20px;}
 .conv-actions-toggle{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--navy-900);background:var(--gold);border:1px solid var(--gold);padding:6px 14px;border-radius:20px;}
 .conv-actions-toggle::-webkit-details-marker{display:none;}
 .conv-actions-corner{position:relative;}
@@ -173,17 +174,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .date-today-btn{font-size:13px;font-weight:500;color:var(--gold);background:none;border:none;cursor:pointer;padding:4px 10px;white-space:nowrap;}
 .round-filter select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-800);outline:none;margin-bottom:12px;-webkit-appearance:none;}
 .round-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
-.round-stat{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;text-align:center;}
-.round-stat-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--white);}
+.round-stat{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+.round-stat-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--white);}
 .round-stat-label{font-size:10px;color:var(--text-muted);margin-top:2px;}
 
 /* JOB CARD — large tap targets */
-.job-card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:6px;}
+.job-card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:6px;box-shadow:0 3px 10px rgba(0,0,0,.4);}
 .job-card-header{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;}
 .job-card-num{width:24px;height:24px;border-radius:50%;background:var(--navy-700);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--text-muted);flex-shrink:0;}
 .job-card-num.done{background:var(--done-light);border-color:var(--done);color:var(--done);}
 .job-card-body{flex:1;min-width:0;}
-.job-card-addr-main{font-size:15px;font-weight:600;color:var(--white);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.job-card-addr-main{font-size:15px;font-weight:700;color:var(--white);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .job-card-name-sub{font-size:12px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .job-card-name{font-size:16px;font-weight:600;color:var(--white);line-height:1.2;}
 .stripe-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;color:var(--gold);vertical-align:middle;}
@@ -192,7 +193,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-svc{font-size:12px;color:var(--text-muted);margin-top:3px;}
 .job-card-round{font-size:11px;color:var(--navy-400);font-weight:500;}
 .job-card-note{font-size:12px;color:var(--warn);margin-top:4px;font-weight:500;}
-.job-card-price{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--gold);flex-shrink:0;white-space:nowrap;}
+.job-card-price{font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--gold);flex-shrink:0;white-space:nowrap;}
 .job-card-chevron{width:14px;height:14px;color:var(--text-muted);transition:transform .15s;flex-shrink:0;}
 .job-card-chevron.open{transform:rotate(180deg);}
 .job-card-details{padding:0 12px 10px 46px;}
@@ -201,10 +202,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-action:active{transform:scale(.96);filter:brightness(1.15);}
 .job-action svg{width:15px;height:15px;}
 .action-done{background:var(--done);color:var(--white);}
-.action-navigate{background:#3b7dd8;color:var(--white);}
+.action-navigate{background:var(--teal);color:var(--navy-900);}
 .action-skip{background:var(--navy-700);color:var(--white);border:1px solid var(--border);}
 .action-charge{background:var(--gold);color:var(--navy-900);}
-.action-reschedule{background:#8b5cf6;color:var(--white);}
+.action-reschedule{background:var(--violet);color:var(--navy-900);}
 .action-undo{background:var(--navy-700);color:var(--white);border:1px solid var(--border);}
 .job-card.is-done{opacity:.65;border-color:var(--done);}
 .job-card.is-skip{opacity:.65;border-color:var(--warn);}
@@ -218,7 +219,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 /* MISC */
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;}
 .badge-done{background:var(--done-light);color:var(--done);}
-.badge-scheduled{background:rgba(74,122,181,.2);color:var(--navy-400);}
+.badge-scheduled{background:rgba(0,224,207,.2);color:var(--navy-400);}
 .badge-skipped{background:var(--warn-light);color:var(--warn);}
 .badge-cant{background:var(--danger-light);color:var(--danger);}
 .badge-pending{background:var(--warn-light);color:var(--warn);}
@@ -651,8 +652,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='130';
-const BUILD_DATE='18 Sep 2026 10:20';
+const BUILD_VERSION='131';
+const BUILD_DATE='18 Sep 2026 12:38';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1159,7 +1160,7 @@ function followupStatusPills(conv,msgs){
   const pills=[];
   const manualFollowup=[...(msgs||[])].reverse().find(m=>m.message_type==='template');
   if(manualFollowup){
-    pills.push(`<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(240,165,0,.14);border:1px solid rgba(240,165,0,.35);color:var(--gold)">Manual follow-up sent ${escTimeAgo(manualFollowup.created_at)}</span>`);
+    pills.push(`<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,178,0,.14);border:1px solid rgba(255,178,0,.35);color:var(--gold)">Manual follow-up sent ${escTimeAgo(manualFollowup.created_at)}</span>`);
   }
   if(conv.follow_up_stage==='day1_sent'){
     pills.push(`<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--navy-900);border:1px solid var(--border);color:var(--text-soft)">Auto Day 1 sent ${escTimeAgo(conv.follow_up_last_sent_at)} · Day 3 pending</span>`);
@@ -1215,7 +1216,7 @@ function renderConvCard(conv,msgs,badge){
         </div>`).join('')}
       </div>
     </details>`:''}
-    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(240,165,0,.14);border:1.5px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 10px">
+    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(255,178,0,.14);border:1.5px solid rgba(255,178,0,.4);border-radius:8px;padding:8px 10px">
       <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
       <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
     </div>`:''}
@@ -1325,10 +1326,10 @@ const TERMINAL_STAGE_LABELS={BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to conver
 const STAGE_LABELS={NEW:'New',QUALIFYING:'Qualifying',QUOTED:'Quote sent',BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
 const TONE_STYLE={
   urgent:{color:'var(--danger)',onColor:'var(--white)'},
-  ai:{color:'var(--gold)',onColor:'var(--navy-900)'},
-  hold:{color:'var(--navy-400)',onColor:'var(--white)'},
-  quoted:{color:'#60a5fa',onColor:'var(--navy-900)'},
-  replied:{color:'#60a5fa',onColor:'var(--navy-900)'},
+  ai:{color:'var(--violet)',onColor:'var(--navy-900)'},
+  hold:{color:'var(--text-muted)',onColor:'var(--white)'},
+  quoted:{color:'var(--teal)',onColor:'var(--navy-900)'},
+  replied:{color:'var(--teal)',onColor:'var(--navy-900)'},
   archived:{color:'var(--text-muted)',onColor:'var(--white)'},
   neutral:{color:'var(--text-soft)',onColor:'var(--navy-900)'},
 };
@@ -1670,7 +1671,7 @@ async function renderRoundWeek(el){
             <div style="flex:1">
               ${dayJobs.length===0?`<span style="font-size:13px;color:var(--text-muted)">No jobs</span>`
               :`<div style="font-size:14px;font-weight:500;color:var(--white)">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div>
-                <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))].map(r=>`<span style="font-size:11px;padding:1px 6px;border-radius:10px;background:rgba(74,122,181,.2);color:var(--navy-400)">${esc(r)}</span>`).join('')}</div>`}
+                <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))].map(r=>`<span style="font-size:11px;padding:1px 6px;border-radius:10px;background:rgba(0,224,207,.2);color:var(--navy-400)">${esc(r)}</span>`).join('')}</div>`}
             </div>
             <div style="text-align:right;flex-shrink:0">
               ${dayJobs.length?`<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold)">£${dayTotal.toFixed(2)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${dayDone}/${dayJobs.length} done</div>`:''}
@@ -1711,7 +1712,7 @@ async function renderRoundMonth(el){
     const hasDone=dayJobs.some(j=>j.status==='done');
     const hasScheduled=dayJobs.some(j=>j.status==='scheduled');
     const hasSkipped=dayJobs.some(j=>j.status==='skipped'||j.status==='cant-access');
-    cells+=`<div onclick="roundDate='${dateStr}';roundView='day';renderRound()" style="min-height:48px;background:${isSelected?'rgba(240,165,0,.15)':isToday?'rgba(240,165,0,.08)':'var(--navy-800)'};border:1px solid ${isSelected?'var(--gold)':isToday?'rgba(240,165,0,.4)':'var(--border)'};border-radius:var(--radius-sm);padding:4px;cursor:pointer">
+    cells+=`<div onclick="roundDate='${dateStr}';roundView='day';renderRound()" style="min-height:48px;background:${isSelected?'rgba(255,178,0,.15)':isToday?'rgba(255,178,0,.08)':'var(--navy-800)'};border:1px solid ${isSelected?'var(--gold)':isToday?'rgba(255,178,0,.4)':'var(--border)'};border-radius:var(--radius-sm);padding:4px;cursor:pointer">
       <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday||isSelected?'var(--gold)':'var(--text-soft)'}">${dayNum}</div>
       ${dayJobs.length?`<div style="font-size:10px;color:var(--gold);font-weight:600">${dayJobs.length}</div>
       <div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:1px">
@@ -1956,7 +1957,7 @@ async function showCustomer(id){
       <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="archiveCustomer('${c.id}')">Archive customer</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="archiveCustomer('${c.id}')">Archive customer</button>
     </div>`;
   loadCustomerJobs(id);
   if(c.stripe_customer_id)loadPaymentMethod(c.stripe_customer_id);
@@ -2428,7 +2429,7 @@ async function renderQuotes(){
 function quoteCard(q){
   const c=q.wc_customers||{};
   const cols={draft:'var(--text-muted)',sent:'var(--navy-400)',accepted:'var(--done)',declined:'var(--danger)'};
-  const bgs={draft:'rgba(90,122,158,.15)',sent:'rgba(74,122,181,.2)',accepted:'var(--done-light)',declined:'var(--danger-light)'};
+  const bgs={draft:'rgba(111,136,166,.15)',sent:'rgba(0,224,207,.2)',accepted:'var(--done-light)',declined:'var(--danger-light)'};
   const col=cols[q.status]||'var(--text-muted)',bg=bgs[q.status]||'transparent';
   return`<div class="card" onclick="showQuote('${q.id}')">
     <div class="card-avatar" style="background:${bg};color:${col}">${q.status==='accepted'?'✓':q.status==='declined'?'✗':'£'}</div>
@@ -2453,7 +2454,7 @@ async function showQuote(id){
        <button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
     :q.status==='sent'
     ?`<button class="btn btn-done btn-full" onclick="acceptQuote('${q.id}')">✓ Accept → Create job</button>
-       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="declineQuote('${q.id}')">Decline</button>
+       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="declineQuote('${q.id}')">Decline</button>
        <button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
     :q.status==='accepted'
     ?`<button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
@@ -2462,7 +2463,7 @@ async function showQuote(id){
     <button class="back-btn" onclick="renderQuotes()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Quotes</button>
     <div class="page-header">
       <div><div class="page-title">${esc(c.name||'Unknown')}</div><div class="page-sub">${esc(c.address||'')}</div></div>
-      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${q.status==='accepted'?'var(--done-light)':q.status==='declined'?'var(--danger-light)':q.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${q.status==='accepted'?'var(--done)':q.status==='declined'?'var(--danger)':q.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${q.status}</span>
+      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${q.status==='accepted'?'var(--done-light)':q.status==='declined'?'var(--danger-light)':q.status==='sent'?'rgba(0,224,207,.2)':'rgba(111,136,166,.15)'};color:${q.status==='accepted'?'var(--done)':q.status==='declined'?'var(--danger)':q.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${q.status}</span>
     </div>
     <div class="detail-section">
       <div class="detail-section-header">Quote details</div>
@@ -2474,7 +2475,7 @@ async function showQuote(id){
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">${actionBtns}</div>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="deleteQuote('${q.id}')">Delete quote</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="deleteQuote('${q.id}')">Delete quote</button>
     </div>`;
 }
 function toggleInlineCustomer(){
@@ -2734,7 +2735,7 @@ function invoiceCard(inv){
   const c=inv.wc_customers||{};
   const overdue=isOverdue(inv);
   const cols={draft:'var(--text-muted)',sent:overdue?'var(--danger)':'var(--navy-400)',paid:'var(--done)',void:'var(--text-muted)'};
-  const bgs={draft:'rgba(90,122,158,.15)',sent:overdue?'var(--danger-light)':'rgba(74,122,181,.2)',paid:'var(--done-light)',void:'rgba(90,122,158,.15)'};
+  const bgs={draft:'rgba(111,136,166,.15)',sent:overdue?'var(--danger-light)':'rgba(0,224,207,.2)',paid:'var(--done-light)',void:'rgba(111,136,166,.15)'};
   const col=cols[inv.status]||'var(--text-muted)',bg=bgs[inv.status]||'transparent';
   return`<div class="card" onclick="showInvoice('${inv.id}')" style="${overdue?'border-color:var(--danger);':''}">
     <div class="card-avatar" style="background:${bg};color:${col}">${inv.status==='paid'?'✓':overdue?'!':'£'}</div>
@@ -2761,14 +2762,14 @@ async function showInvoice(id){
     :inv.status==='sent'
     ?`<button class="btn btn-done btn-full" onclick="markInvoicePaid('${inv.id}')">✓ Mark as paid</button>
        ${inv.stripe_payment_link?`<a href="${esc(inv.stripe_payment_link)}" target="_blank" class="btn btn-ghost btn-full">View payment link ↗</a>`:''}
-       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="voidInvoice('${inv.id}')">Void</button>`
+       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="voidInvoice('${inv.id}')">Void</button>`
     :inv.status==='paid'?`<div style="color:var(--done);font-weight:600;text-align:center;padding:12px">✓ Paid${inv.paid_at?' on '+fmtShort(inv.paid_at.split('T')[0]):''}</div>`
     :`<button class="btn btn-ghost btn-full" onclick="reopenInvoice('${inv.id}')">Reopen as draft</button>`;
   el.innerHTML=`
     <button class="back-btn" onclick="renderInvoices()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Invoices</button>
     <div class="page-header">
       <div><div class="page-title">${esc(c.name||'Unknown')}</div><div class="page-sub">${esc(c.address||'')}</div></div>
-      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${inv.status==='paid'?'var(--done-light)':inv.status==='void'?'var(--danger-light)':inv.status==='sent'?'rgba(74,122,181,.2)':'rgba(90,122,158,.15)'};color:${inv.status==='paid'?'var(--done)':inv.status==='void'?'var(--danger)':inv.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${inv.status}</span>
+      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${inv.status==='paid'?'var(--done-light)':inv.status==='void'?'var(--danger-light)':inv.status==='sent'?'rgba(0,224,207,.2)':'rgba(111,136,166,.15)'};color:${inv.status==='paid'?'var(--done)':inv.status==='void'?'var(--danger)':inv.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${inv.status}</span>
     </div>
     <div class="detail-section">
       <div class="detail-section-header">Invoice details</div>
@@ -2782,7 +2783,7 @@ async function showInvoice(id){
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">${actionBtns}</div>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(239,68,68,.3)" onclick="deleteInvoice('${inv.id}')">Delete invoice</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="deleteInvoice('${inv.id}')">Delete invoice</button>
     </div>`;
 }
 async function openNewInvoice(){
@@ -3593,7 +3594,7 @@ async function loadMessagingKillSwitch(){
     el.innerHTML=`
       <div class="detail-row" style="padding:16px">
         <div>
-          <div style="font-size:14px;font-weight:600;color:${paused?'#ef4444':'var(--white)'}">
+          <div style="font-size:14px;font-weight:600;color:${paused?'#ff5c72':'var(--white)'}">
             ${paused?'⏸ All WhatsApp sending is PAUSED':'▶ WhatsApp sending is active'}
           </div>
           ${paused?`<div style="font-size:12px;color:var(--text-muted);margin-top:4px">${s.paused_reason?esc(s.paused_reason):'Paused manually'}${s.paused_at?' · '+fmtShort(s.paused_at):''}</div>`:

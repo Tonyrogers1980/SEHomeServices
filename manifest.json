@@ -7,8 +7,8 @@
   "scope": "/SEHomeServices/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0d1f35",
-  "theme_color": "#1e3a5f",
+  "background_color": "#050d17",
+  "theme_color": "#101f30",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
