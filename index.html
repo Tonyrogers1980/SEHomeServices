@@ -509,6 +509,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
           </select>
         </div>
       </div>
+      <div class="field"><label>Assign to</label><select id="q-assigned"><option value="">Unassigned</option></select></div>
       <div class="field"><label>Start date</label><input id="q-start-date" type="date" placeholder="When should the first job be?"></div>
       <div class="field"><label>Notes</label><textarea id="q-notes" placeholder="What's included, access details…"></textarea></div>
     </div>
@@ -650,8 +651,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='129';
-const BUILD_DATE='18 Sep 2026 10:00';
+const BUILD_VERSION='130';
+const BUILD_DATE='18 Sep 2026 10:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2023,13 +2024,16 @@ async function assignRoundToJob(jobId, quoteId){
   document.getElementById('quoteModalTitle').textContent='Assign Round';
   document.getElementById('inlineCustomerForm').style.display='none';
   document.getElementById('newCustBtn').textContent='+ New';
-  await Promise.all([loadConfig(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
+  await Promise.all([loadConfig(),loadUsers(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
   const sel=document.getElementById('q-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   sel.value=q.customer_id||'';
   document.getElementById('q-price').value=q.price||'';
   document.getElementById('q-frequency').value=q.frequency||'4-weekly';
   document.getElementById('q-day').value=q.day_of_week||'';
+  const assignedSelR=document.getElementById('q-assigned');
+  assignedSelR.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  assignedSelR.value=q.assigned_to||'';
   document.getElementById('q-start-date').min=minLeadDateStr();
   document.getElementById('q-start-date').value=q.start_date||'';
   document.getElementById('q-notes').value=q.notes||'';
@@ -2520,11 +2524,12 @@ async function openNewQuote(){
   document.getElementById('quoteModalTitle').textContent='New Quote';
   document.getElementById('inlineCustomerForm').style.display='none';
   document.getElementById('newCustBtn').textContent='+ New';
-  await Promise.all([loadConfig(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
+  await Promise.all([loadConfig(),loadUsers(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
   const sel=document.getElementById('q-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   ['q-price','q-notes'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('q-frequency').value='4-weekly';document.getElementById('q-day').value='';
+  document.getElementById('q-assigned').innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   document.getElementById('q-start-date').min=minLeadDateStr();
   document.getElementById('q-start-date').value='';
   populateServiceSelect('q-service');populateRoundSelect('q-round');
@@ -2537,13 +2542,16 @@ async function openEditQuote(id){
   document.getElementById('quoteModalTitle').textContent='Edit Quote';
   document.getElementById('inlineCustomerForm').style.display='none';
   document.getElementById('newCustBtn').textContent='+ New';
-  await Promise.all([loadConfig(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
+  await Promise.all([loadConfig(),loadUsers(),customers.length?Promise.resolve():sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`).then(r=>{customers=r;})]);
   const sel=document.getElementById('q-customer');
   sel.innerHTML='<option value="">Select customer…</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   sel.value=q.customer_id||'';
   document.getElementById('q-price').value=q.price||'';
   document.getElementById('q-frequency').value=q.frequency||'4-weekly';
   document.getElementById('q-day').value=q.day_of_week||'';
+  const assignedSelE=document.getElementById('q-assigned');
+  assignedSelE.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  assignedSelE.value=q.assigned_to||'';
   document.getElementById('q-start-date').min=minLeadDateStr();
   document.getElementById('q-start-date').value=q.start_date||'';
   document.getElementById('q-notes').value=q.notes||'';
@@ -2603,6 +2611,7 @@ async function saveQuote(status){
     service_type:document.getElementById('q-service').value||null,
     round_name:document.getElementById('q-round').value||null,
     day_of_week:document.getElementById('q-day').value||null,
+    assigned_to:document.getElementById('q-assigned').value||null,
     notes:document.getElementById('q-notes').value.trim()||null,
     start_date:startDate};
   try{
