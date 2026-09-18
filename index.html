@@ -649,8 +649,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='126';
-const BUILD_DATE='17 Sep 2026 17:30';
+const BUILD_VERSION='127';
+const BUILD_DATE='18 Sep 2026 09:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1122,9 +1122,21 @@ function escalationCardHtml(r,msgs,lead){
     <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
       ${lead?`<button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="openQuoteFromLead('${r.conversation_id}')">Send Quote</button>`:''}
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
+      <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="blockSender('${conv.customer_phone||''}','${r.id}','${r.conversation_id}','${esc(conv.customer_name||'this sender').replace(/'/g,"\\'")}')">🚫 Block</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${r.conversation_id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
     </div>
   </div>`;
+}
+async function blockSender(phone,escalationId,conversationId,name){
+  if(!phone){showToast('No phone number on this conversation','error');return;}
+  if(!confirm(`Block ${name} (${phone})? They'll never get an AI reply or reach you again — messages are silently ignored.`))return;
+  const digitsOnly=phone.replace(/^\+/,'');
+  try{
+    await sb('blocked_senders',{method:'POST',body:JSON.stringify({phone:digitsOnly,business_id:BUSINESS_ID,reason:'Blocked by '+(currentUser?.name||'staff')+' from escalation'}),prefer:'return=minimal'});
+    if(escalationId)await sb(`escalations?id=eq.${escalationId}`,{method:'PATCH',body:JSON.stringify({status:'RESOLVED',resolved_at:new Date().toISOString(),resolved_by:currentUser?.id||null}),prefer:'return=minimal'});
+    showToast(name+' is now blocked','success');
+    renderMessaging();
+  }catch(e){showToast(e.message,'error');}
 }
 async function resolveEscalation(escalationId,conversationId){
   try{
