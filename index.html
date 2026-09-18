@@ -511,10 +511,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="field"><label>Start date</label><input id="q-start-date" type="date" placeholder="When should the first job be?"></div>
       <div class="field"><label>Notes</label><textarea id="q-notes" placeholder="What's included, access details…"></textarea></div>
     </div>
-    <div class="form-actions">
+    <div class="form-actions" id="quoteModalActions">
       <button class="btn btn-ghost" onclick="closeModal('quoteModal')">Cancel</button>
-      <button class="btn btn-ghost" onclick="saveQuote('draft')">Save draft</button>
-      <button class="btn btn-primary" onclick="saveQuote('sent')">Save & send</button>
+      <button class="btn btn-ghost" id="q-btn-draft" onclick="saveQuote('draft')">Save draft</button>
+      <button class="btn btn-primary" id="q-btn-send" onclick="saveQuote('sent')">Save & send</button>
     </div>
   </div>
 </div>
@@ -649,8 +649,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='127';
-const BUILD_DATE='18 Sep 2026 09:15';
+const BUILD_VERSION='128';
+const BUILD_DATE='18 Sep 2026 09:35';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2032,7 +2032,18 @@ async function assignRoundToJob(jobId, quoteId){
   document.getElementById('q-start-date').value=q.start_date||'';
   document.getElementById('q-notes').value=q.notes||'';
   populateServiceSelect('q-service',q.service_type||'');populateRoundSelect('q-round',q.round_name||'');
+  // This is assigning a round to an already-accepted quote, not sending a new one —
+  // show a single unambiguous action instead of the New Quote modal's Save draft/Save & send pair.
+  document.getElementById('q-btn-draft').style.display='none';
+  const sendBtn=document.getElementById('q-btn-send');
+  sendBtn.textContent='Save round & date';
+  sendBtn.onclick=saveRoundAssignment;
   document.getElementById('quoteModal').classList.add('open');
+}
+function saveRoundAssignment(){
+  if(!document.getElementById('q-round').value){showToast('Pick a round before saving','error');return;}
+  if(!document.getElementById('q-start-date').value){showToast('Pick a start date before saving — the job won\'t be scheduled without one','error');return;}
+  saveQuote('draft');
 }
 async function loadCustomerJobs(customerId){
   try{
@@ -2455,8 +2466,15 @@ async function saveInlineCustomer(){
     showToast(`${name} added ✓`,'success');
   }catch(e){showToast(e.message,'error');}
 }
+function resetQuoteModalActions(){
+  document.getElementById('q-btn-draft').style.display='';
+  const sendBtn=document.getElementById('q-btn-send');
+  sendBtn.textContent='Save & send';
+  sendBtn.onclick=function(){saveQuote('sent');};
+}
 async function openNewQuote(){
   editingQuoteId=null;
+  resetQuoteModalActions();
   document.getElementById('quoteModalTitle').textContent='New Quote';
   document.getElementById('inlineCustomerForm').style.display='none';
   document.getElementById('newCustBtn').textContent='+ New';
@@ -2472,6 +2490,7 @@ async function openNewQuote(){
 }
 async function openEditQuote(id){
   editingQuoteId=id;
+  resetQuoteModalActions();
   const q=quotes.find(x=>x.id===id);if(!q)return;
   document.getElementById('quoteModalTitle').textContent='Edit Quote';
   document.getElementById('inlineCustomerForm').style.display='none';
@@ -2536,30 +2555,34 @@ async function saveQuote(status){
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   const startDate=document.getElementById('q-start-date').value||null;
   if(isDateTooSoon(startDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
-  const payload={customer_id:customerId,business_id:BUSINESS_ID,price,status,
+  const isEditingExisting=!!editingQuoteId;
+  const basePayload={customer_id:customerId,business_id:BUSINESS_ID,price,
     frequency:document.getElementById('q-frequency').value||'one-off',
     service_type:document.getElementById('q-service').value||null,
     round_name:document.getElementById('q-round').value||null,
     day_of_week:document.getElementById('q-day').value||null,
     notes:document.getElementById('q-notes').value.trim()||null,
-    start_date:startDate,
-    sent_at:status==='sent'?new Date().toISOString():null};
+    start_date:startDate};
   try{
     let quoteId=editingQuoteId;
-    if(editingQuoteId){
-      await sb(`wc_quotes?id=eq.${editingQuoteId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
+    if(isEditingExisting){
+      // Editing an existing quote (e.g. assigning a round) never touches status or re-sends
+      // the original quote message — status only ever moves forward through its own flow
+      // (accepted \u2192 job created), never backward via an edit save.
+      await sb(`wc_quotes?id=eq.${editingQuoteId}`,{method:'PATCH',body:JSON.stringify(basePayload),prefer:'return=minimal'});
       showToast('Quote updated','success');
       // Fire-and-forget: if this quote is already accepted and now has a round+date, this creates the job and confirms the date to the customer. No-ops safely otherwise.
       fetch(N8N_CONFIRM_SCHEDULE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quote_id:editingQuoteId})}).catch(()=>{});
     }else{
+      const payload={...basePayload,status,sent_at:status==='sent'?new Date().toISOString():null};
       // Use return=representation to get the new quote's ID
       const [newQuote]=await sb('wc_quotes?select=id',{method:'POST',body:JSON.stringify(payload),prefer:'return=representation'});
       quoteId=newQuote?.id||null;
       showToast(status==='sent'?'Quote saved':'Draft saved','success');
-    }
-    if(status==='sent'){
-      const customer=customers.find(c=>c.id===customerId)||{};
-      fireQuoteWebhook({quoteId,customer,price,service_type:payload.service_type,frequency:payload.frequency,notes:payload.notes,start_date:payload.start_date||null});
+      if(status==='sent'){
+        const customer=customers.find(c=>c.id===customerId)||{};
+        fireQuoteWebhook({quoteId,customer,price,service_type:payload.service_type,frequency:payload.frequency,notes:payload.notes,start_date:payload.start_date||null});
+      }
     }
     closeModal('quoteModal');renderQuotes();
   }catch(e){showToast(e.message,'error');}
