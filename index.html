@@ -381,7 +381,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 <div class="modal-overlay" id="jobModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Schedule job</div>
+      <div class="modal-title" id="jobModalTitle">Schedule job</div>
       <button class="modal-close" onclick="closeModal('jobModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
@@ -414,8 +414,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="field"><label>Notes</label><textarea id="j-notes" placeholder="Job notes…"></textarea></div>
     </div>
     <div class="form-actions">
+      <button class="btn btn-outline-danger" id="j-btn-delete" style="display:none" onclick="deleteJobConfirm()">Delete job</button>
       <button class="btn btn-ghost" onclick="closeModal('jobModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveJob()">Save job</button>
+      <button class="btn btn-primary" id="j-btn-save" onclick="saveJob()">Save job</button>
     </div>
   </div>
 </div>
@@ -649,14 +650,14 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='128';
-const BUILD_DATE='18 Sep 2026 09:35';
+const BUILD_VERSION='129';
+const BUILD_DATE='18 Sep 2026 10:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundFilter='';
-let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null;
+let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null;
 let editingQuoteId=null,quotes=[],quoteFilter='all';
 let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 
@@ -1525,6 +1526,7 @@ async function renderRound(){
         <div style="font-size:12px;color:var(--text-muted)">${esc(j.service_type||j.frequency||'')}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--white)">£${parseFloat(j.price||0).toFixed(2)}</span>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openEditJob('${j.id}','${j.customer_id}')">✏️</button>
           <button class="btn btn-primary btn-sm" style="padding:4px 10px;font-size:12px" onclick="assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>
         </div>
       </div>`).join('')}
@@ -2058,6 +2060,7 @@ async function loadCustomerJobs(customerId){
         <span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span>
         ${j.status==='scheduled'?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅</button>`:''}
         ${j.status==='pending_assignment'?`<button class="btn btn-primary btn-sm" style="padding:4px 10px;font-size:12px" onclick="assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
+        <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openEditJob('${j.id}','${customerId}')" title="Edit or delete this job">✏️</button>
       </div>
     </div>`).join('');
   }catch(e){}
@@ -2317,7 +2320,9 @@ async function sendPaymentSetup(customerId){
 
 // ── JOB MODAL ─────────────────────────────────────────────────────────────────
 async function openAddJob(customerId){
-  jobCustomerId=customerId;
+  jobCustomerId=customerId;editingJobId=null;
+  document.getElementById('jobModalTitle').textContent='Schedule job';
+  document.getElementById('j-btn-delete').style.display='none';
   document.getElementById('j-price').value='';
   document.getElementById('j-frequency').value='4-weekly';
   const dateEl=document.getElementById('j-date');
@@ -2332,6 +2337,28 @@ async function openAddJob(customerId){
   sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   document.getElementById('jobModal').classList.add('open');
 }
+async function openEditJob(jobId,customerId){
+  let j;
+  try{[j]=await sb(`wc_jobs?id=eq.${jobId}`);}catch(e){showToast('Could not load job','error');return;}
+  if(!j){showToast('Job not found','error');return;}
+  jobCustomerId=customerId;editingJobId=jobId;
+  document.getElementById('jobModalTitle').textContent='Edit job';
+  document.getElementById('j-btn-delete').style.display='';
+  document.getElementById('j-price').value=j.price||'';
+  document.getElementById('j-frequency').value=j.frequency||'4-weekly';
+  const dateEl=document.getElementById('j-date');
+  dateEl.min=minLeadDateStr();
+  dateEl.value=j.next_due||j.scheduled_date||'';
+  document.getElementById('j-day').value=j.day_of_week||'';
+  document.getElementById('j-notes').value=j.notes||'';
+  await Promise.all([loadConfig(),loadUsers()]);
+  populateServiceSelect('j-service',j.service_type||'');
+  populateRoundSelect('j-round',j.round_name||'');
+  const sel=document.getElementById('j-assigned');
+  sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  sel.value=j.assigned_to||'';
+  document.getElementById('jobModal').classList.add('open');
+}
 async function saveJob(){
   const price=parseFloat(document.getElementById('j-price').value);
   const date=document.getElementById('j-date').value;
@@ -2339,20 +2366,35 @@ async function saveJob(){
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
   if(isDateTooSoon(date)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
+  const fields={price,frequency,
+    scheduled_date:date,next_due:date,
+    assigned_to:document.getElementById('j-assigned').value||null,
+    notes:document.getElementById('j-notes').value.trim()||null,
+    service_type:document.getElementById('j-service').value||null,
+    round_name:document.getElementById('j-round').value||null,
+    day_of_week:document.getElementById('j-day').value||null,
+    status:'scheduled'};
   try{
-    await sb('wc_jobs',{method:'POST',body:JSON.stringify({
-      customer_id:jobCustomerId,business_id:BUSINESS_ID,price,
-      frequency,
-      series_id:frequency!=='one-off'?crypto.randomUUID():null,
-      scheduled_date:date,next_due:date,
-      assigned_to:document.getElementById('j-assigned').value||null,
-      notes:document.getElementById('j-notes').value.trim()||null,
-      service_type:document.getElementById('j-service').value||null,
-      round_name:document.getElementById('j-round').value||null,
-      day_of_week:document.getElementById('j-day').value||null,
-      status:'scheduled',round_order:0
-    }),prefer:'return=minimal'});
-    showToast('Job scheduled','success');closeModal('jobModal');loadCustomerJobs(jobCustomerId);
+    if(editingJobId){
+      await sb(`wc_jobs?id=eq.${editingJobId}`,{method:'PATCH',body:JSON.stringify(fields),prefer:'return=minimal'});
+      showToast('Job updated','success');
+    }else{
+      await sb('wc_jobs',{method:'POST',body:JSON.stringify({
+        ...fields,customer_id:jobCustomerId,business_id:BUSINESS_ID,
+        series_id:frequency!=='one-off'?crypto.randomUUID():null,round_order:0
+      }),prefer:'return=minimal'});
+      showToast('Job scheduled','success');
+    }
+    closeModal('jobModal');loadCustomerJobs(jobCustomerId);
+  }catch(e){showToast(e.message,'error');}
+}
+async function deleteJobConfirm(){
+  if(!editingJobId)return;
+  if(!confirm('Delete this job? This can\'t be undone.'))return;
+  try{
+    await sb(`wc_jobs?id=eq.${editingJobId}`,{method:'DELETE',prefer:'return=minimal'});
+    showToast('Job deleted','success');
+    closeModal('jobModal');loadCustomerJobs(jobCustomerId);
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -3029,7 +3071,10 @@ function jobsOverviewCard(j){
       <div>📅 ${pending?'Needs date':'Next: '+(j.next_due?fmtShort(j.next_due):'—')}</div>
       <div>🧭 ${pending?'Unassigned':esc(j.round_name||'No round')}</div>
       <div style="grid-column:1/-1">👤 ${esc(assigneeName)}</div>
-      ${pending?`<div style="grid-column:1/-1;padding-top:4px"><button class="btn btn-primary btn-sm btn-full" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button></div>`:''}
+      <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding-top:4px">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditJob('${j.id}','${c.id}')">✏️ Edit</button>
+        ${pending?`<button class="btn btn-primary btn-sm" style="flex:1;margin-left:8px" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
+      </div>
     </div>
   </div>`;
 }
