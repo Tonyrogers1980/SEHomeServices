@@ -659,8 +659,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='135';
-const BUILD_DATE='18 Sep 2026 15:15';
+const BUILD_VERSION='136';
+const BUILD_DATE='19 Sep 2026 19:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1129,6 +1129,11 @@ function escalationCardHtml(r,msgs,lead){
         </div>`).join('')}
       </div>
     </details>`:''}
+    ${suggestedReplyHtml(r.conversation_id)}
+    <div style="display:flex;gap:8px;width:100%">
+      <textarea id="reply-${r.conversation_id}" placeholder="Type a reply…" rows="2" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      <button class="btn btn-primary btn-sm" id="send-btn-${r.conversation_id}" style="align-self:flex-end" onclick="sendManualReply('${r.conversation_id}')">Send</button>
+    </div>
     <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
       ${lead?`<button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="openQuoteFromLead('${r.conversation_id}')">Send Quote</button>`:''}
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
@@ -1234,6 +1239,7 @@ function renderConvCard(conv,msgs,badge){
       <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
       <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
     </div>`:''}
+    ${suggestedReplyHtml(conv.id)}
     <div style="display:flex;gap:8px;width:100%">
       <textarea id="reply-${conv.id}" placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}" rows="2" ${windowClosed?'disabled':''} style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;${windowClosed?'opacity:.5':''}"></textarea>
       <button class="btn btn-primary btn-sm" id="send-btn-${conv.id}" style="align-self:flex-end" ${windowClosed?'disabled':''} onclick="sendManualReply('${conv.id}')">Send</button>
@@ -1283,7 +1289,27 @@ async function sendManualReply(conversationId){
     btn.disabled=false;btn.textContent='Send';
   }
 }
-let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null,messagingLeadsByConv={};
+let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null,messagingLeadsByConv={},openEscalationByConv={};
+// v1.0.136: the AI's summary of what the customer needs + a suggested reply, shown on escalated conversations.
+function suggestedReplyHtml(conversationId,{showSummary=true}={}){
+  const e=openEscalationByConv[conversationId];
+  if(!e||(!e.suggested_reply&&!(showSummary&&e.reason_detail)))return '';
+  return `<div style="width:100%;box-sizing:border-box;border:1.5px solid var(--violet);border-radius:8px;padding:8px 10px;background:rgba(177,139,255,.08);display:flex;flex-direction:column;gap:6px">
+    ${showSummary&&e.reason_detail?`<div style="font-size:12px;color:var(--text-soft)"><span style="font-weight:700;color:var(--violet)">What they need:</span> ${esc(e.reason_detail)}</div>`:''}
+    ${e.suggested_reply?`<div style="font-size:11px;font-weight:700;color:var(--violet);text-transform:uppercase;letter-spacing:.04em">Suggested reply</div>
+    <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(e.suggested_reply)}</div>
+    <div><button class="btn btn-neutral btn-sm" style="padding:6px 10px;font-size:12px;min-height:32px" onclick="useSuggestedReply('${conversationId}')">Use this reply</button></div>`:''}
+  </div>`;
+}
+function useSuggestedReply(conversationId){
+  const e=openEscalationByConv[conversationId];
+  const ta=document.getElementById('reply-'+conversationId);
+  if(!e||!e.suggested_reply||!ta)return;
+  if(ta.disabled){showToast('24h window closed. Send a follow-up first','error');return;}
+  ta.value=e.suggested_reply.replace(/\s*[\u2014\u2013]\s*/g,', ');
+  ta.focus();
+  ta.scrollIntoView({block:'center',behavior:'smooth'});
+}
 function openMarkStageModal(conversationId,stage){
   markStageConvId=conversationId;markStageValue=stage;
   const labels={QUOTED:'Quote sent',BOOKED:'Booked',FAILED_TO_CONVERT:'Failed to convert',TIME_WASTER:'Time waster',CLOSED:'Closed'};
@@ -1468,6 +1494,12 @@ async function renderMessaging(){
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
   [...responseRequired,...aiHandling,...allActive,...onHold,...quoteSent,...archive].forEach(c=>{messagingConvById[c.id]=c;});
+  openEscalationByConv={};
+  escalations.forEach(r=>{
+    if(!r.conversation_id)return;
+    if(!openEscalationByConv[r.conversation_id])openEscalationByConv[r.conversation_id]=r; // newest first (ordered by created_at desc)
+    if(!messagingConvById[r.conversation_id]&&r.conversations)messagingConvById[r.conversation_id]={id:r.conversation_id,...r.conversations};
+  });
   let messagesByConv={};
   const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id),...onHold.map(c=>c.id),...quoteSent.map(c=>c.id),...archive.map(c=>c.id)])];
   if(allIds.length){
