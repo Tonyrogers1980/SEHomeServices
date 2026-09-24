@@ -659,15 +659,15 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='138';
-const BUILD_DATE='24 Sep 2026 12:46';
+const BUILD_VERSION='139';
+const BUILD_DATE='24 Sep 2026 12:57';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundAssignees=null;
-let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null;
-let editingQuoteId=null,quotes=[],quoteFilter='all';
+let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null,editingJobOriginalDate=null;
+let editingQuoteId=null,quotes=[],quoteFilter='all',editingQuoteOriginalDate=null;
 let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 
 // ── UTILS ──────────────────────────────────────────────────────────────────────
@@ -1668,7 +1668,7 @@ function jobCard(j,num){
       </div>`;
   const hasDetails=!!(j.service_type||j.round_name||c.notes||j.notes);
   return`<div class="job-card ${cardClass}" id="${cardId}">
-    <div class="job-card-header" onclick="toggleJobCard('${cardId}')">
+    <div class="job-card-header" onclick="openEditJob('${j.id}','${c.id}')">
       <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
       <div class="job-card-body">
         <div class="job-card-addr-main">${addrLink(c.address,c.postcode,'job-card-addr-main')}</div>
@@ -1676,9 +1676,8 @@ function jobCard(j,num){
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
       ${assigneeBadge}
-      ${hasDetails?`<svg class="job-card-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`:''}
     </div>
-    ${hasDetails?`<div class="job-card-details" style="display:none">
+    ${hasDetails?`<div class="job-card-details">
       ${(j.service_type||j.round_name)?`<div class="job-card-detail-rows">
         ${j.service_type?`<div class="job-card-detail-row"><span>Service</span><span>${esc(j.service_type)}</span></div>`:''}
         ${j.round_name?`<div class="job-card-detail-row"><span>Round</span><span style="color:var(--teal)">${esc(j.round_name)}</span></div>`:''}
@@ -1688,17 +1687,6 @@ function jobCard(j,num){
     </div>`:''}
     ${actions}
   </div>`;
-}
-
-function toggleJobCard(cardId){
-  const card=document.getElementById(cardId);
-  if(!card)return;
-  const details=card.querySelector('.job-card-details');
-  const chevron=card.querySelector('.job-card-chevron');
-  if(!details)return;
-  const isOpen=details.style.display!=='none';
-  details.style.display=isOpen?'none':'block';
-  if(chevron)chevron.classList.toggle('open',!isOpen);
 }
 
 // ── WEEK VIEW ─────────────────────────────────────────────────────────────────
@@ -2104,7 +2092,7 @@ async function assignRoundToJob(jobId, quoteId){
   let q;
   try{[q]=await sb(`wc_quotes?id=eq.${quoteId}`);}catch(e){showToast('Could not load quote','error');return;}
   if(!q){showToast('Quote not found','error');return;}
-  editingQuoteId=quoteId;
+  editingQuoteId=quoteId;editingQuoteOriginalDate=q.start_date||'';
   document.getElementById('quoteModalTitle').textContent='Assign Round';
   document.getElementById('inlineCustomerForm').style.display='none';
   document.getElementById('newCustBtn').textContent='+ New';
@@ -2408,7 +2396,7 @@ async function sendPaymentSetup(customerId){
 
 // ── JOB MODAL ─────────────────────────────────────────────────────────────────
 async function openAddJob(customerId){
-  jobCustomerId=customerId;editingJobId=null;
+  jobCustomerId=customerId;editingJobId=null;editingJobOriginalDate=null;
   document.getElementById('jobModalTitle').textContent='Schedule job';
   document.getElementById('j-btn-delete').style.display='none';
   document.getElementById('j-price').value='';
@@ -2429,7 +2417,7 @@ async function openEditJob(jobId,customerId){
   let j;
   try{[j]=await sb(`wc_jobs?id=eq.${jobId}`);}catch(e){showToast('Could not load job','error');return;}
   if(!j){showToast('Job not found','error');return;}
-  jobCustomerId=customerId;editingJobId=jobId;
+  jobCustomerId=customerId;editingJobId=jobId;editingJobOriginalDate=j.next_due||j.scheduled_date||'';
   document.getElementById('jobModalTitle').textContent='Edit job';
   document.getElementById('j-btn-delete').style.display='';
   document.getElementById('j-price').value=j.price||'';
@@ -2453,7 +2441,7 @@ async function saveJob(){
   const frequency=document.getElementById('j-frequency').value||'one-off';
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
-  if(isDateTooSoon(date)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
+  if(isDateTooSoon(date)&&date!==editingJobOriginalDate){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const fields={price,frequency,
     scheduled_date:date,next_due:date,
     assigned_to:document.getElementById('j-assigned').value||null,
@@ -2603,7 +2591,7 @@ function resetQuoteModalActions(){
   sendBtn.onclick=function(){saveQuote('sent');};
 }
 async function openNewQuote(){
-  editingQuoteId=null;
+  editingQuoteId=null;editingQuoteOriginalDate=null;
   resetQuoteModalActions();
   document.getElementById('quoteModalTitle').textContent='New Quote';
   document.getElementById('inlineCustomerForm').style.display='none';
@@ -2623,6 +2611,7 @@ async function openEditQuote(id){
   editingQuoteId=id;
   resetQuoteModalActions();
   const q=quotes.find(x=>x.id===id);if(!q)return;
+  editingQuoteOriginalDate=q.start_date||'';
   document.getElementById('quoteModalTitle').textContent='Edit Quote';
   document.getElementById('inlineCustomerForm').style.display='none';
   document.getElementById('newCustBtn').textContent='+ New';
@@ -2688,7 +2677,7 @@ async function saveQuote(status){
   if(!customerId){showToast('Select a customer','error');return;}
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   const startDate=document.getElementById('q-start-date').value||null;
-  if(isDateTooSoon(startDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
+  if(isDateTooSoon(startDate)&&startDate!==editingQuoteOriginalDate){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const isEditingExisting=!!editingQuoteId;
   const basePayload={customer_id:customerId,business_id:BUSINESS_ID,price,
     frequency:document.getElementById('q-frequency').value||'one-off',
