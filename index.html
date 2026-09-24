@@ -659,8 +659,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='137';
-const BUILD_DATE='24 Sep 2026 12:40';
+const BUILD_VERSION='138';
+const BUILD_DATE='24 Sep 2026 12:46';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1567,6 +1567,30 @@ async function renderRound(){
   const earned=filtered.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
   const isToday=roundDate===todayStr();
 
+  let jobsHtml='';
+  if(filtered.length){
+    if(isAdmin){
+      const groups=new Map();
+      wcUsers.forEach(u=>groups.set(u.id,{label:u.name,jobs:[]}));
+      groups.set('unassigned',{label:'Unassigned',jobs:[]});
+      filtered.forEach(j=>{
+        const key=j.assigned_to||'unassigned';
+        if(!groups.has(key))groups.set(key,{label:'Unknown',jobs:[]});
+        groups.get(key).jobs.push(j);
+      });
+      jobsHtml=[...groups.entries()].filter(([,g])=>g.jobs.length).map(([key,g])=>{
+        const badge=key!=='unassigned'?`<div style="width:26px;height:26px;border-radius:50%;background:${userColor(key)};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#0a1420;flex-shrink:0;">${initialsFor(g.label)}</div>`:`<div style="width:26px;height:26px;border-radius:50%;background:var(--navy-700);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0;font-size:13px;">?</div>`;
+        return `<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;padding:0 2px;">
+          ${badge}
+          <div style="font-size:14px;font-weight:700;color:var(--white)">${esc(g.label)}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${g.jobs.length}</div>
+        </div>` + g.jobs.map((j,i)=>jobCard(j,i+1)).join('');
+      }).join('');
+    }else{
+      jobsHtml=filtered.map((j,i)=>jobCard(j,i+1)).join('');
+    }
+  }
+
   el.innerHTML=`
     ${roundViewBar()}
     ${unassignedJobs.length?`<button type="button" onclick="navigate('jobs')" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;background:var(--navy-800);border:1px solid var(--danger);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.4)">
@@ -1594,7 +1618,7 @@ async function renderRound(){
       <div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
     </div>
     ${filtered.length
-      ? filtered.map((j,i)=>jobCard(j,i+1)).join('')
+      ? jobsHtml
       : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         <div class="empty-title">No jobs on this date</div>
         <div class="empty-sub">Jobs are scheduled from a customer profile.</div>
