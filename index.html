@@ -659,13 +659,13 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='136';
-const BUILD_DATE='19 Sep 2026 19:30';
+const BUILD_VERSION='137';
+const BUILD_DATE='24 Sep 2026 12:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
-let roundDate=todayStr(),roundFilter='';
+let roundDate=todayStr(),roundAssignees=null;
 let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null;
 let editingQuoteId=null,quotes=[],quoteFilter='all';
 let invoices=[],invoiceFilter='all',editingInvoiceId=null;
@@ -1539,6 +1539,9 @@ async function renderRound(){
   document.getElementById('topbarAction').innerHTML='';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
+  await loadUsers();
+  const isAdmin=currentUser?.view_mode!=='round_only';
+  if(roundAssignees===null)roundAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
   if(roundView==='week'){await renderRoundWeek(el);return;}
   if(roundView==='month'){await renderRoundMonth(el);return;}
   // Day view
@@ -1557,12 +1560,11 @@ async function renderRound(){
   // CHECKPOINT — show data count before rendering
   el.innerHTML=`<div class="empty"><div class="empty-title" style="color:var(--done)">✓ Got ${jobs.length} jobs</div><div class="empty-sub">Rendering now…</div></div>`;
 
-  const filtered=roundFilter?jobs.filter(j=>j.round_name===roundFilter):jobs;
+  const filtered=isAdmin?jobs.filter(j=>roundAssignees.has(j.assigned_to||'unassigned')):jobs;
   const done=filtered.filter(j=>j.status==='done').length;
   const skipped=filtered.filter(j=>j.status==='skipped'||j.status==='cant-access').length;
   const remaining=filtered.filter(j=>j.status==='scheduled').length;
   const earned=filtered.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
-  const rounds=[...new Set(jobs.map(j=>j.round_name).filter(Boolean))].sort();
   const isToday=roundDate===todayStr();
 
   el.innerHTML=`
@@ -1581,10 +1583,10 @@ async function renderRound(){
       ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:56px"></div>'}
       <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    ${rounds.length>1?`<select class="round-filter" onchange="roundFilter=this.value;renderRound()">
-      <option value="">All rounds (${jobs.length})</option>
-      ${rounds.map(r=>`<option value="${esc(r)}"${roundFilter===r?' selected':''}>${esc(r)}</option>`).join('')}
-    </select>`:''}
+    ${isAdmin&&wcUsers.length?`<div class="assignee-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 0 14px">
+      ${wcUsers.map(u=>`<button class="assignee-pill${roundAssignees.has(u.id)?' selected':''}" onclick="toggleRoundAssignee('${u.id}')">${esc(u.name)}</button>`).join('')}
+      <button class="assignee-pill${roundAssignees.has('unassigned')?' selected':''}" onclick="toggleRoundAssignee('unassigned')">Unassigned</button>
+    </div>`:''}
     <div class="round-summary">
       <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
@@ -1605,6 +1607,16 @@ async function renderRound(){
 
 function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
 
+const AVATAR_COLORS=['#5ec8ff','#ff8a5c','#ff6fae','#8de971','#c792ea','#ffd166'];
+function userColor(id){
+  let hash=0;
+  for(let i=0;i<id.length;i++)hash=(hash*31+id.charCodeAt(i))>>>0;
+  return AVATAR_COLORS[hash%AVATAR_COLORS.length];
+}
+function initialsFor(name){
+  return (name||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0]).join('').toUpperCase().slice(0,2)||'?';
+}
+
 function jobCard(j,num){
   const c=j.wc_customers||{};
   const isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access',isSched=j.status==='scheduled';
@@ -1612,6 +1624,8 @@ function jobCard(j,num){
   const numClass=isDone?'done':'';
   const isAdmin=currentUser?.view_mode!=='round_only';
   const cardId='jc-'+j.id;
+  const assignee=j.assigned_to?wcUsers.find(u=>u.id===j.assigned_to):null;
+  const assigneeBadge=assignee?`<div title="${esc(assignee.name)}" style="width:26px;height:26px;border-radius:50%;background:${userColor(assignee.id)};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#0a1420;flex-shrink:0;">${initialsFor(assignee.name)}</div>`:'';
   const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" class="job-action action-navigate" onclick="event.stopPropagation()" style="background:transparent;border:1.5px solid var(--teal);color:var(--teal)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</a>`;
   const chargeBtn=`<button class="job-action action-charge" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`;
   const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')" style="background:transparent;border:1.5px solid var(--violet);color:var(--violet)">📅 Reschedule</button>`;
@@ -1637,6 +1651,7 @@ function jobCard(j,num){
         <div class="job-card-name-sub">${esc(c.name||'Unknown')}</div>
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+      ${assigneeBadge}
       ${hasDetails?`<svg class="job-card-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`:''}
     </div>
     ${hasDetails?`<div class="job-card-details" style="display:none">
@@ -3105,6 +3120,12 @@ function toggleJobsAssignee(key){
   if(jobsAssignees.has(key))jobsAssignees.delete(key);
   else jobsAssignees.add(key);
   renderJobs();
+}
+
+function toggleRoundAssignee(key){
+  if(roundAssignees.has(key))roundAssignees.delete(key);
+  else roundAssignees.add(key);
+  renderRound();
 }
 
 function jobsOverviewCard(j){
