@@ -659,8 +659,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='139';
-const BUILD_DATE='24 Sep 2026 12:57';
+const BUILD_VERSION='140';
+const BUILD_DATE='24 Sep 2026 18:29';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1163,7 +1163,7 @@ async function resolveEscalation(escalationId,conversationId){
 }
 
 // ── MESSAGING ─────────────────────────────────────────────────────────────────
-const MEDIA_PROXY_URL='https://uetdrzzgydintdscvckn.supabase.co/functions/v1/twilio-media-proxy';
+const MEDIA_PROXY_URL='https://sehomeservices.app.n8n.cloud/webhook/clearround-media-proxy';
 function renderMessageMedia(m){
   if(!Array.isArray(m.media_urls)||!m.media_urls.length) return '';
   return m.media_urls.map(u=>`<img src="${MEDIA_PROXY_URL}?url=${encodeURIComponent(u)}" loading="lazy" style="max-width:100%;max-height:220px;border-radius:8px;display:block;margin-top:4px;object-fit:contain;cursor:pointer" onclick="window.open('${MEDIA_PROXY_URL}?url=${encodeURIComponent(u)}','_blank')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'[image unavailable]',style:'font-size:12px;color:var(--text-muted);font-style:italic'}))">`).join('');
