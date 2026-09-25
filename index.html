@@ -659,8 +659,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='140';
-const BUILD_DATE='24 Sep 2026 18:29';
+const BUILD_VERSION='141';
+const BUILD_DATE='25 Sep 2026 08:11';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -842,7 +842,7 @@ function launchApp(){
     navigate('messaging');
     scrollToConvCardWhenReady(deepLinkConvId);
   }else{
-    navigate('round');
+    navigate('dashboard');
   }
 }
 // Deep-link support: a push notification's URL may carry #conv=<conversation_id>
@@ -890,7 +890,11 @@ function logout(){
 
 // ── NAV ────────────────────────────────────────────────────────────────────────
 const ICON_ROUND='<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';
+const ICON_DASHBOARD='<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>';
 const NAV_SECTIONS=[
+  {section:'Overview',items:[
+    {id:'dashboard',label:'Dashboard',icon:ICON_DASHBOARD},
+  ]},
   {section:'Work & Planning',items:[
     {id:'round',label:'Round',icon:ICON_ROUND},
     {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
@@ -919,7 +923,7 @@ const NAV_SECTIONS=[
   ]},
 ];
 const FULL_PAGES=NAV_SECTIONS.flatMap(s=>s.items);
-const MOBILE_PRIMARY_IDS=['round','jobs','customers','owing'];
+const MOBILE_PRIMARY_IDS=['dashboard','round','jobs','customers'];
 const ROUND_ONLY_PAGES=[
   {id:'round',label:'Round',icon:ICON_ROUND},
 ];
@@ -985,7 +989,7 @@ function openMoreMenu(){
   document.getElementById('moreMenuModal').classList.add('open');
 }
 
-let currentPageId='round';
+let currentPageId='dashboard';
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
@@ -995,7 +999,8 @@ function navigate(page){
   });
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
-  if(page==='round')renderRound();
+  if(page==='dashboard')renderDashboard();
+  else if(page==='round')renderRound();
   else if(page==='messaging')renderMessaging();
   else if(page==='jobs')renderJobs();
   else if(page==='customers')renderCustomers();
@@ -1532,6 +1537,170 @@ async function renderMessaging(){
   }
   convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv};
   renderMessagingFromCache();
+}
+
+function escalationReasonLabel(code){
+  if(!code)return'Review';
+  if(code==='BILLING')return'Billing';
+  if(code==='QUOTE_RULE_MISSING'||code==='MULTI_SERVICE_MANUAL_QUOTE'||code.startsWith('MANUAL_QUOTE_REQUIRED'))return'Quote';
+  if(code==='COMPLAINT_OR_ISSUE')return'Complaint';
+  if(code==='RESCHEDULE_REQUEST')return'Reschedule';
+  if(code==='EXISTING_CUSTOMER_ISSUE')return'Support';
+  if(code.startsWith('NON_TEXT'))return'Attachment';
+  return'Review';
+}
+function openConversationFromDashboard(convId){
+  convTab='allActive';
+  navigate('messaging');
+  scrollToConvCardWhenReady(convId);
+}
+async function renderDashboard(){
+  document.getElementById('topbarPage').textContent='Dashboard';
+  document.getElementById('topbarAction').innerHTML='';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  await loadUsers();
+  const today=todayStr();
+  const weekAgoISO=new Date(Date.now()-6*86400000).toISOString();
+
+  let byDue=[],byDate=[],respReq=[],openEsc=[],doneJobs=[],scheduled=[],convosWeek=[],custForMatch=[],quotesPending=[],invByJob={};
+  try{
+    [byDue,byDate,respReq,openEsc,doneJobs,scheduled,convosWeek,custForMatch,quotesPending]=await Promise.all([
+      sb(`wc_jobs?next_due=eq.${today}&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
+      sb(`wc_jobs?scheduled_date=eq.${today}&next_due=is.null&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&select=id,customer_name,last_message_at`),
+      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversation_id,conversations!inner(customer_name,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
+      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&select=id,price`),
+      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&select=next_due,price`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&created_at=gte.${weekAgoISO}&select=id,customer_phone`),
+      sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=whatsapp_number`),
+      sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=eq.sent&accepted_at=is.null&declined_at=is.null&select=id,price`),
+    ]);
+    const jobIds=doneJobs.map(j=>j.id);
+    if(jobIds.length){
+      const existingInvs=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.join(',')})&select=job_id,status&order=created_at.desc`);
+      existingInvs.forEach(inv=>{if(inv.job_id&&!invByJob[inv.job_id])invByJob[inv.job_id]=inv;});
+    }
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  // Today's jobs by assignee
+  const todayJobs=[...byDue,...byDate];
+  const todayTotal=todayJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const todayDone=todayJobs.filter(j=>j.status==='done').length;
+  const byAssignee=new Map();
+  wcUsers.forEach(u=>byAssignee.set(u.id,{name:u.name,jobs:[],total:0,done:0}));
+  todayJobs.forEach(j=>{
+    const key=j.assigned_to||'unassigned';
+    if(!byAssignee.has(key))byAssignee.set(key,{name:key==='unassigned'?'Unassigned':'Unknown',jobs:[],total:0,done:0});
+    const g=byAssignee.get(key);
+    g.jobs.push(j);g.total+=parseFloat(j.price||0);if(j.status==='done')g.done++;
+  });
+  const assigneeGroups=[...byAssignee.entries()].filter(([,g])=>g.jobs.length);
+
+  // Needs attention — union of "response required" and open escalations, deduped by conversation
+  const attentionMap=new Map();
+  respReq.forEach(c=>attentionMap.set(c.id,{id:c.id,name:c.customer_name||'Unknown',reasonLabel:'Reply needed',at:c.last_message_at}));
+  openEsc.forEach(e=>{
+    const conv=e.conversations||{};
+    attentionMap.set(e.conversation_id,{id:e.conversation_id,name:conv.customer_name||'Unknown',reasonLabel:escalationReasonLabel(e.reason_code),at:e.created_at});
+  });
+  const attentionList=[...attentionMap.values()].sort((a,b)=>new Date(b.at)-new Date(a.at));
+
+  // Conversations this week — new vs existing customer
+  const knownPhones=new Set(custForMatch.map(c=>c.whatsapp_number).filter(Boolean));
+  const weekTotal=convosWeek.length;
+  const weekNew=convosWeek.filter(c=>!knownPhones.has(c.customer_phone)).length;
+  const weekExisting=weekTotal-weekNew;
+
+  // Outstanding — done jobs not yet paid (same definition as the Owing tab)
+  const unpaidJobs=doneJobs.filter(j=>invByJob[j.id]?.status!=='paid');
+  const outstandingTotal=unpaidJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+
+  // Forecast — 7 and 31 days from today, scheduled jobs
+  const in7=localDateStr(new Date(Date.now()+6*86400000));
+  const in31=localDateStr(new Date(Date.now()+30*86400000));
+  const forecast7=scheduled.filter(j=>j.next_due>=today&&j.next_due<=in7);
+  const forecast31=scheduled.filter(j=>j.next_due>=today&&j.next_due<=in31);
+  const forecast7Total=forecast7.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const forecast31Total=forecast31.reduce((s,j)=>s+parseFloat(j.price||0),0);
+
+  // Quotes awaiting reply
+  const quotesPendingTotal=quotesPending.reduce((s,q)=>s+parseFloat(q.price||0),0);
+
+  el.innerHTML=`
+    <div style="font-size:21px;font-weight:700;color:var(--white);margin-bottom:16px">Good ${new Date().getHours()<12?'morning':new Date().getHours()<17?'afternoon':'evening'}, ${esc((currentUser?.name||'').split(' ')[0]||'')}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <button type="button" onclick="navigate('round')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)">
+        <div style="font-size:11px;color:#8fa6c4;font-weight:600;margin-bottom:6px">Today's jobs</div>
+        <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:var(--white);line-height:1">${todayJobs.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">£${todayTotal.toFixed(2)} &middot; ${todayDone} done</div>
+      </button>
+      <button type="button" onclick="navigate('messaging')" style="text-align:left;background:var(--navy-800);border:1px solid ${attentionList.length?'var(--danger)':'var(--border)'};border-radius:14px;padding:14px;box-shadow:${attentionList.length?'0 0 0 1px rgba(255,92,114,.2),':''}0 3px 10px rgba(0,0,0,.4)">
+        <div style="font-size:11px;color:${attentionList.length?'#ffb3bd':'#8fa6c4'};font-weight:600;margin-bottom:6px">Needs attention</div>
+        <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:${attentionList.length?'var(--danger)':'var(--white)'};line-height:1">${attentionList.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">open conversations</div>
+      </button>
+      <button type="button" onclick="navigate('owing')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)">
+        <div style="font-size:11px;color:#8fa6c4;font-weight:600;margin-bottom:6px">Outstanding</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--white);line-height:1">£${outstandingTotal.toFixed(0)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">${unpaidJobs.length} unpaid job${unpaidJobs.length!==1?'s':''}</div>
+      </button>
+      <button type="button" onclick="navigate('revenue')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)">
+        <div style="font-size:11px;color:#8fa6c4;font-weight:600;margin-bottom:6px">Next 7 days</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--done);line-height:1">£${forecast7Total.toFixed(0)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">${forecast7.length} jobs booked</div>
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:14.5px;font-weight:700;color:var(--white)">Today, by assignee</div>
+      <button type="button" onclick="navigate('round')" style="background:none;border:none;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer">View round &rarr;</button>
+    </div>
+    ${assigneeGroups.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      ${assigneeGroups.map(([key,g])=>{
+        const unassigned=key==='unassigned';
+        const initials=unassigned?'?':initialsFor(g.name);
+        const badgeBg=unassigned?'var(--navy-700)':userColor(key);
+        const badgeColor=unassigned?'var(--danger)':'#0a1420';
+        const badgeBorder=unassigned?'1px solid var(--danger)':'none';
+        return`<div style="background:var(--navy-800);border:1px solid ${unassigned?'var(--danger)':'var(--border)'};border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.35)">
+          <div style="width:32px;height:32px;border-radius:50%;background:${badgeBg};border:${badgeBorder};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:${badgeColor};margin-bottom:8px">${initials}</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.name)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--gold);margin-top:4px">£${g.total.toFixed(2)}</div>
+          <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">${g.jobs.length} job${g.jobs.length!==1?'s':''} &middot; ${g.done} done</div>
+        </div>`;
+      }).join('')}
+    </div>`:`<div class="empty" style="padding:20px 0;margin-bottom:18px"><div class="empty-sub">No jobs scheduled today</div></div>`}
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:14.5px;font-weight:700;color:var(--white)">Conversations</div>
+      <div style="font-size:11.5px;color:#8fa6c4">${weekTotal} this week &middot; ${weekNew} new</div>
+    </div>
+    ${attentionList.length?`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:4px 14px;box-shadow:0 3px 10px rgba(0,0,0,.4);margin-bottom:18px">
+      ${attentionList.slice(0,3).map((a,i)=>`<button type="button" onclick="openConversationFromDashboard('${a.id}')" style="width:100%;text-align:left;background:none;border:none;border-bottom:${i<Math.min(attentionList.length,3)-1?'1px solid #182a3d':'none'};display:flex;align-items:center;justify-content:space-between;padding:10px 0;cursor:pointer">
+        <div style="font-size:13px;color:var(--white);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0">${esc(a.name)}</div>
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:${a.reasonLabel==='Billing'?'rgba(255,92,114,.14)':'rgba(255,207,77,.14)'};color:${a.reasonLabel==='Billing'?'var(--danger)':'var(--warn)'};flex-shrink:0;margin-left:8px">${esc(a.reasonLabel)}</span>
+      </button>`).join('')}
+    </div>`:`<div class="empty" style="padding:20px 0;margin-bottom:18px"><div class="empty-sub" style="color:var(--done)">✓ All caught up</div></div>`}
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <button type="button" onclick="navigate('revenue')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.35)">
+        <div style="font-family:'DM Mono',monospace;font-size:17px;font-weight:700;color:var(--done)">£${forecast31Total.toFixed(0)}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">Next 31 days &middot; ${forecast31.length} jobs</div>
+      </button>
+      <button type="button" onclick="navigate('quotes')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.35)">
+        <div style="font-family:'DM Mono',monospace;font-size:17px;font-weight:700;color:var(--violet)">${quotesPending.length} &middot; £${quotesPendingTotal.toFixed(0)}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">Quotes awaiting reply</div>
+      </button>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button type="button" onclick="navigate('quotes');setTimeout(openNewQuote,100)" style="flex:1;padding:11px 4px;border-radius:12px;background:var(--gold);border:none;color:var(--navy-900);font-size:12px;font-weight:700;cursor:pointer">+ New quote</button>
+      <button type="button" onclick="navigate('customers');setTimeout(openAddCustomer,100)" style="flex:1;padding:11px 4px;border-radius:12px;background:var(--navy-800);border:1px solid var(--border);color:var(--white);font-size:12px;font-weight:600;cursor:pointer">+ Customer</button>
+      <button type="button" onclick="navigate('customers')" style="flex:1;padding:11px 4px;border-radius:12px;background:var(--navy-800);border:1px solid var(--border);color:var(--white);font-size:12px;font-weight:600;cursor:pointer">Payment link</button>
+    </div>
+  `;
 }
 
 async function renderRound(){
