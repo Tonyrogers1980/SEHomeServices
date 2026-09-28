@@ -88,6 +88,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .card{background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s;box-shadow:0 3px 10px rgba(0,0,0,.4);}
 .card:active{background:var(--navy-700);}
 .card-avatar{width:42px;height:42px;border-radius:10px;background:var(--navy-600);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:var(--gold);flex-shrink:0;}
+.card-avatar-customer{box-shadow:0 0 0 2px var(--gold);cursor:pointer;}
 .card-info{flex:1;min-width:0;}
 .card-name{font-size:15px;font-weight:700;color:var(--white);}
 .card-sub{font-size:12px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -659,8 +660,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='141';
-const BUILD_DATE='25 Sep 2026 08:11';
+const BUILD_VERSION='142';
+const BUILD_DATE='26 Sep 2026 12:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1196,10 +1197,11 @@ function renderConvCard(conv,msgs,badge){
   const showHoldMarker=conv.on_hold&&badge?.tone!=='hold';
   const badgeStyle=badge?TONE_STYLE[badge.tone]:null;
   const initial=esc((conv.customer_name||'?').trim().charAt(0).toUpperCase()||'?');
+  const customerId=customerIdByPhone[phoneKey(conv.customer_phone)]||null;
   return `<div class="conv-card ${toneClass}" id="conv-card-${conv.id}">
     <div style="display:flex;justify-content:space-between;width:100%;gap:10px">
       <div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
-        <div class="card-avatar" style="width:38px;height:38px;font-size:14px;flex-shrink:0">${initial}</div>
+        ${customerId?`<div class="card-avatar card-avatar-customer" style="width:38px;height:38px;font-size:14px;flex-shrink:0" title="Existing customer — open record" onclick="showCustomer('${customerId}')">${initial}</div>`:`<div class="card-avatar" style="width:38px;height:38px;font-size:14px;flex-shrink:0">${initial}</div>`}
         <div style="min-width:0">
           <div class="conv-name-hero">${esc(conv.customer_name||'Unknown customer')}</div>
           <div style="font-size:12px;color:var(--text-soft)">${esc(conv.customer_phone||'')}</div>
@@ -1294,6 +1296,8 @@ async function sendManualReply(conversationId){
     btn.disabled=false;btn.textContent='Send';
   }
 }
+let customerIdByPhone={};
+function phoneKey(p){const d=String(p||'').replace(/\D/g,'');return d.length>=10?d.slice(-10):'';}
 let messagingConvById={},markStageConvId=null,markStageValue=null,deleteConvId=null,messagingLeadsByConv={},openEscalationByConv={};
 // v1.0.136: the AI's summary of what the customer needs + a suggested reply, shown on escalated conversations.
 function suggestedReplyHtml(conversationId,{showSummary=true}={}){
@@ -1535,6 +1539,11 @@ async function renderMessaging(){
       leadRows.forEach(l=>{if(!messagingLeadsByConv[l.conversation_id])messagingLeadsByConv[l.conversation_id]=l;});
     }catch(e){/* Send Quote pre-fill is a nice-to-have — still show escalation cards if this fails */}
   }
+  customerIdByPhone={};
+  try{
+    const custRows=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=id,phone,whatsapp_number,alt_phone`);
+    custRows.forEach(c=>{[c.whatsapp_number,c.phone,c.alt_phone].forEach(p=>{const k=phoneKey(p);if(k&&!/^0+$/.test(k))customerIdByPhone[k]=c.id;});});
+  }catch(e){/* customer ring is a nice-to-have — cards still render without it */}
   convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv};
   renderMessagingFromCache();
 }
