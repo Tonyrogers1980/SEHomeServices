@@ -660,14 +660,14 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='142';
-const BUILD_DATE='26 Sep 2026 12:00';
+const BUILD_VERSION='143';
+const BUILD_DATE='30 Sep 2026 10:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundAssignees=null;
-let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null,editingJobOriginalDate=null;
+let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null,editingJobOriginalDate=null,editingJobSeriesId=null;
 let editingQuoteId=null,quotes=[],quoteFilter='all',editingQuoteOriginalDate=null;
 let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 
@@ -2595,7 +2595,7 @@ async function openEditJob(jobId,customerId){
   let j;
   try{[j]=await sb(`wc_jobs?id=eq.${jobId}`);}catch(e){showToast('Could not load job','error');return;}
   if(!j){showToast('Job not found','error');return;}
-  jobCustomerId=customerId;editingJobId=jobId;editingJobOriginalDate=j.next_due||j.scheduled_date||'';
+  jobCustomerId=customerId;editingJobId=jobId;editingJobOriginalDate=j.next_due||j.scheduled_date||'';editingJobSeriesId=j.series_id||null;
   document.getElementById('jobModalTitle').textContent='Edit job';
   document.getElementById('j-btn-delete').style.display='';
   document.getElementById('j-price').value=j.price||'';
@@ -2644,10 +2644,21 @@ async function saveJob(){
 }
 async function deleteJobConfirm(){
   if(!editingJobId)return;
-  if(!confirm('Delete this job? This can\'t be undone.'))return;
+  const isSeries=!!editingJobSeriesId;
+  const confirmMsg=isSeries
+    ?'Delete this job? This removes the whole recurring series — this booking and every future occurrence. Already-completed visits are kept for your records. This can\'t be undone.'
+    :'Delete this job? This can\'t be undone.';
+  if(!confirm(confirmMsg))return;
   try{
-    await sb(`wc_jobs?id=eq.${editingJobId}`,{method:'DELETE',prefer:'return=minimal'});
-    showToast('Job deleted','success');
+    let deleted;
+    if(isSeries){
+      // Whole series: this occurrence plus any future/unactioned ones. Completed history (done/skipped/cant-access/archived) is left alone.
+      deleted=await sb(`wc_jobs?series_id=eq.${editingJobSeriesId}&status=in.(scheduled,pending_assignment)`,{method:'DELETE',prefer:'return=representation'});
+    }else{
+      deleted=await sb(`wc_jobs?id=eq.${editingJobId}`,{method:'DELETE',prefer:'return=representation'});
+    }
+    if(!deleted||!deleted.length){showToast('Nothing was deleted — the job may have already been removed','error');closeModal('jobModal');loadCustomerJobs(jobCustomerId);return;}
+    showToast(isSeries&&deleted.length>1?`Deleted ${deleted.length} jobs in this series`:'Job deleted','success');
     closeModal('jobModal');loadCustomerJobs(jobCustomerId);
   }catch(e){showToast(e.message,'error');}
 }
