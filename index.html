@@ -662,8 +662,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='147';
-const BUILD_DATE='03 Oct 2026 14:40';
+const BUILD_VERSION='148';
+const BUILD_DATE='03 Oct 2026 19:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1597,6 +1597,12 @@ function openConversationFromDashboard(convId){
   navigate('messaging');
   scrollToConvCardWhenReady(convId);
 }
+function openConvTabFromDashboard(tab){
+  convTab=tab;
+  convSubFilter='live';
+  localStorage.setItem('convTab',tab);
+  navigate('messaging');
+}
 async function renderDashboard(){
   document.getElementById('topbarPage').textContent='Dashboard';
   document.getElementById('topbarAction').innerHTML='';
@@ -1606,17 +1612,17 @@ async function renderDashboard(){
   const today=todayStr();
   const weekAgoISO=new Date(Date.now()-6*86400000).toISOString();
 
-  let byDue=[],byDate=[],respReq=[],openEsc=[],doneJobs=[],scheduled=[],convosWeek=[],custForMatch=[],quotesPending=[],invByJob={};
+  let byDue=[],byDate=[],respReq=[],openEsc=[],doneJobs=[],scheduled=[],allConvs=[],custForMatch=[],quotesPending=[],invByJob={};
   try{
-    [byDue,byDate,respReq,openEsc,doneJobs,scheduled,convosWeek,custForMatch,quotesPending]=await Promise.all([
+    [byDue,byDate,respReq,openEsc,doneJobs,scheduled,allConvs,custForMatch,quotesPending]=await Promise.all([
       sb(`wc_jobs?next_due=eq.${today}&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
       sb(`wc_jobs?scheduled_date=eq.${today}&next_due=is.null&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&select=id,customer_name,last_message_at`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversation_id,conversations!inner(customer_name,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&select=id,price`),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&select=next_due,price`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&created_at=gte.${weekAgoISO}&select=id,customer_phone`),
-      sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=whatsapp_number`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc&select=id,customer_name,customer_phone,topic,wc_customer_id,stage,controlled_by,last_message_direction,last_message_at,created_at`),
+      sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=id,phone,whatsapp_number,alt_phone`),
       sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=eq.sent&accepted_at=is.null&declined_at=is.null&select=id,price`),
     ]);
     const jobIds=doneJobs.map(j=>j.id);
@@ -1649,11 +1655,22 @@ async function renderDashboard(){
   });
   const attentionList=[...attentionMap.values()].sort((a,b)=>new Date(b.at)-new Date(a.at));
 
-  // Conversations this week — new vs existing customer
-  const knownPhones=new Set(custForMatch.map(c=>c.whatsapp_number).filter(Boolean));
-  const weekTotal=convosWeek.length;
-  const weekNew=convosWeek.filter(c=>!knownPhones.has(c.customer_phone)).length;
-  const weekExisting=weekTotal-weekNew;
+  // Conversations split into Customer service vs Sales — same rules as the Conversations page (convKind / convNeedsReply)
+  customerIdByPhone={};
+  custForMatch.forEach(c=>{[c.whatsapp_number,c.phone,c.alt_phone].forEach(p=>{const k=phoneKey(p);if(k&&!/^0+$/.test(k))customerIdByPhone[k]=c.id;});});
+  openEscalationByConv={};
+  openEsc.forEach(e=>{if(e.conversation_id&&!openEscalationByConv[e.conversation_id])openEscalationByConv[e.conversation_id]=e;});
+  const convSection=kind=>{
+    const live=allConvs.filter(c=>!isTerminalConv(c)&&convKind(c)===kind);
+    const waiting=live.filter(convNeedsReply).map(c=>{
+      const e=openEscalationByConv[c.id];
+      return {id:c.id,name:c.customer_name||'Unknown',reasonLabel:e?escalationReasonLabel(e.reason_code):'Reply needed',at:e?e.created_at:c.last_message_at};
+    }).sort((a,b)=>new Date(b.at)-new Date(a.at));
+    const weekCount=allConvs.filter(c=>convKind(c)===kind&&c.created_at>=weekAgoISO).length;
+    return {live:live.length,waiting,weekCount};
+  };
+  const svcSec=convSection('service');
+  const salesSec=convSection('sales');
 
   // Outstanding — done jobs not yet paid (same definition as the Owing tab)
   const unpaidJobs=doneJobs.filter(j=>invByJob[j.id]?.status!=='paid');
@@ -1716,16 +1733,18 @@ async function renderDashboard(){
       }).join('')}
     </div>`:`<div class="empty" style="padding:20px 0;margin-bottom:18px"><div class="empty-sub">No jobs scheduled today</div></div>`}
 
+    ${[['Customer service','service',svcSec,'this week'],['Sales','sales',salesSec,'new this week']].map(([title,tab,sec,weekLabel])=>`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:14.5px;font-weight:700;color:var(--white)">Conversations</div>
-      <div style="font-size:11.5px;color:#8fa6c4">${weekTotal} this week &middot; ${weekNew} new</div>
+      <div style="font-size:14.5px;font-weight:700;color:var(--white)">${title}</div>
+      <button type="button" onclick="openConvTabFromDashboard('${tab}')" style="background:none;border:none;font-size:11.5px;color:#8fa6c4;cursor:pointer;padding:0">${sec.live} live &middot; ${sec.weekCount} ${weekLabel} &rarr;</button>
     </div>
-    ${attentionList.length?`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:4px 14px;box-shadow:0 3px 10px rgba(0,0,0,.4);margin-bottom:18px">
-      ${attentionList.slice(0,3).map((a,i)=>`<button type="button" onclick="openConversationFromDashboard('${a.id}')" style="width:100%;text-align:left;background:none;border:none;border-bottom:${i<Math.min(attentionList.length,3)-1?'1px solid #182a3d':'none'};display:flex;align-items:center;justify-content:space-between;padding:10px 0;cursor:pointer">
+    ${sec.waiting.length?`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:4px 14px;box-shadow:0 3px 10px rgba(0,0,0,.4);margin-bottom:${sec.waiting.length>3?'6px':'18px'}">
+      ${sec.waiting.slice(0,3).map((a,i)=>`<button type="button" onclick="openConversationFromDashboard('${a.id}')" style="width:100%;text-align:left;background:none;border:none;border-bottom:${i<Math.min(sec.waiting.length,3)-1?'1px solid #182a3d':'none'};display:flex;align-items:center;justify-content:space-between;padding:10px 0;cursor:pointer">
         <div style="font-size:13px;color:var(--white);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0">${esc(a.name)}</div>
         <span style="font-size:9px;font-weight:700;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:${a.reasonLabel==='Billing'?'rgba(255,92,114,.14)':'rgba(255,207,77,.14)'};color:${a.reasonLabel==='Billing'?'var(--danger)':'var(--warn)'};flex-shrink:0;margin-left:8px">${esc(a.reasonLabel)}</span>
       </button>`).join('')}
-    </div>`:`<div class="empty" style="padding:20px 0;margin-bottom:18px"><div class="empty-sub" style="color:var(--done)">✓ All caught up</div></div>`}
+    </div>${sec.waiting.length>3?`<button type="button" onclick="openConvTabFromDashboard('${tab}')" style="background:none;border:none;font-size:11.5px;color:var(--text-soft);cursor:pointer;padding:0 0 12px 2px;margin-bottom:6px">+${sec.waiting.length-3} more waiting &rarr;</button>`:''}`:`<div class="empty" style="padding:20px 0;margin-bottom:18px"><div class="empty-sub" style="color:var(--done)">✓ All caught up</div></div>`}
+    `).join('')}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
       <button type="button" onclick="navigate('revenue')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.35)">
