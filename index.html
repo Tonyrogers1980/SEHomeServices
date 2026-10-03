@@ -188,6 +188,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-num.done{background:var(--done-light);border-color:var(--done);color:var(--done);}
 .job-card-body{flex:1;min-width:0;}
 .job-card-addr-main{font-size:15px;font-weight:700;color:var(--white);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cust-pill{display:inline-flex;align-items:center;gap:4px;max-width:100%;margin-top:4px;padding:3px 10px 3px 11px;border-radius:20px;background:rgba(255,178,0,.14);border:1px solid rgba(255,178,0,.4);color:var(--gold);font-size:13px;font-weight:600;line-height:1.3;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;}
+.cust-pill:active{background:rgba(255,178,0,.28);}
 .job-card-name-sub{font-size:12px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .job-card-name{font-size:16px;font-weight:600;color:var(--white);line-height:1.2;}
 .stripe-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;color:var(--gold);vertical-align:middle;}
@@ -660,8 +662,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='144';
-const BUILD_DATE='03 Oct 2026 11:00';
+const BUILD_VERSION='145';
+const BUILD_DATE='03 Oct 2026 11:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -684,6 +686,7 @@ function isDateTooSoon(dateStr){if(!dateStr)return false;return dateStr<minLeadD
 function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return localDateStr(d);}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
 function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function custPill(c){if(!c||!c.id)return`<div class="job-card-name-sub">${esc((c&&c.name)||'Unknown')}</div>`;return`<span class="cust-pill" title="Open customer" onclick="event.stopPropagation();showCustomer('${c.id}')">${esc(c.name||'Unknown')} <span style="opacity:.7">›</span></span>`;}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':s==='pending_assignment'?'badge-pending':'badge-scheduled';}
 function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":s==='pending_assignment'?'Needs round':'Scheduled';}
@@ -1850,7 +1853,7 @@ function jobCard(j,num){
       <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
       <div class="job-card-body">
         <div class="job-card-addr-main">${addrLink(c.address,c.postcode,'job-card-addr-main')}</div>
-        <div class="job-card-name-sub">${esc(c.name||'Unknown')}</div>
+        <div>${custPill(c)}</div>
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
       ${assigneeBadge}
@@ -3217,7 +3220,7 @@ function owingCard(j){
     <div class="job-card-header">
       <div class="job-card-num">£</div>
       <div class="job-card-body">
-        <div class="job-card-name">${esc(c.name||'Unknown')}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}</div>
+        <div class="job-card-name">${custPill(c)}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}</div>
         <div class="job-card-addr">${addrLink(c.address,c.postcode)}</div>
         ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
         ${j.last_done?`<div style="font-size:11px;color:var(--text-muted)">Done ${fmtShort(j.last_done)}</div>`:''}
@@ -3383,7 +3386,7 @@ function jobsOverviewCard(j){
   return`<div class="job-card" style="${needsPerson?'border-color:var(--danger)':needsRound?'border-color:var(--warn)':''}">
     <div class="job-card-header" style="cursor:pointer" onclick="showCustomer('${c.id}')">
       <div class="job-card-body">
-        <div class="job-card-name">${esc(c.name||'Unknown')}${needsPerson?' <span class="badge" style="margin-left:6px;font-size:10px;vertical-align:middle;background:rgba(255,92,114,.16);color:var(--danger)">Needs person</span>':needsRound?' <span class="badge badge-pending" style="margin-left:6px;font-size:10px;vertical-align:middle">Needs round</span>':''}</div>
+        <div class="job-card-name">${custPill(c)}${needsPerson?' <span class="badge" style="margin-left:6px;font-size:10px;vertical-align:middle;background:rgba(255,92,114,.16);color:var(--danger)">Needs person</span>':needsRound?' <span class="badge badge-pending" style="margin-left:6px;font-size:10px;vertical-align:middle">Needs round</span>':''}</div>
         <div class="job-card-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
