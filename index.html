@@ -662,8 +662,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='146';
-const BUILD_DATE='03 Oct 2026 11:45';
+const BUILD_VERSION='147';
+const BUILD_DATE='03 Oct 2026 14:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1394,12 +1394,21 @@ function getConvBadge(c){
   if(c.on_hold) return {label:'On hold',tone:'hold'};
   return {label:c.stage||'Active',tone:'neutral'};
 }
-let convTab=localStorage.getItem('convTab')||'responseRequired';
+const CONV_TABS=['needsReply','service','sales','archive','allActive'];
+const TERMINAL_STAGES=['BOOKED','FAILED_TO_CONVERT','TIME_WASTER','CLOSED'];
+// Old tab ids (responseRequired, escalations, aiHandling, onHold, quoteSent) saved in localStorage fall back to Needs reply.
+let convTab=(()=>{const t=localStorage.getItem('convTab');return CONV_TABS.includes(t)?t:'needsReply';})();
+let convSubFilter='live';
 let archiveFilter=localStorage.getItem('archiveFilter')||'ALL';
-let convSectionCache=null; // {responseRequired, aiHandling, allActive, escalations, onHold, quoteSent, archive, messagesByConv} — cached so tab switches don't refetch
+let convSectionCache=null; // {convs, escalations, messagesByConv} — cached so tab switches don't refetch
 function setConvTab(name){
   convTab=name;
+  convSubFilter='live';
   localStorage.setItem('convTab',name);
+  renderMessagingFromCache();
+}
+function setConvSubFilter(f){
+  convSubFilter=f;
   renderMessagingFromCache();
 }
 function setArchiveFilter(stage){
@@ -1407,10 +1416,62 @@ function setArchiveFilter(stage){
   localStorage.setItem('archiveFilter',stage);
   renderMessagingFromCache();
 }
+function isTerminalConv(c){return TERMINAL_STAGES.includes(c.stage);}
+function isExistingCustomerConv(c){return !!(c.wc_customer_id||customerIdByPhone[phoneKey(c.customer_phone)]);}
+// What the conversation is about. conversations.topic is set by the AI front desk (sales / customer_service / not_customer);
+// older conversations have no topic, so fall back to whether the phone number belongs to an existing customer.
+function convKind(c){
+  if(c.topic==='not_customer')return'other';
+  if(c.topic==='sales')return'sales';
+  if(c.topic==='customer_service')return'service';
+  return isExistingCustomerConv(c)?'service':'sales';
+}
+// Needs a reply = has an open escalation, OR a human-controlled live conversation whose last message is inbound.
+// Deliberately NOT filtering on on_hold (2026-09-15 audit fix): hold is a note, not a reason to hide something awaiting a reply.
+function convNeedsReply(c){
+  if(openEscalationByConv[c.id])return true;
+  if(isTerminalConv(c))return false;
+  return c.controlled_by==='human'&&c.last_message_direction==='inbound';
+}
+function convGroups(){
+  const convs=convSectionCache.convs;
+  const live=convs.filter(c=>!isTerminalConv(c));
+  return {
+    needsReply:convs.filter(convNeedsReply),
+    service:live.filter(c=>convKind(c)==='service'),
+    sales:live.filter(c=>convKind(c)==='sales'),
+    archive:convs.filter(isTerminalConv),
+    all:convs,
+  };
+}
+function applyConvSub(list,sub){
+  if(sub==='waiting')return list.filter(convNeedsReply);
+  if(sub==='ai')return list.filter(c=>c.controlled_by==='ai');
+  if(sub==='hold')return list.filter(c=>c.on_hold);
+  if(sub==='quoted')return list.filter(c=>c.stage==='QUOTED');
+  return list;
+}
+// Escalated conversations render with the escalation card (suggested reply, resolve, send quote); everything else with the normal card.
+// Both cards share the same element id (conv-card-<id>) so deep links still find them.
+function convCardFor(c,messagesByConv,opts){
+  opts=opts||{};
+  const msgs=messagesByConv[c.id];
+  const e=opts.useEscalation===false?null:openEscalationByConv[c.id];
+  const html=e?escalationCardHtml(e,msgs,messagingLeadsByConv[c.id]):renderConvCard(c,msgs,getConvBadge(c));
+  return opts.dim?`<div style="opacity:.55">${html}</div>`:html;
+}
 function convTabBar(counts){
-  const tabs=[['responseRequired','Response Required',counts.responseRequired,'urgent'],['escalations','Escalations',counts.escalations,'urgent'],['quoteSent','Quote Sent',counts.quoteSent,'quoted'],['aiHandling','AI Handling',counts.aiHandling,'ai'],['onHold','On Hold',counts.onHold,'hold'],['archive','Archive',counts.archive,'archived'],['allActive','All Conversations',counts.allActive,'neutral']];
+  const tabs=[['needsReply','Needs reply',counts.needsReply,'urgent'],['service','Customer service',counts.service,'neutral'],['sales','Sales',counts.sales,'neutral'],['archive','Archive',counts.archive,'archived'],['allActive','All',counts.all,'neutral']];
   return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
     ${tabs.map(([id,label,count,tone])=>{const t=TONE_STYLE[tone],active=convTab===id;return `<button onclick="setConvTab('${id}')" style="padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;border:1.5px solid ${t.color};cursor:pointer;white-space:nowrap;background:${active?t.color:'transparent'};color:${active?t.onColor:t.color}">${label} (${count})</button>`;}).join('')}
+  </div>`;
+}
+function convSubFilterBar(list,showQuoted){
+  const opts=[['live','Everything'],['waiting','Waiting on you'],['ai','With the AI'],['hold','On hold']];
+  if(showQuoted)opts.push(['quoted','Quote sent']);
+  const t=TONE_STYLE.neutral;
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px">
+    ${opts.map(([id,label])=>{const active=convSubFilter===id;return `<button onclick="setConvSubFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid ${t.color};cursor:pointer;white-space:nowrap;background:${active?t.color:'transparent'};color:${active?t.onColor:t.color}">${label} (${applyConvSub(list,id).length})</button>`;}).join('')}
   </div>`;
 }
 function archiveFilterBar(counts){
@@ -1420,92 +1481,69 @@ function archiveFilterBar(counts){
     ${opts.map(([id,label,count])=>{const active=archiveFilter===id;return `<button onclick="setArchiveFilter('${id}')" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid ${t.color};cursor:pointer;white-space:nowrap;background:${active?t.color:'transparent'};color:${active?t.onColor:t.color}">${label} (${count})</button>`;}).join('')}
   </div>`;
 }
+function convGroupHeader(label,n){
+  return `<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin:16px 0 8px">${label} · ${n}</div>`;
+}
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
-  const {responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv}=convSectionCache;
+  const {messagesByConv}=convSectionCache;
+  const g=convGroups();
   const el=document.getElementById('mainContent');
   const counts={
-    responseRequired:responseRequired.length,aiHandling:aiHandling.length,allActive:allActive.length,
-    escalations:escalations.length,onHold:onHold.length,quoteSent:quoteSent.length,archive:archive.length,
-    archiveBooked:archive.filter(c=>c.stage==='BOOKED').length,
-    archiveFailed:archive.filter(c=>c.stage==='FAILED_TO_CONVERT').length,
-    archiveTimeWaster:archive.filter(c=>c.stage==='TIME_WASTER').length,
-    archiveClosed:archive.filter(c=>c.stage==='CLOSED').length,
+    needsReply:g.needsReply.length,service:g.service.length,sales:g.sales.length,archive:g.archive.length,all:g.all.length,
+    archiveBooked:g.archive.filter(c=>c.stage==='BOOKED').length,
+    archiveFailed:g.archive.filter(c=>c.stage==='FAILED_TO_CONVERT').length,
+    archiveTimeWaster:g.archive.filter(c=>c.stage==='TIME_WASTER').length,
+    archiveClosed:g.archive.filter(c=>c.stage==='CLOSED').length,
   };
-  let listHtml='',emptyTitle='',subHtml='';
-  if(convTab==='responseRequired'){
-    listHtml=responseRequired.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'Awaiting your reply',tone:'urgent'})).join('');
+  let bodyHtml='',emptyTitle='',barHtml='',subText='',shown=0;
+  if(convTab==='needsReply'){
+    const parts=[['service','Customer service'],['sales','Sales'],['other','Other (vendors, spam)']]
+      .map(([kind,label])=>[label,g.needsReply.filter(c=>convKind(c)===kind)]).filter(([,l])=>l.length);
+    bodyHtml=parts.map(([label,list])=>convGroupHeader(label,list.length)+list.map(c=>convCardFor(c,messagesByConv)).join('')).join('');
+    shown=g.needsReply.length;
     emptyTitle='Nothing waiting on you';
-  }else if(convTab==='aiHandling'){
-    listHtml=aiHandling.map(c=>renderConvCard(c,messagesByConv[c.id],{label:'AI',tone:'ai'})).join('');
-    emptyTitle='No conversations with the AI right now';
-  }else if(convTab==='escalations'){
-    listHtml=escalations.map(r=>escalationCardHtml(r,messagesByConv[r.conversation_id],messagingLeadsByConv[r.conversation_id])).join('');
-    emptyTitle='All caught up';
-    subHtml='<div class="page-sub" style="margin:-4px 0 8px">Resolving hands the conversation back to the AI.</div>';
-  }else if(convTab==='onHold'){
-    listHtml=onHold.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
-    emptyTitle='Nothing on hold';
-    subHtml='<div class="page-sub" style="margin:-4px 0 8px">The AI keeps handling these normally \u2014 hold is just a marker for you.</div>';
-  }else if(convTab==='quoteSent'){
-    listHtml=quoteSent.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
-    emptyTitle='No quotes out right now';
-    subHtml='<div class="page-sub" style="margin:-4px 0 8px">Sent, not yet accepted.</div>';
+  }else if(convTab==='service'||convTab==='sales'){
+    const base=convTab==='service'?g.service:g.sales;
+    const list=applyConvSub(base,convSubFilter);
+    barHtml=convSubFilterBar(base,convTab==='sales');
+    subText=convTab==='service'?'<div class="page-sub" style="margin:-4px 0 8px">Messages from existing customers.</div>':'<div class="page-sub" style="margin:-4px 0 8px">New enquiries and quotes in progress.</div>';
+    bodyHtml=list.map(c=>convCardFor(c,messagesByConv)).join('');
+    shown=list.length;
+    emptyTitle=convSubFilter==='live'?(convTab==='service'?'No live customer service conversations':'No live sales conversations'):'Nothing here right now';
   }else if(convTab==='archive'){
-    const filtered=archiveFilter==='ALL'?archive:archive.filter(c=>c.stage===archiveFilter);
-    listHtml=filtered.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
+    const filtered=archiveFilter==='ALL'?g.archive:g.archive.filter(c=>c.stage===archiveFilter);
+    bodyHtml=filtered.map(c=>convCardFor(c,messagesByConv,{useEscalation:false})).join('');
+    shown=filtered.length;
+    barHtml=archiveFilterBar(counts);
     emptyTitle='Nothing archived yet';
-    subHtml=archiveFilterBar(counts);
-    const currentCount=filtered.length;
-    el.innerHTML=`
-      <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.escalations} escalated · ${counts.quoteSent} quote sent · ${counts.aiHandling} being handled by AI · ${counts.onHold} on hold · ${counts.archive} archived</div></div></div>
-      ${convTabBar(counts)}
-      ${subHtml}
-      ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:listHtml}`;
-    return;
   }else{
-    listHtml=allActive.map(c=>renderConvCard(c,messagesByConv[c.id],getConvBadge(c))).join('');
+    // All = truly everything non-deleted. Finished conversations are dimmed so live ones stand out.
+    bodyHtml=g.all.map(c=>convCardFor(c,messagesByConv,{useEscalation:false,dim:isTerminalConv(c)})).join('');
+    shown=g.all.length;
     emptyTitle='No conversations yet';
   }
-  const currentCount=counts[convTab];
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.responseRequired} need a reply · ${counts.escalations} escalated · ${counts.quoteSent} quote sent · ${counts.aiHandling} being handled by AI · ${counts.onHold} on hold · ${counts.archive} archived</div></div></div>
+    <div class="page-header"><div><div class="page-title">Conversations</div><div class="page-sub">${counts.needsReply} need a reply · ${counts.service} customer service · ${counts.sales} sales · ${counts.archive} archived</div></div></div>
     ${convTabBar(counts)}
-    ${subHtml}
-    ${!currentCount?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:listHtml}`;
+    ${subText}${barHtml}
+    ${!shown?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:bodyHtml}`;
 }
 async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let responseRequired=[],aiHandling=[],allActive=[],escalations=[],onHold=[],quoteSent=[],archive=[];
+  let convs=[],escalations=[];
   try{
-    [responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive]=await Promise.all([
-      // Excludes all four terminal stages (BOOKED, FAILED_TO_CONVERT, TIME_WASTER, CLOSED) —
-      // marking a conversation with any of these is Tony's signal that no more reply is owed
-      // on it, so it should stop showing up here even if the last message on file is still
-      // inbound. This used to carve out an exception for BOOKED/FAILED_TO_CONVERT on the
-      // theory that a booked customer could still send a real follow-up needing a reply — but
-      // the 2026-09-15 freshness fix means a genuine follow-up from a marked-done customer now
-      // creates a brand new conversation row (starting fresh in AI Handling) rather than
-      // reusing this one, so that old carve-out no longer serves a purpose and was just making
-      // marked conversations linger here forever if Tony marked them without replying first.
-      // Deliberately NOT filtering on on_hold here (2026-09-15 audit fix) — On Hold is a note
-      // for later, not a reason to stop flagging something that genuinely needs a reply. An
-      // audit found 4 real customers, one nearly a month old, invisible everywhere that
-      // mattered because Hold had been clicked on a conversation that still needed a reply.
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&controlled_by=eq.ai&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
-      // Truly everything non-deleted — live and archived alike.
+    // Two queries drive every tab: all non-deleted conversations (live and finished) and all open escalations.
+    // Each tab is derived from these in convGroups() — see convNeedsReply() and convKind() for the rules.
+    [convs,escalations]=await Promise.all([
       sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations!inner(customer_name,customer_phone,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&on_hold=eq.true&deleted_at=is.null&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=eq.QUOTED&on_hold=eq.false&deleted_at=is.null&order=last_message_at.desc`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&stage=in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&order=last_message_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
-  [...responseRequired,...aiHandling,...allActive,...onHold,...quoteSent,...archive].forEach(c=>{messagingConvById[c.id]=c;});
+  convs.forEach(c=>{messagingConvById[c.id]=c;});
   openEscalationByConv={};
   escalations.forEach(r=>{
     if(!r.conversation_id)return;
@@ -1513,14 +1551,10 @@ async function renderMessaging(){
     if(!messagingConvById[r.conversation_id]&&r.conversations)messagingConvById[r.conversation_id]={id:r.conversation_id,...r.conversations};
   });
   let messagesByConv={};
-  const allIds=[...new Set([...responseRequired.map(c=>c.id),...aiHandling.map(c=>c.id),...allActive.map(c=>c.id),...escalations.map(r=>r.conversation_id),...onHold.map(c=>c.id),...quoteSent.map(c=>c.id),...archive.map(c=>c.id)])];
+  const allIds=[...new Set([...convs.map(c=>c.id),...escalations.map(r=>r.conversation_id)])].filter(Boolean);
   if(allIds.length){
     try{
-      // Batch this — with stage filters relaxed (2026-09-13 fix), allIds can now run into the
-      // dozens, and a single conversation_id=in.(...) request that large was failing silently
-      // (caught below, leaving messagesByConv empty for every card — the symptom was every
-      // card showing no message preview and no transcript at all). 25 ids per request keeps
-      // each URL comfortably short.
+      // Batch in 25s — one giant conversation_id=in.(...) request failed silently once (2026-09-13), blanking every card's transcript.
       const idChunks=[];
       for(let i=0;i<allIds.length;i+=25) idChunks.push(allIds.slice(i,i+25));
       const chunkResults=await Promise.allSettled(idChunks.map(chunk=>
@@ -1529,9 +1563,6 @@ async function renderMessaging(){
       chunkResults.filter(r=>r.status==='fulfilled').forEach(r=>{
         r.value.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
       });
-      // A failed chunk (status 'rejected') only leaves that batch of conversations without a
-      // transcript — it no longer blanks every card's messages the way one giant failing
-      // request used to.
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
   messagingLeadsByConv={};
@@ -1546,8 +1577,8 @@ async function renderMessaging(){
   try{
     const custRows=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=id,phone,whatsapp_number,alt_phone`);
     custRows.forEach(c=>{[c.whatsapp_number,c.phone,c.alt_phone].forEach(p=>{const k=phoneKey(p);if(k&&!/^0+$/.test(k))customerIdByPhone[k]=c.id;});});
-  }catch(e){/* customer ring is a nice-to-have — cards still render without it */}
-  convSectionCache={responseRequired,aiHandling,allActive,escalations,onHold,quoteSent,archive,messagesByConv};
+  }catch(e){/* customer ring is a nice-to-have — cards still render without it, and Customer service/Sales fall back on topic */}
+  convSectionCache={convs,escalations,messagesByConv};
   renderMessagingFromCache();
 }
 
