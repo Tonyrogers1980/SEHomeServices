@@ -662,8 +662,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='149';
-const BUILD_DATE='10 Oct 2026 12:26';
+const BUILD_VERSION='150';
+const BUILD_DATE='10 Oct 2026 12:31';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2489,7 +2489,7 @@ async function saveCustomer(){
       await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
       showToast('Customer updated','success');
     }else{
-      const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify({...payload,active:true,business_id:BUSINESS_ID}),prefer:'return=representation'});
+      const [newCust]=await sb('wc_customers?select=*',{method:'POST',body:JSON.stringify({...payload,active:true,business_id:BUSINESS_ID,customer_since:todayStr()}),prefer:'return=representation'});
       showToast('Customer added','success');
       // Auto-send payment setup invite to new customers
       if(newCust&&email){
