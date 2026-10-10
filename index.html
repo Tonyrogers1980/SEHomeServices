@@ -405,12 +405,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
           <option value="wfp">Water-fed pole</option>
           <option value="both">Both</option>
         </select>
-        <div style="display:flex;gap:18px;margin-top:10px">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="j-roof-access" style="width:16px;height:16px;accent-color:var(--gold)">Roof access required
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="j-roof-access" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Roof access required
           </label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="j-side-rear" style="width:16px;height:16px;accent-color:var(--gold)">Side/rear access
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="j-side-rear" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Side/rear access
           </label>
         </div>
       </div>
@@ -624,15 +624,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="field"><label>PIN * (4 digits, used to log in)</label><input id="t-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1234"></div>
       <div class="field">
         <label>Skills (window cleaning)</label>
-        <div style="display:flex;gap:18px;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="t-skill-traditional" style="width:16px;height:16px;accent-color:var(--gold)">Traditional
+        <div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="t-skill-traditional" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Traditional
           </label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="t-skill-wfp" style="width:16px;height:16px;accent-color:var(--gold)">Water-fed pole
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="t-skill-wfp" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Water-fed pole
           </label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="t-skill-roof" style="width:16px;height:16px;accent-color:var(--gold)">Roof access
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="t-skill-roof" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Roof access
           </label>
         </div>
       </div>
@@ -693,8 +693,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='152';
-const BUILD_DATE='10 Oct 2026 16:40';
+const BUILD_VERSION='153';
+const BUILD_DATE='10 Oct 2026 17:02';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
