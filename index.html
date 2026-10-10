@@ -662,8 +662,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='148';
-const BUILD_DATE='03 Oct 2026 19:15';
+const BUILD_VERSION='149';
+const BUILD_DATE='10 Oct 2026 12:26';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -916,6 +916,7 @@ const NAV_SECTIONS=[
   ]},
   {section:'Finance',items:[
     {id:'revenue',label:'Revenue',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18.7 8l-5.1 5.2-3-3L7 14"/></svg>'},
+    {id:'data',label:'Data',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6m7 13V10m-14 9v-5M3 19h18"/></svg>'},
   ]},
   {section:'Configuration',items:[
     {id:'rounds-config',label:'Rounds',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>'},
@@ -1012,6 +1013,7 @@ function navigate(page){
   else if(page==='invoices')renderInvoices();
   else if(page==='owing')renderOwing();
   else if(page==='revenue')renderRevenue();
+  else if(page==='data')renderDataTab();
   else if(page==='rounds-config')renderRoundsConfig();
   else if(page==='service-types-config')renderServiceTypesConfig();
   else if(page==='pricing-config')renderPricingConfig();
@@ -3545,6 +3547,79 @@ function revenueChart(buckets,color){
       </div>`;
     }).join('')}
   </div>`;
+}
+
+function monthLabel(key){
+  return new Date(key+'-01T12:00:00').toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
+}
+
+function customerGrowthBarChart(buckets){
+  if(!buckets.length)return`<div class="empty" style="padding:24px 0"><div class="empty-sub">No data yet</div></div>`;
+  const max=Math.max(...buckets.map(b=>b[1]),1);
+  return`<div style="display:flex;align-items:flex-end;gap:6px;height:150px;padding:12px 10px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);overflow-x:auto">
+    ${buckets.map(([key,val])=>{
+      const h=Math.max(4,Math.round((val/max)*110));
+      return`<div style="flex:0 0 auto;width:32px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;white-space:nowrap">${val}</div>
+        <div style="width:100%;max-width:26px;height:${h}px;background:var(--gold);border-radius:3px 3px 0 0"></div>
+        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;white-space:nowrap">${monthLabel(key)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function customerGrowthLineChart(buckets){
+  if(!buckets.length)return'';
+  let running=0;
+  const points=buckets.map(([key,val])=>{running+=val;return{key,total:running};});
+  const max=Math.max(...points.map(p=>p.total),1);
+  const stepW=50;
+  const w=Math.max(points.length*stepW,300);
+  const h=130,padTop=16,padBottom=20;
+  const plotH=h-padTop-padBottom;
+  const coords=points.map((p,i)=>({x:i*stepW+stepW/2,y:padTop+plotH-(p.total/max)*plotH,...p}));
+  const path=coords.map((c,i)=>`${i===0?'M':'L'}${c.x},${c.y}`).join(' ');
+  const areaPath=`${path} L${coords[coords.length-1].x},${h-padBottom} L${coords[0].x},${h-padBottom} Z`;
+  const showLabel=(i)=>i===0||i===coords.length-1||i%3===0;
+  return`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 10px;overflow-x:auto">
+    <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block">
+      <path d="${areaPath}" fill="var(--teal)" opacity="0.12"/>
+      <path d="${path}" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${coords.map((c,i)=>showLabel(i)?`<circle cx="${c.x}" cy="${c.y}" r="3" fill="var(--teal)"/>`:'').join('')}
+      ${coords.map((c,i)=>showLabel(i)?`<text x="${c.x}" y="${c.y-8}" font-size="10" fill="var(--text-soft)" text-anchor="middle" font-family="DM Mono, monospace">${c.total}</text>`:'').join('')}
+      ${coords.map(c=>`<text x="${c.x}" y="${h-4}" font-size="9" fill="var(--text-muted)" text-anchor="middle">${monthLabel(c.key)}</text>`).join('')}
+    </svg>
+  </div>`;
+}
+
+async function renderDataTab(){
+  document.getElementById('topbarPage').textContent='Data';
+  document.getElementById('topbarAction').innerHTML='';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  let customers=[];
+  try{
+    customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=customer_since&order=customer_since.asc`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  const dated=customers.filter(c=>c.customer_since);
+  const undated=customers.length-dated.length;
+  const map={};
+  dated.forEach(c=>{const key=c.customer_since.slice(0,7);map[key]=(map[key]||0)+1;});
+  const buckets=Object.entries(map).sort((a,b)=>a[0]<b[0]?-1:1);
+
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Data</div><div class="page-sub">Customer growth over time</div></div></div>
+    <div class="round-summary" style="margin-bottom:16px">
+      <div class="round-stat"><div class="round-stat-val">${customers.length}</div><div class="round-stat-label">Total customers</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="color:var(--teal)">${dated.length}</div><div class="round-stat-label">With onboarding date</div></div>
+    </div>
+    ${undated?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">${undated} customer${undated!==1?'s have':' has'} no onboarding date on file and ${undated!==1?"aren't":"isn't"} included in the charts below.</div>`:''}
+    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">New customers per month</div>
+    ${customerGrowthBarChart(buckets)}
+    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Cumulative customers</div>
+    ${customerGrowthLineChart(buckets)}
+  `;
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
