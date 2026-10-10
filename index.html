@@ -396,7 +396,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <button class="modal-close" onclick="closeModal('jobModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
-      <div class="field"><label>Service type</label><select id="j-service"><option value="">Select service…</option></select></div>
+      <div class="field"><label>Service type</label><select id="j-service" onchange="toggleWindowAttrFields()"><option value="">Select service…</option></select></div>
+      <div class="field" id="j-window-attrs" style="display:none">
+        <label>Clean type</label>
+        <select id="j-clean-type">
+          <option value="">Not set</option>
+          <option value="traditional">Traditional</option>
+          <option value="wfp">Water-fed pole</option>
+          <option value="both">Both</option>
+        </select>
+        <div style="display:flex;gap:18px;margin-top:10px">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="j-roof-access" style="width:16px;height:16px;accent-color:var(--gold)">Roof access required
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="j-side-rear" style="width:16px;height:16px;accent-color:var(--gold)">Side/rear access
+          </label>
+        </div>
+      </div>
       <div class="form-row">
         <div class="field"><label>Price (£) *</label><input id="j-price" type="number" inputmode="decimal" step="0.50" min="0" placeholder="0.00"></div>
         <div class="field"><label>Frequency</label>
@@ -605,6 +622,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
         <div class="field"><label>App access</label><select id="t-view-mode"><option value="full">Full access</option><option value="round_only">Round view only</option></select></div>
       </div>
       <div class="field"><label>PIN * (4 digits, used to log in)</label><input id="t-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1234"></div>
+      <div class="field">
+        <label>Skills (window cleaning)</label>
+        <div style="display:flex;gap:18px;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="t-skill-traditional" style="width:16px;height:16px;accent-color:var(--gold)">Traditional
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="t-skill-wfp" style="width:16px;height:16px;accent-color:var(--gold)">Water-fed pole
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
+            <input type="checkbox" id="t-skill-roof" style="width:16px;height:16px;accent-color:var(--gold)">Roof access
+          </label>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
         <div style="font-size:14px;font-weight:500;color:var(--text)">Active</div>
         <label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0">
@@ -662,8 +693,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='151';
-const BUILD_DATE='10 Oct 2026 15:05';
+const BUILD_VERSION='152';
+const BUILD_DATE='10 Oct 2026 16:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1901,7 +1932,7 @@ function jobCard(j,num){
         <button class="job-action action-undo" onclick="event.stopPropagation();undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
         ${isAdmin?chargeBtn:''}
       </div>`;
-  const hasDetails=!!(j.service_type||j.round_name||c.notes||j.notes);
+  const hasDetails=!!(j.service_type||j.round_name||c.notes||j.notes||j.clean_type||j.roof_access_required||j.side_rear_access);
   return`<div class="job-card ${cardClass}" id="${cardId}">
     <div class="job-card-header" onclick="openEditJob('${j.id}','${c.id}')">
       <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
@@ -1916,6 +1947,11 @@ function jobCard(j,num){
       ${(j.service_type||j.round_name)?`<div class="job-card-detail-rows">
         ${j.service_type?`<div class="job-card-detail-row"><span>Service</span><span>${esc(j.service_type)}</span></div>`:''}
         ${j.round_name?`<div class="job-card-detail-row"><span>Round</span><span style="color:var(--teal)">${esc(j.round_name)}</span></div>`:''}
+      </div>`:''}
+      ${(j.clean_type||j.roof_access_required||j.side_rear_access)?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+        ${j.clean_type?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(0,224,207,.14);color:var(--teal)">${j.clean_type==='wfp'?'WFP':j.clean_type==='both'?'Trad + WFP':'Traditional'}</span>`:''}
+        ${j.roof_access_required?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(255,207,77,.14);color:var(--warn)">Roof access</span>`:''}
+        ${j.side_rear_access?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(177,139,255,.14);color:var(--violet)">Side/rear access</span>`:''}
       </div>`:''}
       ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
       ${j.notes?`<div class="job-card-note" style="color:var(--text-muted)">📝 ${esc(j.notes)}</div>`:''}
@@ -2686,12 +2722,20 @@ async function openAddJob(customerId){
   dateEl.value=minLeadDateStr();
   document.getElementById('j-day').value='';
   document.getElementById('j-notes').value='';
+  document.getElementById('j-clean-type').value='';
+  document.getElementById('j-roof-access').checked=false;
+  document.getElementById('j-side-rear').checked=false;
   await Promise.all([loadConfig(),loadUsers()]);
   populateServiceSelect('j-service');
   populateRoundSelect('j-round');
+  toggleWindowAttrFields();
   const sel=document.getElementById('j-assigned');
   sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   document.getElementById('jobModal').classList.add('open');
+}
+function toggleWindowAttrFields(){
+  const isWindow=(document.getElementById('j-service').value||'').toLowerCase().includes('window');
+  document.getElementById('j-window-attrs').style.display=isWindow?'':'none';
 }
 async function openEditJob(jobId,customerId){
   let j;
@@ -2707,9 +2751,13 @@ async function openEditJob(jobId,customerId){
   dateEl.value=j.next_due||j.scheduled_date||'';
   document.getElementById('j-day').value=j.day_of_week||'';
   document.getElementById('j-notes').value=j.notes||'';
+  document.getElementById('j-clean-type').value=j.clean_type||'';
+  document.getElementById('j-roof-access').checked=!!j.roof_access_required;
+  document.getElementById('j-side-rear').checked=!!j.side_rear_access;
   await Promise.all([loadConfig(),loadUsers()]);
   populateServiceSelect('j-service',j.service_type||'');
   populateRoundSelect('j-round',j.round_name||'');
+  toggleWindowAttrFields();
   const sel=document.getElementById('j-assigned');
   sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   sel.value=j.assigned_to||'';
@@ -2722,6 +2770,7 @@ async function saveJob(){
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
   if(isDateTooSoon(date)&&date!==editingJobOriginalDate){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
+  const isWindowJob=document.getElementById('j-window-attrs').style.display!=='none';
   const fields={price,frequency,
     scheduled_date:date,next_due:date,
     assigned_to:document.getElementById('j-assigned').value||null,
@@ -2729,6 +2778,9 @@ async function saveJob(){
     service_type:document.getElementById('j-service').value||null,
     round_name:document.getElementById('j-round').value||null,
     day_of_week:document.getElementById('j-day').value||null,
+    clean_type:isWindowJob?(document.getElementById('j-clean-type').value||null):null,
+    roof_access_required:isWindowJob?document.getElementById('j-roof-access').checked:false,
+    side_rear_access:isWindowJob?document.getElementById('j-side-rear').checked:false,
     status:'scheduled'};
   try{
     if(editingJobId){
@@ -4101,15 +4153,21 @@ async function renderTeamConfig(){
     <div class="page-header"><div><div class="page-title">Team</div><div class="page-sub">${wcUsers.length} team member${wcUsers.length!==1?'s':''}</div></div>
       <button class="btn btn-primary btn-sm" onclick="openTeamModal(null)">+ Add</button></div>
     <div class="detail-section">
-      ${wcUsers.map(u=>`<div class="detail-row">
+      ${wcUsers.map(u=>{
+        const skills=[u.skill_traditional?'Traditional':null,u.skill_wfp?'WFP':null,u.roof_access_capable?'Roof access':null].filter(Boolean);
+        return`<div class="detail-row">
         <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
-          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••</div></div>
+          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••</div>
+          <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap">
+            ${skills.length?skills.map(s=>`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(0,224,207,.14);color:var(--teal)">${s}</span>`).join(''):'<span style="font-size:10px;color:var(--text-muted);font-style:italic">No skills set</span>'}
+          </div>
+        </div>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${u.active?'var(--done-light)':'var(--danger-light)'};color:${u.active?'var(--done)':'var(--danger)'}">${u.active?'Active':'Inactive'}</span>
           <button class="btn btn-ghost btn-sm" onclick="openTeamModal('${u.id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteTeamMember('${u.id}','${esc(u.name)}')">Del</button>
         </div>
-      </div>`).join('')}
+      </div>`;}).join('')}
       ${!wcUsers.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No team members yet</span></div>':''}
     </div>`;
 }
@@ -4126,6 +4184,9 @@ function openTeamModal(id){
   document.getElementById('t-role').value=u?u.role:'employee';
   document.getElementById('t-view-mode').value=u?u.view_mode:'round_only';
   document.getElementById('t-pin').value=u?(u.pin||''):'';
+  document.getElementById('t-skill-traditional').checked=u?!!u.skill_traditional:false;
+  document.getElementById('t-skill-wfp').checked=u?!!u.skill_wfp:false;
+  document.getElementById('t-skill-roof').checked=u?!!u.roof_access_capable:false;
   const ta=document.getElementById('t-active');ta.checked=u?u.active!==false:true;updateTeamActiveSlider();
   document.getElementById('teamModal').classList.add('open');
 }
@@ -4139,7 +4200,10 @@ async function saveTeamMember(){
   if(!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits','error');return;}
   const clash=wcUsers.find(u=>u.pin===pin&&u.id!==editingTeamMemberId);
   if(clash){showToast(`That PIN is already used by ${clash.name}`,'error');return;}
-  const payload={name,role,view_mode,pin,active,business_id:BUSINESS_ID};
+  const skill_traditional=document.getElementById('t-skill-traditional').checked;
+  const skill_wfp=document.getElementById('t-skill-wfp').checked;
+  const roof_access_capable=document.getElementById('t-skill-roof').checked;
+  const payload={name,role,view_mode,pin,active,skill_traditional,skill_wfp,roof_access_capable,business_id:BUSINESS_ID};
   try{
     if(editingTeamMemberId)await sb(`wc_users?id=eq.${editingTeamMemberId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
     else await sb('wc_users',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
