@@ -662,8 +662,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='150';
-const BUILD_DATE='10 Oct 2026 12:31';
+const BUILD_VERSION='151';
+const BUILD_DATE='10 Oct 2026 15:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -902,6 +902,7 @@ const NAV_SECTIONS=[
   {section:'Work & Planning',items:[
     {id:'round',label:'Round',icon:ICON_ROUND},
     {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
+    {id:'optimizer',label:'Optimizer',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg>'},
   ]},
   {section:'Messaging',items:[
     {id:'messaging',label:'Conversations',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-6l-4 4v-4z"/></svg>'},
@@ -1014,6 +1015,7 @@ function navigate(page){
   else if(page==='owing')renderOwing();
   else if(page==='revenue')renderRevenue();
   else if(page==='data')renderDataTab();
+  else if(page==='optimizer')renderOptimizer();
   else if(page==='rounds-config')renderRoundsConfig();
   else if(page==='service-types-config')renderServiceTypesConfig();
   else if(page==='pricing-config')renderPricingConfig();
@@ -3620,6 +3622,166 @@ async function renderDataTab(){
     <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Cumulative customers</div>
     ${customerGrowthLineChart(buckets)}
   `;
+}
+
+// ── OPTIMIZER ─────────────────────────────────────────────────────────────────
+function outcodeOf(postcode){
+  const m=(postcode||'').toUpperCase().match(/^[A-Z]{1,2}\d[A-Z\d]?/);
+  return m?m[0]:null;
+}
+
+function nextDateForWeekday(weekdayName,fromDateStr){
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const targetIdx=days.indexOf(weekdayName);
+  if(targetIdx<0)return fromDateStr;
+  const d=new Date(fromDateStr+'T12:00:00');
+  const diff=(targetIdx-d.getDay()+7)%7;
+  d.setDate(d.getDate()+diff);
+  return localDateStr(d);
+}
+
+let optimizerClusters=[];
+
+async function renderOptimizer(){
+  document.getElementById('topbarPage').textContent='Optimizer';
+  document.getElementById('topbarAction').innerHTML='';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  await loadUsers();
+  let jobs=[];
+  try{
+    jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=id,price,round_name,day_of_week,assigned_to,series_id,next_due,scheduled_date,wc_customers(name,postcode)`);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  // Group by postcode district, then by (assignee, day-of-week) — the real scheduling unit.
+  // round_name is a cosmetic label and isn't reliable on its own (the same round name often
+  // spans several different actual weekdays), so it's shown per group but never used to group.
+  const byOutcode=new Map();
+  jobs.forEach(j=>{
+    const outcode=outcodeOf(j.wc_customers?.postcode);
+    if(!outcode)return;
+    if(!byOutcode.has(outcode))byOutcode.set(outcode,new Map());
+    const groups=byOutcode.get(outcode);
+    const key=(j.assigned_to||'unassigned')+'|'+(j.day_of_week||'—');
+    if(!groups.has(key))groups.set(key,{assigned_to:j.assigned_to,day_of_week:j.day_of_week,jobs:[],roundNames:{}});
+    const g=groups.get(key);
+    g.jobs.push(j);
+    if(j.round_name)g.roundNames[j.round_name]=(g.roundNames[j.round_name]||0)+1;
+  });
+
+  optimizerClusters=[...byOutcode.entries()]
+    .map(([outcode,groups])=>{
+      const groupList=[...groups.values()].sort((a,b)=>b.jobs.length-a.jobs.length);
+      const total=groupList.reduce((s,g)=>s+g.jobs.length,0);
+      const totalValue=groupList.reduce((s,g)=>s+g.jobs.reduce((s2,j)=>s2+parseFloat(j.price||0),0),0);
+      return{outcode,groups:groupList,total,totalValue};
+    })
+    .filter(c=>c.groups.length>1)
+    .sort((a,b)=>b.total-a.total);
+
+  const affectedJobs=optimizerClusters.reduce((s,c)=>s+c.total,0);
+
+  el.innerHTML=`
+    <div class="page-header"><div><div class="page-title">Optimizer</div><div class="page-sub">Postcode areas currently split across more than one day or person</div></div></div>
+    <div class="round-summary" style="margin-bottom:18px">
+      <div class="round-stat"><div class="round-stat-val">${optimizerClusters.length}</div><div class="round-stat-label">Split areas</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${affectedJobs}</div><div class="round-stat-label">Jobs involved</div></div>
+    </div>
+    ${optimizerClusters.length?optimizerClusters.map((c,i)=>optimizerClusterCard(c,i)).join(''):`<div class="empty"><div class="empty-sub" style="color:var(--done)">✓ Every postcode area is already on a single day with a single person</div></div>`}
+  `;
+}
+
+function optimizerClusterCard(c,idx){
+  return`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--white)">${esc(c.outcode)}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${c.total} jobs &middot; £${c.totalValue.toFixed(2)}</div>
+    </div>
+    ${c.groups.map(g=>{
+      const assignee=g.assigned_to?wcUsers.find(u=>u.id===g.assigned_to):null;
+      const name=assignee?assignee.name:'Unassigned';
+      const initials=assignee?initialsFor(name):'?';
+      const color=assignee?userColor(assignee.id):'var(--navy-700)';
+      const textColor=assignee?'#0a1420':'var(--text-muted)';
+      const roundLabel=Object.entries(g.roundNames).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+      const val=g.jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+      return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #182a3d">
+        <div style="width:26px;height:26px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:${textColor};flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--white)">${esc(name)} &middot; ${esc(g.day_of_week||'No day set')}</div>
+          <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(roundLabel)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--gold)">${g.jobs.length}</div>
+          <div style="font-size:10px;color:var(--text-muted)">£${val.toFixed(0)}</div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #182a3d">
+      <select id="opt-target-${idx}" style="flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--navy-900);color:var(--white);font-size:12.5px;font-family:inherit">
+        ${c.groups.map((g,gi)=>{
+          const assignee=g.assigned_to?wcUsers.find(u=>u.id===g.assigned_to):null;
+          const name=assignee?assignee.name:'Unassigned';
+          return`<option value="${gi}">Consolidate onto ${esc(name)} &middot; ${esc(g.day_of_week||'No day set')} (${g.jobs.length} jobs)</option>`;
+        }).join('')}
+      </select>
+      <button type="button" class="btn btn-primary btn-sm" onclick="consolidateCluster(${idx})">Apply</button>
+    </div>
+  </div>`;
+}
+
+async function consolidateCluster(idx){
+  const c=optimizerClusters[idx];
+  if(!c)return;
+  const sel=document.getElementById(`opt-target-${idx}`);
+  const targetIdx=parseInt(sel.value);
+  const targetGroup=c.groups[targetIdx];
+  const targetAssignee=targetGroup.assigned_to?wcUsers.find(u=>u.id===targetGroup.assigned_to)?.name:'Unassigned';
+  const roundLabel=Object.entries(targetGroup.roundNames).sort((a,b)=>b[1]-a[1])[0]?.[0]||targetGroup.day_of_week;
+  const jobsToMove=c.groups.filter((g,gi)=>gi!==targetIdx).flatMap(g=>g.jobs);
+  if(!jobsToMove.length)return;
+  if(!confirm(`Move ${jobsToMove.length} job(s) in ${c.outcode} to ${targetAssignee} \u00b7 ${targetGroup.day_of_week||'no day set'}?\n\nThis updates the round, day and assignee on each recurring series (future occurrences will be regenerated on the correct day by the nightly scheduler).`))return;
+
+  try{
+    const seriesSeen=new Set();
+    const standalone=[];
+    for(const j of jobsToMove){
+      if(j.series_id){
+        if(seriesSeen.has(j.series_id))continue;
+        seriesSeen.add(j.series_id);
+      }else{
+        standalone.push(j);
+      }
+    }
+    for(const j of standalone){
+      const fields={assigned_to:targetGroup.assigned_to,day_of_week:targetGroup.day_of_week,round_name:roundLabel};
+      if(targetGroup.day_of_week){
+        const base=j.next_due||j.scheduled_date||todayStr();
+        const newDate=nextDateForWeekday(targetGroup.day_of_week,base<todayStr()?todayStr():base);
+        fields.next_due=newDate;fields.scheduled_date=newDate;
+      }
+      await sb(`wc_jobs?id=eq.${j.id}`,{method:'PATCH',body:JSON.stringify(fields),prefer:'return=minimal'});
+    }
+    // Recurring series: update the soonest occurrence (with a corrected date) and delete the
+    // rest of that series' future rows — the nightly 3-Month Rolling Schedule Generator rebuilds
+    // them from the corrected template, the same pattern already used for the Squeegee
+    // day-of-week resync fixes.
+    for(const seriesId of seriesSeen){
+      const occurrences=jobsToMove.filter(j=>j.series_id===seriesId).sort((a,b)=>(a.next_due||a.scheduled_date||'').localeCompare(b.next_due||b.scheduled_date||''));
+      const anchor=occurrences[0];
+      const fields={assigned_to:targetGroup.assigned_to,day_of_week:targetGroup.day_of_week,round_name:roundLabel};
+      if(targetGroup.day_of_week){
+        const base=anchor.next_due||anchor.scheduled_date||todayStr();
+        const newDate=nextDateForWeekday(targetGroup.day_of_week,base<todayStr()?todayStr():base);
+        fields.next_due=newDate;fields.scheduled_date=newDate;
+      }
+      await sb(`wc_jobs?id=eq.${anchor.id}`,{method:'PATCH',body:JSON.stringify(fields),prefer:'return=minimal'});
+      const rest=occurrences.slice(1).map(j=>j.id);
+      if(rest.length)await sb(`wc_jobs?id=in.(${rest.join(',')})`,{method:'DELETE',prefer:'return=minimal'});
+    }
+    showToast('Consolidated \u2713','success');
+    renderOptimizer();
+  }catch(e){showToast(e.message,'error');}
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
