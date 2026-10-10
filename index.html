@@ -406,12 +406,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
           <option value="both">Both</option>
         </select>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="j-roof-access" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Roof access required
-          </label>
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="j-side-rear" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Side/rear access
-          </label>
+          <div id="j-roof-access" data-checked="0" onclick="toggleSkillBox('j-roof-access')" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <div class="skillbox-swatch" style="width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg class="skillbox-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy-900)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:500;color:var(--text)">Roof access required</span>
+          </div>
+          <div id="j-side-rear" data-checked="0" onclick="toggleSkillBox('j-side-rear')" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <div class="skillbox-swatch" style="width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg class="skillbox-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy-900)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:500;color:var(--text)">Side/rear access</span>
+          </div>
         </div>
       </div>
       <div class="form-row">
@@ -625,15 +631,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
       <div class="field">
         <label>Skills (window cleaning)</label>
         <div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="t-skill-traditional" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Traditional
-          </label>
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="t-skill-wfp" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Water-fed pole
-          </label>
-          <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:normal">
-            <input type="checkbox" id="t-skill-roof" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)">Roof access
-          </label>
+          <div id="t-skill-traditional" data-checked="0" onclick="toggleSkillBox('t-skill-traditional')" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <div class="skillbox-swatch" style="width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg class="skillbox-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy-900)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:500;color:var(--text)">Traditional</span>
+          </div>
+          <div id="t-skill-wfp" data-checked="0" onclick="toggleSkillBox('t-skill-wfp')" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <div class="skillbox-swatch" style="width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg class="skillbox-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy-900)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:500;color:var(--text)">Water-fed pole</span>
+          </div>
+          <div id="t-skill-roof" data-checked="0" onclick="toggleSkillBox('t-skill-roof')" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <div class="skillbox-swatch" style="width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg class="skillbox-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy-900)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:500;color:var(--text)">Roof access</span>
+          </div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
@@ -693,8 +708,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='153';
-const BUILD_DATE='10 Oct 2026 17:02';
+const BUILD_VERSION='154';
+const BUILD_DATE='10 Oct 2026 17:12';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2723,8 +2738,8 @@ async function openAddJob(customerId){
   document.getElementById('j-day').value='';
   document.getElementById('j-notes').value='';
   document.getElementById('j-clean-type').value='';
-  document.getElementById('j-roof-access').checked=false;
-  document.getElementById('j-side-rear').checked=false;
+  setSkillBox('j-roof-access',false);
+  setSkillBox('j-side-rear',false);
   await Promise.all([loadConfig(),loadUsers()]);
   populateServiceSelect('j-service');
   populateRoundSelect('j-round');
@@ -2752,8 +2767,8 @@ async function openEditJob(jobId,customerId){
   document.getElementById('j-day').value=j.day_of_week||'';
   document.getElementById('j-notes').value=j.notes||'';
   document.getElementById('j-clean-type').value=j.clean_type||'';
-  document.getElementById('j-roof-access').checked=!!j.roof_access_required;
-  document.getElementById('j-side-rear').checked=!!j.side_rear_access;
+  setSkillBox('j-roof-access',!!j.roof_access_required);
+  setSkillBox('j-side-rear',!!j.side_rear_access);
   await Promise.all([loadConfig(),loadUsers()]);
   populateServiceSelect('j-service',j.service_type||'');
   populateRoundSelect('j-round',j.round_name||'');
@@ -2779,8 +2794,8 @@ async function saveJob(){
     round_name:document.getElementById('j-round').value||null,
     day_of_week:document.getElementById('j-day').value||null,
     clean_type:isWindowJob?(document.getElementById('j-clean-type').value||null):null,
-    roof_access_required:isWindowJob?document.getElementById('j-roof-access').checked:false,
-    side_rear_access:isWindowJob?document.getElementById('j-side-rear').checked:false,
+    roof_access_required:isWindowJob?getSkillBox('j-roof-access'):false,
+    side_rear_access:isWindowJob?getSkillBox('j-side-rear'):false,
     status:'scheduled'};
   try{
     if(editingJobId){
@@ -4171,6 +4186,22 @@ async function renderTeamConfig(){
       ${!wcUsers.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No team members yet</span></div>':''}
     </div>`;
 }
+function setSkillBox(id,checked){
+  const box=document.getElementById(id);
+  if(!box)return;
+  box.dataset.checked=checked?'1':'0';
+  const swatch=box.querySelector('.skillbox-swatch');
+  const tick=box.querySelector('.skillbox-tick');
+  if(swatch){swatch.style.background=checked?'var(--gold)':'transparent';swatch.style.borderColor=checked?'var(--gold)':'var(--border)';}
+  if(tick)tick.style.display=checked?'block':'none';
+}
+function getSkillBox(id){
+  const box=document.getElementById(id);
+  return box?box.dataset.checked==='1':false;
+}
+function toggleSkillBox(id){
+  setSkillBox(id,!getSkillBox(id));
+}
 function updateTeamActiveSlider(){
   const checked=document.getElementById('t-active').checked;
   const s=document.getElementById('teamActiveSlider');
@@ -4184,9 +4215,9 @@ function openTeamModal(id){
   document.getElementById('t-role').value=u?u.role:'employee';
   document.getElementById('t-view-mode').value=u?u.view_mode:'round_only';
   document.getElementById('t-pin').value=u?(u.pin||''):'';
-  document.getElementById('t-skill-traditional').checked=u?!!u.skill_traditional:false;
-  document.getElementById('t-skill-wfp').checked=u?!!u.skill_wfp:false;
-  document.getElementById('t-skill-roof').checked=u?!!u.roof_access_capable:false;
+  setSkillBox('t-skill-traditional',u?!!u.skill_traditional:false);
+  setSkillBox('t-skill-wfp',u?!!u.skill_wfp:false);
+  setSkillBox('t-skill-roof',u?!!u.roof_access_capable:false);
   const ta=document.getElementById('t-active');ta.checked=u?u.active!==false:true;updateTeamActiveSlider();
   document.getElementById('teamModal').classList.add('open');
 }
@@ -4200,9 +4231,9 @@ async function saveTeamMember(){
   if(!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits','error');return;}
   const clash=wcUsers.find(u=>u.pin===pin&&u.id!==editingTeamMemberId);
   if(clash){showToast(`That PIN is already used by ${clash.name}`,'error');return;}
-  const skill_traditional=document.getElementById('t-skill-traditional').checked;
-  const skill_wfp=document.getElementById('t-skill-wfp').checked;
-  const roof_access_capable=document.getElementById('t-skill-roof').checked;
+  const skill_traditional=getSkillBox('t-skill-traditional');
+  const skill_wfp=getSkillBox('t-skill-wfp');
+  const roof_access_capable=getSkillBox('t-skill-roof');
   const payload={name,role,view_mode,pin,active,skill_traditional,skill_wfp,roof_access_capable,business_id:BUSINESS_ID};
   try{
     if(editingTeamMemberId)await sb(`wc_users?id=eq.${editingTeamMemberId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
