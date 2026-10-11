@@ -708,8 +708,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='155';
-const BUILD_DATE='10 Oct 2026 19:00';
+const BUILD_VERSION='156';
+const BUILD_DATE='11 Oct 2026 07:19';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1931,6 +1931,7 @@ function jobCard(j,num){
   const cardId='jc-'+j.id;
   const assignee=j.assigned_to?wcUsers.find(u=>u.id===j.assigned_to):null;
   const assigneeBadge=assignee?`<div title="${esc(assignee.name)}" style="width:26px;height:26px;border-radius:50%;background:${userColor(assignee.id)};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#0a1420;flex-shrink:0;">${initialsFor(assignee.name)}</div>`:'';
+  const stripeBadge=c.stripe_customer_id?`<div title="Stripe connected" style="width:20px;height:20px;border-radius:50%;background:#635bff;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#ffffff;flex-shrink:0;">S</div>`:'';
   const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" class="job-action action-navigate" onclick="event.stopPropagation()" style="background:transparent;border:1.5px solid var(--teal);color:var(--teal)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</a>`;
   const chargeBtn=`<button class="job-action action-charge" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`;
   const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')" style="background:transparent;border:1.5px solid var(--violet);color:var(--violet)">📅 Reschedule</button>`;
@@ -1956,6 +1957,7 @@ function jobCard(j,num){
         <div>${custPill(c)}</div>
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+      ${stripeBadge}
       ${assigneeBadge}
     </div>
     ${hasDetails?`<div class="job-card-details">
