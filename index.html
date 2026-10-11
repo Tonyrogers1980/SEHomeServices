@@ -208,6 +208,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-chevron.open{transform:rotate(180deg);}
 .job-card-details{padding:0 12px 10px 46px;}
 .job-card-actions{display:grid;gap:6px;padding:0 10px 10px;}
+.job-actions-more{flex-shrink:0;}
+.job-actions-more summary{width:34px;height:34px;border-radius:9px;background:var(--navy-700);border:1px solid var(--border);color:var(--text-soft);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;list-style:none;}
+.job-actions-more summary::-webkit-details-marker{display:none;}
+.job-actions-more[open]{width:100%;margin-top:8px;}
+.job-actions-more[open] summary{margin-bottom:8px;}
+.job-actions-more-list{display:flex;flex-direction:column;gap:8px;}
 .job-action{border:none;border-radius:8px;padding:10px 4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;transition:filter .12s,transform .08s;text-decoration:none;}
 .job-action:active{transform:scale(.96);filter:brightness(1.15);}
 .job-action svg{width:15px;height:15px;}
@@ -708,8 +714,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='156';
-const BUILD_DATE='11 Oct 2026 07:19';
+const BUILD_VERSION='157';
+const BUILD_DATE='11 Oct 2026 08:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1830,8 +1836,8 @@ async function renderRound(){
   let unassignedJobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id)`);
-    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id)`);
+    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance)`);
+    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance)`);
     jobs=[...byDue,...byDate];
     if(currentUser?.view_mode!=='round_only'){
       unassignedJobs=await sb(`wc_jobs?assigned_to=is.null&status=in.(scheduled,pending_assignment)&business_id=eq.${BUSINESS_ID}&select=*,wc_customers(id,name)&order=created_at.desc`);
@@ -1929,51 +1935,65 @@ function jobCard(j,num){
   const numClass=isDone?'done':'';
   const isAdmin=currentUser?.view_mode!=='round_only';
   const cardId='jc-'+j.id;
-  const assignee=j.assigned_to?wcUsers.find(u=>u.id===j.assigned_to):null;
-  const assigneeBadge=assignee?`<div title="${esc(assignee.name)}" style="width:26px;height:26px;border-radius:50%;background:${userColor(assignee.id)};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#0a1420;flex-shrink:0;">${initialsFor(assignee.name)}</div>`:'';
-  const stripeBadge=c.stripe_customer_id?`<div title="Stripe connected" style="width:20px;height:20px;border-radius:50%;background:#635bff;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#ffffff;flex-shrink:0;">S</div>`:'';
-  const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" class="job-action action-navigate" onclick="event.stopPropagation()" style="background:transparent;border:1.5px solid var(--teal);color:var(--teal)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Navigate</a>`;
-  const chargeBtn=`<button class="job-action action-charge" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`;
-  const rescheduleBtn=`<button class="job-action action-reschedule" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')" style="background:transparent;border:1.5px solid var(--violet);color:var(--violet)">📅 Reschedule</button>`;
-  const actions=isSched
-    ?`<div class="job-card-actions" style="grid-template-columns:repeat(${isAdmin?5:4},1fr)">
-        <button class="job-action action-done" onclick="event.stopPropagation();markDone('${j.id}')"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Done</button>
-        ${navBtn}
-        <button class="job-action action-skip" onclick="event.stopPropagation();openSkip('${j.id}','skipped')">Skip</button>
-        ${isAdmin?chargeBtn:''}
-        ${rescheduleBtn}
-      </div>`
-    :`<div class="job-card-actions" style="grid-template-columns:repeat(${isAdmin?3:2},1fr)">
-        ${navBtn}
-        <button class="job-action action-undo" onclick="event.stopPropagation();undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>
-        ${isAdmin?chargeBtn:''}
-      </div>`;
-  const hasDetails=!!(j.service_type||j.round_name||c.notes||j.notes||j.clean_type||j.roof_access_required||j.side_rear_access);
-  return`<div class="job-card ${cardClass}" id="${cardId}">
-    <div class="job-card-header" onclick="openEditJob('${j.id}','${c.id}')">
-      <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
-      <div class="job-card-body">
-        <div class="job-card-addr-main">${addrLink(c.address,c.postcode,'job-card-addr-main')}</div>
-        <div>${custPill(c)}</div>
-      </div>
-      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
-      ${stripeBadge}
-      ${assigneeBadge}
+  const stripeBadge=c.stripe_customer_id?`<div title="Stripe connected" style="width:18px;height:18px;border-radius:50%;background:#635bff;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:9px;font-weight:700;color:#ffffff;flex-shrink:0;">S</div>`:'';
+
+  const navBtn=`<a href="${mapsUrl(c.address,c.postcode)}" onclick="event.stopPropagation()" style="flex:1;text-align:center;padding:9px;border-radius:9px;background:transparent;border:1.5px solid var(--teal);color:var(--teal);font-size:12.5px;font-weight:700;text-decoration:none;">Navigate</a>`;
+  const doneBtn=`<button type="button" onclick="event.stopPropagation();markDone('${j.id}')" style="flex:1;padding:9px;border-radius:9px;background:var(--done);border:none;color:var(--navy-900);font-size:12.5px;font-weight:700;">Done</button>`;
+  const chargeBtn=isAdmin?`<button type="button" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')" style="width:100%;padding:9px;border-radius:9px;background:var(--gold);border:none;color:var(--navy-900);font-size:12.5px;font-weight:700;">💳 Charge</button>`:'';
+  const rescheduleBtn=`<button type="button" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')" style="width:100%;padding:9px;border-radius:9px;background:transparent;border:1.5px solid var(--violet);color:var(--violet);font-size:12.5px;font-weight:700;">📅 Reschedule</button>`;
+  const skipBtn=`<button type="button" onclick="event.stopPropagation();openSkip('${j.id}','skipped')" style="width:100%;padding:9px;border-radius:9px;background:var(--navy-700);border:1px solid var(--border);color:var(--white);font-size:12.5px;font-weight:600;">Skip</button>`;
+  const undoBtn=`<button type="button" onclick="event.stopPropagation();undoStatus('${j.id}')" style="width:100%;padding:9px;border-radius:9px;background:var(--navy-700);border:1px solid var(--border);color:var(--white);font-size:12.5px;font-weight:600;">↩ Undo — ${statusLabel(j.status)}</button>`;
+  const overflowItems=(isSched?[skipBtn,chargeBtn,rescheduleBtn]:[undoBtn,chargeBtn]).filter(Boolean);
+
+  const actions=`<div style="padding:0 14px 12px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${isSched?doneBtn:''}
+      ${navBtn}
+      ${overflowItems.length?`<details class="job-actions-more">
+        <summary aria-label="More actions" onclick="event.stopPropagation()">⋯</summary>
+        <div class="job-actions-more-list" onclick="event.stopPropagation()">${overflowItems.join('')}</div>
+      </details>`:''}
     </div>
-    ${hasDetails?`<div class="job-card-details">
-      ${(j.service_type||j.round_name)?`<div class="job-card-detail-rows">
-        ${j.service_type?`<div class="job-card-detail-row"><span>Service</span><span>${esc(j.service_type)}</span></div>`:''}
-        ${j.round_name?`<div class="job-card-detail-row"><span>Round</span><span style="color:var(--teal)">${esc(j.round_name)}</span></div>`:''}
-      </div>`:''}
-      ${(j.clean_type||j.roof_access_required||j.side_rear_access)?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
-        ${j.clean_type?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(0,224,207,.14);color:var(--teal)">${j.clean_type==='wfp'?'WFP':j.clean_type==='both'?'Trad + WFP':'Traditional'}</span>`:''}
-        ${j.roof_access_required?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(255,207,77,.14);color:var(--warn)">Roof access</span>`:''}
-        ${j.side_rear_access?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(177,139,255,.14);color:var(--violet)">Side/rear access</span>`:''}
-      </div>`:''}
-      ${c.notes?`<div class="job-card-note">⚠ ${esc(c.notes)}</div>`:''}
-      ${j.notes?`<div class="job-card-note" style="color:var(--text-muted)">📝 ${esc(j.notes)}</div>`:''}
-    </div>`:''}
-    ${actions}
+  </div>`;
+
+  // Single compact meta line — service · round (teal) · frequency — instead of stacked label/value rows.
+  const metaBits=[];
+  if(j.service_type)metaBits.push(esc(j.service_type));
+  if(j.round_name)metaBits.push(`<span style="color:var(--teal)">${esc(j.round_name)}</span>`);
+  if(j.frequency)metaBits.push(esc(freqLabel(j.frequency)));
+  const metaLine=metaBits.length?`<div style="font-size:11px;color:var(--text-muted);padding:0 14px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${metaBits.join(' <span style="color:var(--border)">&middot;</span> ')}</div>`:'';
+
+  const flagPills=(j.clean_type||j.roof_access_required||j.side_rear_access)?`<div style="display:flex;gap:5px;flex-wrap:wrap;padding:0 14px;margin-top:8px">
+    ${j.clean_type?`<span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(0,224,207,.14);color:var(--teal)">${j.clean_type==='wfp'?'WFP':j.clean_type==='both'?'Trad + WFP':'Traditional'}</span>`:''}
+    ${j.roof_access_required?`<span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(255,207,77,.14);color:var(--warn)">Roof access</span>`:''}
+    ${j.side_rear_access?`<span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(177,139,255,.14);color:var(--violet)">Side/rear access</span>`:''}
+  </div>`:'';
+
+  // Exception banner — balance owing and/or an access note, pulled out of the body so they
+  // can't be missed while scrolling, instead of blending in as just another line of text.
+  const balanceNum=parseFloat(c.balance||0);
+  const noteText=[c.notes,j.notes].filter(Boolean).join(' · ');
+  const banners=[];
+  if(balanceNum>0)banners.push(`<div style="background:rgba(255,92,114,.16);padding:6px 14px;font-size:11px;font-weight:700;color:var(--danger)">⚠ Owes £${balanceNum.toFixed(2)}</div>`);
+  if(noteText)banners.push(`<div style="background:rgba(255,207,77,.16);padding:6px 14px;font-size:11px;font-weight:600;color:var(--warn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📝 ${esc(noteText)}</div>`);
+  const bannerBlock=banners.length?`<div style="border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;border:1px solid ${balanceNum>0?'rgba(255,92,114,.4)':'rgba(255,207,77,.4)'};border-bottom:none">${banners.join('')}</div>`:'';
+
+  return`<div class="job-card-wrap" style="margin-bottom:10px">
+    ${bannerBlock}
+    <div class="job-card ${cardClass}" id="${cardId}" style="margin-bottom:0;${banners.length?`border-radius:0 0 var(--radius) var(--radius);border-color:${balanceNum>0?'rgba(255,92,114,.4)':'rgba(255,207,77,.4)'};border-top:none`:''}">
+      <div class="job-card-header" onclick="openEditJob('${j.id}','${c.id}')">
+        <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
+        <div class="job-card-body">
+          <div class="job-card-addr-main">${addrLink(c.address,c.postcode,'job-card-addr-main')}</div>
+          <div>${custPill(c)}</div>
+        </div>
+        <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
+        ${stripeBadge}
+      </div>
+      ${metaLine}
+      ${flagPills}
+      <div style="margin-top:12px">${actions}</div>
+    </div>
   </div>`;
 }
 
@@ -1996,7 +2016,7 @@ async function renderRoundWeek(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id)`);
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance)`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
