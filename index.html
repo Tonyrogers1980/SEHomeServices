@@ -283,6 +283,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   .sidebar-desktop{display:none;}
   .desktop-content{display:flex;flex-direction:column;flex:1;min-height:0;}
 }
+
+/* ── Crew change banners (very obvious by design) ── */
+.chg-banner{background:#ff2d4d;color:#fff;border-radius:var(--radius) var(--radius) 0 0;padding:12px 14px;border:2px solid #ff7a8f;animation:chgPulse 1.8s ease-in-out infinite}
+.chg-head{font-size:15px;font-weight:800;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.chg-text{font-size:14.5px;font-weight:600;line-height:1.35;margin-top:6px;word-break:break-word}
+.chg-meta{font-size:11.5px;opacity:.9;margin-top:4px}
+.chg-btn{margin-top:10px;width:100%;padding:13px;border-radius:10px;border:none;background:#fff;color:#c4102e;font-size:15px;font-weight:800;letter-spacing:.02em}
+.chg-btn.alt{background:rgba(255,255,255,.18);color:#fff;border:1.5px solid #fff;margin-top:8px}
+.chg-ok{background:rgba(141,233,113,.16);border:1px solid rgba(141,233,113,.5);border-bottom:none;border-radius:var(--radius) var(--radius) 0 0;color:var(--done);font-size:12px;font-weight:700;padding:7px 14px}
+.chg-bar{background:#ff2d4d;color:#fff;border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;border:2px solid #ff7a8f;animation:chgPulse 1.8s ease-in-out infinite}
+.chg-bar-title{font-size:15px;font-weight:800;letter-spacing:.03em}
+.chg-bar-row{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.35)}
+.job-card-wrap.has-change .job-card,.job-card-wrap.has-change .jc-banners{border-top-left-radius:0!important;border-top-right-radius:0!important}
+@keyframes chgPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,77,.55)}50%{box-shadow:0 0 0 7px rgba(255,45,77,0)}}
+@media (prefers-reduced-motion:reduce){.chg-banner,.chg-bar{animation:none}}
 </style>
 </head>
 <body>
@@ -714,8 +729,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='157';
-const BUILD_DATE='11 Oct 2026 08:05';
+const BUILD_VERSION='158';
+const BUILD_DATE='15 Oct 2026 14:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1844,6 +1859,7 @@ async function renderRound(){
     }
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
 
+  await loadCrewActions();
   // CHECKPOINT — show data count before rendering
   el.innerHTML=`<div class="empty"><div class="empty-title" style="color:var(--done)">✓ Got ${jobs.length} jobs</div><div class="empty-sub">Rendering now…</div></div>`;
 
@@ -1880,6 +1896,7 @@ async function renderRound(){
 
   el.innerHTML=`
     ${roundViewBar()}
+    ${crewAlertBar(jobs)}
     ${unassignedJobs.length?`<button type="button" onclick="navigate('jobs')" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;background:var(--navy-800);border:1px solid var(--danger);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.4)">
       <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,92,114,.16);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'DM Mono',monospace;font-size:17px;font-weight:700;color:var(--danger)">${unassignedJobs.length}</div>
       <div style="flex:1;min-width:0">
@@ -1926,6 +1943,74 @@ function userColor(id){
 }
 function initialsFor(name){
   return (name||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0]).join('').toUpperCase().slice(0,2)||'?';
+}
+
+
+// ── CREW CHANGE ACTIONS (conversation_actions) ────────────────────────────────
+let crewActions=[];
+async function loadCrewActions(){
+  try{
+    let q=`conversation_actions?status=eq.open&owner=eq.crew&business_id=eq.${BUSINESS_ID}&order=created_at.asc&select=*`;
+    if(currentUser?.view_mode==='round_only')q+=`&or=(assigned_to.eq.${currentUser.id},assigned_to.is.null)`;
+    const rows=await sb(q)||[];
+    const cids=[...new Set(rows.map(r=>r.customer_id).filter(Boolean))];
+    const jids=[...new Set(rows.map(r=>r.job_id).filter(Boolean))];
+    const cmap={},jmap={};
+    if(cids.length)(await sb(`wc_customers?id=in.(${cids.join(',')})&select=id,name,address,postcode`)||[]).forEach(c=>cmap[c.id]=c);
+    if(jids.length)(await sb(`wc_jobs?id=in.(${jids.join(',')})&select=id,scheduled_date,next_due,status`)||[]).forEach(j=>jmap[j.id]=j);
+    crewActions=rows.map(r=>({...r,_c:cmap[r.customer_id]||{},_j:jmap[r.job_id]||{}})).filter(r=>!r._j.status||r._j.status==='scheduled'||r._j.status==='pending_assignment');
+  }catch(e){crewActions=[];console.warn('loadCrewActions',e);}
+}
+function fmtChgTime(iso){try{return new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}catch(e){return'';}}
+function jobChangeBlock(jobId){
+  const isAdmin=currentUser?.view_mode!=='round_only';
+  const list=crewActions.filter(a=>a.job_id===jobId);
+  if(!list.length)return'';
+  return list.map(a=>{
+    if(a.crew_ack_at){
+      return`<div class="chg-ok">✓ Change acknowledged ${fmtChgTime(a.crew_ack_at)} — ${esc(a.summary)}</div>`;
+    }
+    const needsOk=isAdmin&&a.requires_approval&&!a.approved_at;
+    return`<div class="chg-banner">
+      <div class="chg-head"><span style="font-size:20px">⚠</span> CHANGE REQUESTED BY CUSTOMER</div>
+      <div class="chg-text">${esc(a.summary)}</div>
+      ${needsOk?`<div class="chg-meta">Price for the extra still needs your OK.</div>`:''}
+      <button type="button" class="chg-btn" onclick="event.stopPropagation();ackAction('${a.id}')">GOT IT</button>
+      ${needsOk?`<button type="button" class="chg-btn alt" onclick="event.stopPropagation();approveAction('${a.id}')">Price confirmed (OK)</button>`:''}
+    </div>`;
+  }).join('');
+}
+function crewAlertBar(shownJobs){
+  const unacked=crewActions.filter(a=>!a.crew_ack_at);
+  if(!unacked.length)return'';
+  const shown=new Set((shownJobs||[]).map(j=>j.id));
+  const elsewhere=unacked.filter(a=>!shown.has(a.job_id));
+  const onPage=unacked.length-elsewhere.length;
+  return`<div class="chg-bar">
+    <div class="chg-bar-title">⚠ ${unacked.length} CUSTOMER CHANGE${unacked.length===1?'':'S'} TO ACKNOWLEDGE</div>
+    ${onPage?`<div style="font-size:13px;margin-top:4px">${onPage} on today's jobs below. Tap GOT IT on each.</div>`:''}
+    ${elsewhere.map(a=>{const c=a._c||{};const d=a._j&&(a._j.next_due||a._j.scheduled_date);return`<div class="chg-bar-row">
+      <div style="font-size:13px;font-weight:700">${esc(c.name||'Customer')}${d?' — '+esc(fmtDate(d)):''}</div>
+      <div style="font-size:14px;font-weight:600;margin-top:2px">${esc(a.summary)}</div>
+      <button type="button" class="chg-btn" onclick="ackAction('${a.id}')">GOT IT</button></div>`;}).join('')}
+  </div>`;
+}
+async function ackAction(id){
+  try{
+    await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({crew_ack_at:new Date().toISOString(),crew_ack_by:currentUser?.id||null}),prefer:'return=minimal'});
+    showToast('✓ Got it','success');
+    renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+async function approveAction(id){
+  try{
+    await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({approved_at:new Date().toISOString()}),prefer:'return=minimal'});
+    showToast('Price confirmed','success');
+    renderRound();
+  }catch(e){showToast(e.message,'error');}
+}
+async function closeJobActions(jobId){
+  try{await sb(`conversation_actions?job_id=eq.${jobId}&status=eq.open&owner=eq.crew`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:currentUser?.name||'crew'}),prefer:'return=minimal'});}catch(e){console.warn('closeJobActions',e);}
 }
 
 function jobCard(j,num){
@@ -1976,9 +2061,11 @@ function jobCard(j,num){
   const banners=[];
   if(balanceNum>0)banners.push(`<div style="background:rgba(255,92,114,.16);padding:6px 14px;font-size:11px;font-weight:700;color:var(--danger)">⚠ Owes £${balanceNum.toFixed(2)}</div>`);
   if(noteText)banners.push(`<div style="background:rgba(255,207,77,.16);padding:6px 14px;font-size:11px;font-weight:600;color:var(--warn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📝 ${esc(noteText)}</div>`);
-  const bannerBlock=banners.length?`<div style="border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;border:1px solid ${balanceNum>0?'rgba(255,92,114,.4)':'rgba(255,207,77,.4)'};border-bottom:none">${banners.join('')}</div>`:'';
+  const bannerBlock=banners.length?`<div class="jc-banners" style="border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;border:1px solid ${balanceNum>0?'rgba(255,92,114,.4)':'rgba(255,207,77,.4)'};border-bottom:none">${banners.join('')}</div>`:'';
 
-  return`<div class="job-card-wrap" style="margin-bottom:10px">
+  const chg=jobChangeBlock(j.id);
+  return`<div class="job-card-wrap${chg?' has-change':''}" style="margin-bottom:10px">
+    ${chg}
     ${bannerBlock}
     <div class="job-card ${cardClass}" id="${cardId}" style="margin-bottom:0;${banners.length?`border-radius:0 0 var(--radius) var(--radius);border-color:${balanceNum>0?'rgba(255,92,114,.4)':'rgba(255,207,77,.4)'};border-top:none`:''}">
       <div class="job-card-header" onclick="openEditJob('${j.id}','${c.id}')">
@@ -2121,6 +2208,7 @@ async function renderRoundMonth(el){
 async function markDone(id){
   try{
     await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:roundDate}),prefer:'return=minimal'});
+    closeJobActions(id);
     showToast('✓ Done','success');
     // Auto-invoice if customer has it enabled
     autoInvoiceJob(id);
