@@ -729,8 +729,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='158';
-const BUILD_DATE='15 Oct 2026 14:30';
+const BUILD_VERSION='159';
+const BUILD_DATE='15 Oct 2026 15:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1674,6 +1674,129 @@ function openConvTabFromDashboard(tab){
   localStorage.setItem('convTab',tab);
   navigate('messaging');
 }
+
+// ── DAILY OPERATIONS OVERVIEW (dashboard) ─────────────────────────────────────
+const ACTION_LABELS={find_slot:'Find a slot',job_change:'Customer change',skip_or_postpone:'Skip / postpone',complaint:'Complaint',reply_or_call:'Reply / call',review_quote:'Review quote',task:'Task',incident:'Incident'};
+const ACTION_COLORS={find_slot:'var(--teal)',job_change:'var(--danger)',skip_or_postpone:'var(--violet)',complaint:'var(--danger)',reply_or_call:'var(--warn)',review_quote:'var(--gold)',task:'var(--text-soft)',incident:'var(--danger)'};
+const DEFER_RE=/(come back to you|get back to you|leave that with us|we.ll check our diary|passed (this|that) on)/i;
+function ageDays(iso){return iso?Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/86400000)):0;}
+async function loadOpsToday(allConvs){
+  const sod=new Date();sod.setHours(0,0,0,0);const sodISO=encodeURIComponent(sod.toISOString());
+  const [acts,todayActs,aiMsgs,quotes]=await Promise.all([
+    sb(`conversation_actions?business_id=eq.${BUSINESS_ID}&status=eq.open&order=created_at.asc&select=*`),
+    sb(`conversation_actions?business_id=eq.${BUSINESS_ID}&created_at=gte.${sodISO}&select=id,conversation_id,action_type,status`),
+    sb(`messages?direction=eq.outbound&source=eq.ai&created_at=gte.${sodISO}&select=conversation_id,message_text&limit=1000`),
+    sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&order=created_at.desc&limit=200&select=id,customer_id,status,price,sent_at,accepted_at,declined_at,created_at`)
+  ]);
+  const convById={};allConvs.forEach(c=>convById[c.id]=c);
+  // Reply-type actions close themselves once a person has answered in the conversation.
+  const live=[];
+  for(const a of acts){
+    const c=convById[a.conversation_id];
+    if((a.action_type==='reply_or_call'||a.action_type==='complaint')&&c&&c.last_outbound_source==='human'&&c.last_outbound_at&&c.last_outbound_at>a.created_at){
+      sb(`conversation_actions?id=eq.${a.id}`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:'auto: replied'}),prefer:'return=minimal'}).catch(()=>{});
+      continue;
+    }
+    live.push(a);
+  }
+  // Jarvis today: conversations it replied in, split into fully answered vs passed on.
+  const aiConvs=new Map();
+  aiMsgs.forEach(m=>{const e=aiConvs.get(m.conversation_id)||{deferred:false};if(DEFER_RE.test(m.message_text||''))e.deferred=true;aiConvs.set(m.conversation_id,e);});
+  const actionConvsToday=new Set(todayActs.filter(a=>!(a.status==='done'&&a.action_type==='skip_or_postpone')).map(a=>a.conversation_id));
+  let answered={service:0,sales:0,other:0},passed=0;
+  aiConvs.forEach((e,id)=>{
+    const c=convById[id];const kind=c?convKind(c):'other';
+    if(e.deferred||actionConvsToday.has(id)){passed++;return;}
+    answered[kind==='service'||kind==='sales'?kind:'other']++;
+  });
+  // Quotes
+  const sodMs=sod.getTime();
+  const sentToday=quotes.filter(q=>q.sent_at&&new Date(q.sent_at).getTime()>=sodMs);
+  const acceptedToday=quotes.filter(q=>q.accepted_at&&new Date(q.accepted_at).getTime()>=sodMs);
+  const pending=quotes.filter(q=>q.status==='sent'&&!q.accepted_at&&!q.declined_at).sort((a,b)=>new Date(a.sent_at||a.created_at)-new Date(b.sent_at||b.created_at));
+  // Accepted quotes whose job still has no assignee or no date = a booking that needs a slot.
+  const recentAccepted=quotes.filter(q=>q.accepted_at&&ageDays(q.accepted_at)<=30);
+  const custIds=[...new Set([...recentAccepted,...pending].map(q=>q.customer_id).filter(Boolean))];
+  const nameById={};let needSlot=[];
+  if(custIds.length){
+    const [custs,jobs]=await Promise.all([
+      sb(`wc_customers?id=in.(${custIds.join(',')})&select=id,name`),
+      sb(`wc_jobs?customer_id=in.(${custIds.join(',')})&status=in.(scheduled,pending_assignment)&select=id,customer_id,assigned_to,scheduled_date,next_due`)
+    ]);
+    custs.forEach(c=>nameById[c.id]=c.name);
+    needSlot=recentAccepted.filter(q=>{
+      const js=jobs.filter(j=>j.customer_id===q.customer_id);
+      return !js.length||js.some(j=>!j.assigned_to||(!j.scheduled_date&&!j.next_due));
+    });
+  }
+  const crewUnacked=live.filter(a=>a.owner==='crew'&&!a.crew_ack_at);
+  const mine=live.filter(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at));
+  return {live,mine,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById};
+}
+async function doneAction(id){
+  try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:currentUser?.name||'tony'}),prefer:'return=minimal'});showToast('Done','success');renderDashboard();}
+  catch(e){showToast(e.message,'error');}
+}
+async function approveActionDash(id){
+  try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({approved_at:new Date().toISOString()}),prefer:'return=minimal'});showToast('Price confirmed','success');renderDashboard();}
+  catch(e){showToast(e.message,'error');}
+}
+function opsTodayHtml(o){
+  if(!o)return'';
+  const tile=(label,big,sub,color,onclick)=>`<button type="button" ${onclick?`onclick="${onclick}"`:''} style="text-align:left;background:var(--navy-800);border:1px solid ${color==='var(--danger)'?'var(--danger)':'var(--border)'};border-radius:14px;padding:12px;box-shadow:0 3px 10px rgba(0,0,0,.4)">
+    <div style="font-size:10.5px;color:#8fa6c4;font-weight:600;margin-bottom:6px">${label}</div>
+    <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:700;color:${color||'var(--white)'};line-height:1">${big}</div>
+    <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.3">${sub}</div></button>`;
+  const ans=o.answered.service+o.answered.sales+o.answered.other;
+  const rows=[];
+  o.mine.forEach(a=>{
+    const c=o.convById[a.conversation_id]||{};
+    const needsOk=a.requires_approval&&!a.approved_at;
+    const label=needsOk?'Approve price':(ACTION_LABELS[a.action_type]||a.action_type);
+    const col=needsOk?'var(--gold)':(ACTION_COLORS[a.action_type]||'var(--warn)');
+    rows.push(`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">
+      <button type="button" onclick="openConversationFromDashboard('${a.conversation_id}')" style="flex:1;min-width:0;text-align:left;background:none;border:none;padding:0">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:${col}">${esc(label)}</span>
+        <span style="font-size:13px;color:var(--white);font-weight:600;margin-left:6px">${esc(c.customer_name||'Customer')}</span>
+        <div style="font-size:12px;color:var(--text-soft);margin-top:4px;line-height:1.35">${esc((a.summary||'').slice(0,140))}</div>
+      </button>
+      ${needsOk?`<button type="button" onclick="approveActionDash('${a.id}')" style="padding:8px 10px;border-radius:9px;background:var(--gold);border:none;color:var(--navy-900);font-size:11.5px;font-weight:700">OK</button>`
+               :`<button type="button" onclick="doneAction('${a.id}')" style="padding:8px 10px;border-radius:9px;background:var(--navy-700);border:1px solid var(--border);color:var(--white);font-size:11.5px;font-weight:600">Done</button>`}
+    </div>`);
+  });
+  if(o.crewUnacked.length){
+    const names=[...new Set(o.crewUnacked.map(a=>(o.convById[a.conversation_id]||{}).customer_name).filter(Boolean))].slice(0,3).join(', ');
+    rows.push(`<button type="button" onclick="navigate('round')" style="width:100%;text-align:left;display:block;background:rgba(255,45,77,.14);border:1px solid var(--danger);border-radius:10px;padding:10px;margin-top:10px">
+      <div style="font-size:13px;font-weight:800;color:var(--danger)">⚠ ${o.crewUnacked.length} change${o.crewUnacked.length===1?'':'s'} not yet acknowledged by crew</div>
+      <div style="font-size:11.5px;color:var(--text-soft);margin-top:3px">${esc(names)}</div></button>`);
+  }
+  o.needSlot.forEach(q=>{
+    rows.push(`<button type="button" onclick="navigate('jobs')" style="width:100%;text-align:left;display:flex;gap:8px;align-items:center;background:none;border:none;border-bottom:1px solid var(--border);padding:10px 0">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--teal)">Needs a slot</span>
+      <span style="font-size:13px;color:var(--white);font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(o.nameById[q.customer_id]||'Customer')}</span>
+      <span style="font-size:11px;color:var(--text-muted)">£${parseFloat(q.price||0).toFixed(0)} · accepted ${ageDays(q.accepted_at)===0?'today':ageDays(q.accepted_at)+'d ago'}</span></button>`);
+  });
+  const needsCount=o.mine.length+o.needSlot.length;
+  const pend=o.pending.slice(0,4).map(q=>{const d=ageDays(q.sent_at||q.created_at);return`<button type="button" onclick="navigate('quotes')" style="width:100%;display:flex;gap:8px;align-items:center;background:none;border:none;border-bottom:1px solid var(--border);padding:9px 0;text-align:left">
+      <span style="font-size:13px;color:var(--white);font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(o.nameById[q.customer_id]||'Customer')}</span>
+      <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-soft)">£${parseFloat(q.price||0).toFixed(0)}</span>
+      <span style="font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:${d>=7?'rgba(255,92,114,.16)':'rgba(255,207,77,.14)'};color:${d>=7?'var(--danger)':'var(--warn)'}">${d===0?'today':d+'d'}</span></button>`;}).join('');
+  return`
+    <div style="font-size:14.5px;font-weight:700;color:var(--white);margin-bottom:8px">Today</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      ${tile('Jarvis answered',ans,`${o.answered.service} service · ${o.answered.sales} sales${o.passed?`<br>${o.passed} passed to you`:''}`,'var(--violet)')}
+      ${tile('Quotes sent',o.sentToday.length,`${o.acceptedToday.length} booked today<br>${o.pending.length} pending in all`,'var(--gold)',"navigate('quotes')")}
+      ${tile('Need a slot',o.needSlot.length,o.needSlot.length?'accepted, no date or assignee':'all bookings placed',o.needSlot.length?'var(--danger)':'var(--done)',"navigate('jobs')")}
+    </div>
+    <div style="font-size:14.5px;font-weight:700;color:var(--white);margin-bottom:8px">Needs you${needsCount?` <span style="font-family:'DM Mono',monospace;color:var(--danger)">${needsCount}</span>`:''}</div>
+    <div style="background:var(--navy-800);border:1px solid ${needsCount||o.crewUnacked.length?'var(--danger)':'var(--border)'};border-radius:14px;padding:4px 14px 8px;box-shadow:0 3px 10px rgba(0,0,0,.4);margin-bottom:14px">
+      ${rows.length?rows.join(''):`<div style="padding:14px 0;font-size:12.5px;color:var(--text-muted)">Nothing waiting. Every handoff has been dealt with.</div>`}
+    </div>
+    ${o.pending.length?`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div style="font-size:14.5px;font-weight:700;color:var(--white)">Quotes waiting on a reply</div><button type="button" onclick="navigate('quotes')" style="background:none;border:none;font-size:11.5px;color:#8fa6c4">${o.pending.length} total &rarr;</button></div>
+    <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:2px 14px;margin-bottom:18px">${pend}</div>`:''}
+  `;
+}
+
 async function renderDashboard(){
   document.getElementById('topbarPage').textContent='Dashboard';
   document.getElementById('topbarAction').innerHTML='';
@@ -1692,7 +1815,7 @@ async function renderDashboard(){
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversation_id,conversations!inner(customer_name,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&select=id,price`),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&select=next_due,price`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc&select=id,customer_name,customer_phone,topic,wc_customer_id,stage,controlled_by,last_message_direction,last_message_at,created_at`),
+      sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc&select=id,customer_name,customer_phone,topic,wc_customer_id,stage,controlled_by,last_message_direction,last_message_at,created_at,last_outbound_at,last_outbound_source`),
       sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=id,phone,whatsapp_number,alt_phone`),
       sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=eq.sent&accepted_at=is.null&declined_at=is.null&select=id,price`),
     ]);
@@ -1742,6 +1865,7 @@ async function renderDashboard(){
   };
   const svcSec=convSection('service');
   const salesSec=convSection('sales');
+  let ops=null;try{ops=await loadOpsToday(allConvs);}catch(e){console.warn('loadOpsToday',e);}
 
   // Outstanding — done jobs not yet paid (same definition as the Owing tab)
   const unpaidJobs=doneJobs.filter(j=>invByJob[j.id]?.status!=='paid');
@@ -1760,6 +1884,8 @@ async function renderDashboard(){
 
   el.innerHTML=`
     <div style="font-size:21px;font-weight:700;color:var(--white);margin-bottom:16px">Good ${new Date().getHours()<12?'morning':new Date().getHours()<17?'afternoon':'evening'}, ${esc((currentUser?.name||'').split(' ')[0]||'')}</div>
+
+    ${opsTodayHtml(ops)}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
       <button type="button" onclick="navigate('round')" style="text-align:left;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)">
