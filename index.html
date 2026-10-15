@@ -729,8 +729,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='159';
-const BUILD_DATE='15 Oct 2026 15:10';
+const BUILD_VERSION='160';
+const BUILD_DATE='15 Oct 2026 15:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1183,6 +1183,51 @@ function escReasonLabel(reason){
   if(!reason)return'Needs review';
   return String(reason).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 }
+
+// ── CONVERSATION OUTCOME STRIP (what happened / what is open) — used by BOTH renderConvCard and escalationCardHtml ──
+let actionsByConv={};
+async function doneActionConv(id){
+  try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:currentUser?.name||'tony'}),prefer:'return=minimal'});showToast('Done','success');renderMessaging();}
+  catch(e){showToast(e.message,'error');}
+}
+async function approveActionConv(id){
+  try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({approved_at:new Date().toISOString()}),prefer:'return=minimal'});showToast('Price confirmed','success');renderMessaging();}
+  catch(e){showToast(e.message,'error');}
+}
+function convOutcomeStrip(convId,msgs,controlledBy){
+  msgs=msgs||[];
+  const acts=(typeof actionsByConv!=='undefined'&&actionsByConv[convId])||[];
+  const chip=(txt,col,bg)=>`<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:3px 8px;border-radius:999px;background:${bg};color:${col}">${esc(txt)}</span>`;
+  const box=(inner,border)=>`<div style="width:100%;box-sizing:border-box;background:var(--navy-900);border:1px solid ${border||'var(--border)'};border-radius:10px;padding:9px 10px">${inner}</div>`;
+  if(acts.length){
+    return acts.map(a=>{
+      const label=ACTION_LABELS[a.action_type]||a.action_type;
+      const col=ACTION_COLORS[a.action_type]||'var(--warn)';
+      const needsOk=a.requires_approval&&!a.approved_at;
+      let crew='';
+      if(a.owner==='crew'){
+        crew=a.crew_ack_at?`<div style="font-size:11.5px;font-weight:700;color:var(--done);margin-top:5px">✓ Crew acknowledged ${fmtChgTime(a.crew_ack_at)}</div>`
+                          :`<div style="font-size:11.5px;font-weight:800;color:var(--danger);margin-top:5px">⚠ Crew has NOT acknowledged this yet</div>`;
+      }
+      return box(`<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
+        ${chip(label,col,'rgba(255,255,255,.07)')}
+        <div style="display:flex;gap:6px">${needsOk?`<button type="button" class="btn btn-sm" style="background:var(--gold);color:var(--navy-900);font-weight:700" onclick="approveActionConv('${a.id}')">Price OK</button>`:''}
+        <button type="button" class="btn btn-neutral btn-sm" onclick="doneActionConv('${a.id}')">Done</button></div></div>
+        <div style="font-size:12.5px;color:var(--text);margin-top:6px;line-height:1.35">${esc((a.summary||'').slice(0,200))}</div>${crew}`,a.owner==='crew'&&!a.crew_ack_at?'var(--danger)':'var(--border)');
+    }).join('');
+  }
+  const last=msgs[msgs.length-1];
+  if(!last)return'';
+  if(last.direction==='outbound'){
+    if(last.source==='ai'){
+      if(DEFER_RE.test(last.message_text||''))return box(`${chip('Promise open','var(--warn)','rgba(255,207,77,.14)')} <span style="font-size:12px;color:var(--text-soft);margin-left:6px">Jarvis said it would come back to them. Nothing is logged for it yet.</span>`,'rgba(255,207,77,.4)');
+      return box(`${chip('✓ Answered by Jarvis','var(--done)','rgba(141,233,113,.14)')} <span style="font-size:12px;color:var(--text-muted);margin-left:6px">Waiting on the customer</span>`);
+    }
+    return box(`${chip('Replied','var(--text-soft)','rgba(255,255,255,.07)')} <span style="font-size:12px;color:var(--text-muted);margin-left:6px">Waiting on the customer</span>`);
+  }
+  if(controlledBy==='ai')return box(`${chip('Jarvis is handling','var(--violet)','rgba(177,139,255,.16)')}`);
+  return'';
+}
 function escalationCardHtml(r,msgs,lead){
   msgs=msgs||[];
   const conv=r.conversations||{};
@@ -1200,6 +1245,7 @@ function escalationCardHtml(r,msgs,lead){
       </div>
     </div>
     ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
+    ${convOutcomeStrip(r.conversation_id,msgs,(r.conversations||{}).controlled_by||'human')}
     ${msgs.length?`<details style="width:100%">
       <summary class="conv-transcript-toggle">View full conversation (${msgs.length} messages)</summary>
       <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
@@ -1305,6 +1351,7 @@ function renderConvCard(conv,msgs,badge){
         </details>
       </div>
     </div>
+    ${convOutcomeStrip(conv.id,msgs,conv.controlled_by)}
     ${followupStatusPills(conv,msgs)}
     ${lastInbound?`<div style="font-size:13px;color:var(--text);background:var(--navy-900);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;white-space:pre-wrap">${esc(lastInbound.message_text||'')}${renderMessageMedia(lastInbound)}</div>`:''}
     ${(msgs||[]).length?`<details style="width:100%">
@@ -1610,7 +1657,7 @@ async function renderMessaging(){
     // Each tab is derived from these in convGroups() — see convNeedsReply() and convKind() for the rules.
     [convs,escalations]=await Promise.all([
       sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc`),
-      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations!inner(customer_name,customer_phone,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
+      sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=*,conversations!inner(customer_name,customer_phone,last_message_at,stage,controlled_by)&conversations.deleted_at=is.null&order=created_at.desc`),
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   messagingConvById={};
@@ -1629,13 +1676,18 @@ async function renderMessaging(){
       const idChunks=[];
       for(let i=0;i<allIds.length;i+=25) idChunks.push(allIds.slice(i,i+25));
       const chunkResults=await Promise.allSettled(idChunks.map(chunk=>
-        sb(`messages?conversation_id=in.(${chunk.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at&order=created_at.asc`)
+        sb(`messages?conversation_id=in.(${chunk.join(',')})&select=conversation_id,direction,message_text,message_type,media_urls,created_at,source&order=created_at.asc`)
       ));
       chunkResults.filter(r=>r.status==='fulfilled').forEach(r=>{
         r.value.forEach(m=>{(messagesByConv[m.conversation_id]=messagesByConv[m.conversation_id]||[]).push(m);});
       });
     }catch(e){/* transcripts are a nice-to-have — still show cards if this fails */}
   }
+  actionsByConv={};
+  try{
+    const actRows=await sb(`conversation_actions?business_id=eq.${BUSINESS_ID}&status=eq.open&order=created_at.asc&select=*`);
+    (actRows||[]).forEach(a=>{if(a.conversation_id)(actionsByConv[a.conversation_id]=actionsByConv[a.conversation_id]||[]).push(a);});
+  }catch(e){/* strip falls back to the derived outcome */}
   messagingLeadsByConv={};
   const escConvIds=[...new Set(escalations.map(r=>r.conversation_id).filter(Boolean))];
   if(escConvIds.length){
