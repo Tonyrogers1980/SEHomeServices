@@ -729,8 +729,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='160';
-const BUILD_DATE='15 Oct 2026 15:50';
+const BUILD_VERSION='161';
+const BUILD_DATE='16 Oct 2026 15:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3021,7 +3021,7 @@ async function openAddJob(customerId){
   document.getElementById('j-price').value='';
   document.getElementById('j-frequency').value='4-weekly';
   const dateEl=document.getElementById('j-date');
-  dateEl.min=minLeadDateStr();
+  dateEl.min=localDateStr(new Date()); // jobs screen: same-day and next-day bookings allowed
   dateEl.value=minLeadDateStr();
   document.getElementById('j-day').value='';
   document.getElementById('j-notes').value='';
@@ -3050,7 +3050,7 @@ async function openEditJob(jobId,customerId){
   document.getElementById('j-price').value=j.price||'';
   document.getElementById('j-frequency').value=j.frequency||'4-weekly';
   const dateEl=document.getElementById('j-date');
-  dateEl.min=minLeadDateStr();
+  dateEl.min=localDateStr(new Date()); // jobs screen: same-day and next-day bookings allowed
   dateEl.value=j.next_due||j.scheduled_date||'';
   document.getElementById('j-day').value=j.day_of_week||'';
   document.getElementById('j-notes').value=j.notes||'';
@@ -3072,7 +3072,6 @@ async function saveJob(){
   const frequency=document.getElementById('j-frequency').value||'one-off';
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   if(!date){showToast('Select a date','error');return;}
-  if(isDateTooSoon(date)&&date!==editingJobOriginalDate){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const isWindowJob=document.getElementById('j-window-attrs').style.display!=='none';
   const fields={price,frequency,
     scheduled_date:date,next_due:date,
