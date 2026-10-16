@@ -194,6 +194,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-name{font-size:16px;font-weight:600;color:var(--white);line-height:1.2;}
 .stripe-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;color:var(--gold);vertical-align:middle;}
 .stripe-badge svg{width:16px;height:16px;}
+.cash-badge{display:inline-flex;align-items:center;margin-left:6px;padding:1px 7px;border-radius:999px;background:rgba(0,224,207,.14);border:1px solid var(--teal);color:var(--teal);font-family:'DM Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.3px;vertical-align:middle;white-space:nowrap;}
 .job-card-addr{font-size:13px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .job-card-svc{font-size:12px;color:var(--text-muted);margin-top:3px;}
 .job-card-round{font-size:11px;color:var(--navy-400);font-weight:500;}
@@ -402,6 +403,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
           <span onclick="document.getElementById('f-auto-invoice').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:13px;transition:.2s" id="autoInvoiceSlider"></span>
         </label>
       </div>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;margin-top:10px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">
+        <input type="checkbox" id="f-cash-payer" style="width:18px;height:18px;accent-color:var(--teal)">
+        <span><span style="display:block;font-size:14px;font-weight:500;color:var(--text)">Cash payer</span><span style="display:block;font-size:12px;color:var(--text-muted);margin-top:2px">Customer pays in cash — shows a £ CASH badge</span></span>
+      </label>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('customerModal')">Cancel</button>
@@ -729,8 +734,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='161';
-const BUILD_DATE='16 Oct 2026 15:30';
+const BUILD_VERSION='162';
+const BUILD_DATE='16 Oct 2026 17:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -754,6 +759,7 @@ function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);
 function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
 function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 function custPill(c){if(!c||!c.id)return`<div class="job-card-name-sub">${esc((c&&c.name)||'Unknown')}</div>`;return`<span class="cust-pill" title="Open customer" onclick="event.stopPropagation();showCustomer('${c.id}')">${esc(c.name||'Unknown')} <span style="opacity:.7">›</span></span>`;}
+function cashBadge(c){return c&&c.cash_payer?'<span class="cash-badge" title="Pays by cash">£ CASH</span>':'';}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':s==='pending_assignment'?'badge-pending':'badge-scheduled';}
 function statusLabel(s){return s==='done'?'Done':s==='skipped'?'Skipped':s==='cant-access'?"Can't access":s==='pending_assignment'?'Needs round':'Scheduled';}
@@ -2029,8 +2035,8 @@ async function renderRound(){
   let unassignedJobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance)`);
-    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance)`);
+    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer)`);
+    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer)`);
     jobs=[...byDue,...byDate];
     if(currentUser?.view_mode!=='round_only'){
       unassignedJobs=await sb(`wc_jobs?assigned_to=is.null&status=in.(scheduled,pending_assignment)&business_id=eq.${BUSINESS_ID}&select=*,wc_customers(id,name)&order=created_at.desc`);
@@ -2250,7 +2256,7 @@ function jobCard(j,num){
         <div class="job-card-num ${numClass}">${isDone?'✓':num}</div>
         <div class="job-card-body">
           <div class="job-card-addr-main">${addrLink(c.address,c.postcode,'job-card-addr-main')}</div>
-          <div>${custPill(c)}</div>
+          <div>${custPill(c)}${cashBadge(c)}</div>
         </div>
         <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
         ${stripeBadge}
@@ -2281,7 +2287,7 @@ async function renderRoundWeek(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance)`);
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer)`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
@@ -2530,7 +2536,7 @@ function customerCards(list){
   if(!list.length)return'<div class="empty"><div class="empty-title">No customers found</div></div>';
   return list.map(c=>`<div class="card" onclick="showCustomer('${c.id}')">
     <div class="card-avatar">${c.name.charAt(0).toUpperCase()}</div>
-    <div class="card-info"><div class="card-name">${esc(c.name)}</div><div class="card-sub">${addrLink(c.address,c.postcode)}</div></div>
+    <div class="card-info"><div class="card-name">${esc(c.name)}${cashBadge(c)}</div><div class="card-sub">${addrLink(c.address,c.postcode)}</div></div>
     ${c.phone?`<div style="font-size:13px;color:var(--text-muted);flex-shrink:0">${esc(c.phone)}</div>`:''}
   </div>`).join('');
 }
@@ -2550,7 +2556,7 @@ async function showCustomer(id){
   el.innerHTML=`
     <button class="back-btn" onclick="renderCustomers()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Customers</button>
     <div class="page-header">
-      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${addrLink(c.address,c.postcode)}</div></div>
+      <div><div class="page-title">${esc(c.name)}${cashBadge(c)}</div><div class="page-sub">${addrLink(c.address,c.postcode)}</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="openQuoteForCustomer('${c.id}')">Quote</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditCustomer('${c.id}')">Edit</button>
@@ -2564,6 +2570,7 @@ async function showCustomer(id){
       ${c.customer_reference?`<div class="detail-row"><span class="detail-label">Ref</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px">${esc(c.customer_reference)}</span></div>`:''}
       ${!c.phone&&!c.whatsapp_number&&!c.email?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No contact details</span></div>':''}
     </div>
+    ${c.cash_payer?`<div class="detail-section"><div class="detail-section-header">Payment</div><div class="detail-row"><span class="detail-label">Pays by</span><span class="detail-value" style="color:var(--teal);font-weight:700">£ Cash payer</span></div></div>`:''}
     ${c.balance&&parseFloat(c.balance)!==0?`<div class="detail-section"><div class="detail-section-header">Account</div><div class="detail-row"><span class="detail-label">Balance</span><span class="detail-value" style="color:${parseFloat(c.balance)>0?'var(--done)':'var(--danger)'}">£${parseFloat(c.balance).toFixed(2)}</span></div></div>`:''}
     ${c.notes?`<div class="detail-section"><div class="detail-section-header">Notes</div><div class="detail-row"><span style="color:var(--warn);font-size:14px">⚠ ${esc(c.notes)}</span></div></div>`:''}
     <div class="detail-section">
@@ -2772,6 +2779,7 @@ function openAddCustomer(){
   ['name','address','postcode','phone','whatsapp','email','notes'].forEach(f=>document.getElementById('f-'+f).value='');
   const ai=document.getElementById('f-auto-invoice');ai.checked=true;updateSlider();
   ai.onchange=updateSlider;
+  document.getElementById('f-cash-payer').checked=false;
   document.getElementById('customerModal').classList.add('open');
 }
 function openEditCustomer(id){
@@ -2788,6 +2796,7 @@ function openEditCustomer(id){
   const ai=document.getElementById('f-auto-invoice');
   ai.checked=c.auto_invoice!==false; // default true
   updateSlider();
+  document.getElementById('f-cash-payer').checked=!!c.cash_payer;
   document.getElementById('customerModal').classList.add('open');
 }
 function normalizePhoneUK(raw){
@@ -2824,7 +2833,8 @@ async function saveCustomer(){
   const payload={name,address,postcode,phone,email,
     whatsapp_number:whatsapp,
     notes:document.getElementById('f-notes').value.trim()||null,
-    auto_invoice:autoInvoice};
+    auto_invoice:autoInvoice,
+    cash_payer:document.getElementById('f-cash-payer').checked};
   try{
     if(editingCustomerId){
       await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
@@ -3601,7 +3611,7 @@ async function renderOwing(){
     // Done jobs not yet paid — whether or not they've already been invoiced/sent
     jobs=await sb(
       `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done` +
-      `&select=*,wc_customers(id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id)` +
+      `&select=*,wc_customers(id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer)` +
       `&order=last_done.desc`
     );
     // Attach the latest invoice (any status) for each job, so we can reuse it instead of
@@ -3635,7 +3645,7 @@ function owingCard(j){
     <div class="job-card-header">
       <div class="job-card-num">£</div>
       <div class="job-card-body">
-        <div class="job-card-name">${custPill(c)}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}</div>
+        <div class="job-card-name">${custPill(c)}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}${cashBadge(c)}</div>
         <div class="job-card-addr">${addrLink(c.address,c.postcode)}</div>
         ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
         ${j.last_done?`<div style="font-size:11px;color:var(--text-muted)">Done ${fmtShort(j.last_done)}</div>`:''}
