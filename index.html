@@ -734,8 +734,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='162';
-const BUILD_DATE='16 Oct 2026 17:10';
+const BUILD_VERSION='163';
+const BUILD_DATE='16 Oct 2026 17:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1871,7 +1871,7 @@ async function renderDashboard(){
       sb(`wc_jobs?scheduled_date=eq.${today}&next_due=is.null&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&select=id,customer_name,last_message_at`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversation_id,conversations!inner(customer_name,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
-      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&select=id,price`),
+      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false&select=id,price`),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&select=next_due,price`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc&select=id,customer_name,customer_phone,topic,wc_customer_id,stage,controlled_by,last_message_direction,last_message_at,created_at,last_outbound_at,last_outbound_source`),
       sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=id,phone,whatsapp_number,alt_phone`),
@@ -1879,7 +1879,7 @@ async function renderDashboard(){
     ]);
     const jobIds=doneJobs.map(j=>j.id);
     if(jobIds.length){
-      const existingInvs=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.join(',')})&select=job_id,status&order=created_at.desc`);
+      const existingInvs=[];for(let i=0;i<jobIds.length;i+=40){existingInvs.push(...(await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.slice(i,i+40).join(',')})&select=job_id,status&order=created_at.desc`)||[]));}
       existingInvs.forEach(inv=>{if(inv.job_id&&!invByJob[inv.job_id])invByJob[inv.job_id]=inv;});
     }
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
@@ -3610,7 +3610,7 @@ async function renderOwing(){
   try{
     // Done jobs not yet paid — whether or not they've already been invoiced/sent
     jobs=await sb(
-      `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done` +
+      `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false` +
       `&select=*,wc_customers(id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer)` +
       `&order=last_done.desc`
     );
@@ -3619,7 +3619,8 @@ async function renderOwing(){
     const jobIds=jobs.map(j=>j.id);
     let invByJob={};
     if(jobIds.length){
-      const existingInvs=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.join(',')})&select=id,job_id,status,stripe_payment_link,payment_method&order=created_at.desc`);
+      const existingInvs=[];for(let i=0;i<jobIds.length;i+=40){existingInvs.push(...(await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.slice(i,i+40).join(',')})&select=id,job_id,status,stripe_payment_link,payment_method&order=created_at.desc`)||[]));}
+      existingInvs.sort((a,b)=>0); // order within chunks is created_at.desc; chunks hold disjoint jobs
       existingInvs.forEach(inv=>{if(inv.job_id&&!invByJob[inv.job_id])invByJob[inv.job_id]=inv;}); // first = latest due to order
     }
     jobs=jobs.filter(j=>invByJob[j.id]?.status!=='paid').map(j=>({...j,_invoice:invByJob[j.id]||null}));
