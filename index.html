@@ -310,7 +310,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 @keyframes chgPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,77,.55)}50%{box-shadow:0 0 0 7px rgba(255,45,77,0)}}
 @media (prefers-reduced-motion:reduce){.chg-banner,.chg-bar{animation:none}}
 /* ═══ v1.0.166 — design system (list rows, chips, hero, tabs, forms) ═══ */
-.sq-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.sq-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:nowrap;}
+.sq-top .sq-pill{min-width:0;}
 .sq-spacer{flex:1;}
 .sq-pill{display:inline-flex;align-items:center;gap:9px;background:var(--navy-700);border:1px solid var(--border);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--text-soft);white-space:nowrap;}
 .sq-pill b{color:var(--white);font-weight:700;}
@@ -502,6 +503,14 @@ select{max-width:100%;}
 
 button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 .sq-name a{color:inherit;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.35);}
+
+.sq-chart{display:flex;align-items:flex-end;gap:4px;height:176px;padding:14px 12px 10px;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;overflow-x:auto;}
+.sq-chart .col{flex:1 1 0;min-width:22px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+.sq-chart .val{font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.sq-chart .bars{width:100%;max-width:24px;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px 4px 0 0;overflow:hidden;}
+.sq-chart .lbl{font-size:9.5px;color:var(--text-muted);margin-top:5px;white-space:nowrap;text-align:center;line-height:1.25;min-height:24px;}
+.sq-legend{display:flex;gap:16px;margin:8px 2px 0;font-size:12px;color:var(--text-soft);}
+.sq-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
 </style>
 </head>
 <body>
@@ -938,8 +947,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='167';
-const BUILD_DATE='19 Oct 2026 21:00';
+const BUILD_VERSION='168';
+const BUILD_DATE='19 Oct 2026 22:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2594,16 +2603,18 @@ function custMatches(c){
   if(l&&!(c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l)))return false;
   if(custFilter==='all')return true;
   if(custFilter==='owing')return parseFloat(c.balance||0)>0;
+  if(custFilter==='active')return !!c.has_active_jobs;
+  if(custFilter==='inactive')return !c.has_active_jobs;
   if(custFilter==='unset')return !c.payer_type;
   return c.payer_type===custFilter;
 }
 function drawCustomers(){
   const base=customers.filter(c=>{const l=custQuery.toLowerCase();return !l||c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l);});
-  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>parseFloat(c.balance||0)>0).length:k==='unset'?base.filter(c=>!c.payer_type).length:base.filter(c=>c.payer_type===k).length;
+  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>parseFloat(c.balance||0)>0).length:k==='active'?base.filter(c=>c.has_active_jobs).length:k==='inactive'?base.filter(c=>!c.has_active_jobs).length:k==='unset'?base.filter(c=>!c.payer_type).length:base.filter(c=>c.payer_type===k).length;
   const list=customers.filter(custMatches);
   const owed=list.reduce((s,c)=>s+Math.max(0,parseFloat(c.balance||0)),0);
-  document.getElementById('custPill').innerHTML=`<b>${list.length}</b><span>customers</span>${owed>0?`<i class="sq-vr"></i><b>£${owed.toFixed(2)}</b><span>owed</span>`:''}`;
-  document.getElementById('custChips').innerHTML=[['all','All'],['owing','Owing'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set']].map(([k,l])=>`<button class="sq-fchip${custFilter===k?' on':''}${k==='owing'&&cnt('owing')?' danger':''}" onclick="custFilter='${k}';drawCustomers()">${l}<span class="n">${cnt(k)}</span></button>`).join('');
+  document.getElementById('custPill').innerHTML=`<b>${list.length}</b><span>customers</span><i class="sq-vr"></i><b style="color:var(--done)">${list.filter(c=>c.has_active_jobs).length}</b><span>active</span>`;
+  document.getElementById('custChips').innerHTML=[['all','All'],['active','Active'],['inactive','No active jobs'],['owing','Owing'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set']].map(([k,l])=>`<button class="sq-fchip${custFilter===k?' on':''}${k==='owing'&&cnt('owing')?' danger':''}" onclick="custFilter='${k}';drawCustomers()">${l}<span class="n">${cnt(k)}</span></button>`).join('');
   document.getElementById('customerList').innerHTML=customerCards(list);
 }
 function customerCards(list){
@@ -2611,9 +2622,9 @@ function customerCards(list){
   return`<div class="sq-list">${list.map(c=>{
     const rounds=custRounds[c.id]||[];const bal=parseFloat(c.balance||0);
     return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
-      ${sqAv(c.name,rounds.length?sqColor(rounds[0]):'#33475f')}
+      ${sqAv(c.name,c.has_active_jobs&&rounds.length?sqColor(rounds[0]):c.has_active_jobs?'#4a6fa5':'#33475f')}
       <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-        <div class="sq-chips">${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
+        <div class="sq-chips">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
       <div class="sq-right">${sqMoney(bal,bal===0?'zero':'')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
     </div></div>`;}).join('')}</div>`;
 }
@@ -2639,7 +2650,7 @@ async function showCustomer(id,tab){
         <div style="min-width:0"><div class="sq-hero-name">${esc(c.name)}</div>${c.customer_reference?`<div class="sq-hero-ref">${esc(c.customer_reference)}</div>`:''}</div>
         <div class="sq-hero-amt">${sqMoney(bal,bal===0?'zero lg':'lg')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
       </div>
-      <div class="sq-chips" style="margin-top:12px">${payerBadge(c)}${rounds.map(sqRoundChip).join('')}${c.cash_payer&&c.payer_type!=='cash'?sqBadge('Cash','cash'):''}</div>
+      <div class="sq-chips" style="margin-top:12px">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${payerBadge(c)}${rounds.map(sqRoundChip).join('')}${c.cash_payer&&c.payer_type!=='cash'?sqBadge('Cash','cash'):''}</div>
       <div class="sq-hero-links">
         <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.address||'')+' '+(c.postcode||''))}" target="_blank">${ic('pin')}<span>${esc(c.address||'No address')}${c.postcode?', '+esc(c.postcode):''}</span></a>
         ${c.phone?`<a href="tel:${esc(c.phone)}">${ic('phone')}<span>${esc(c.phone)}</span></a>`:''}
@@ -4184,73 +4195,52 @@ function monthLabel(key){
   return new Date(key+'-01T12:00:00').toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
 }
 
-function customerGrowthBarChart(buckets){
-  if(!buckets.length)return`<div class="empty" style="padding:24px 0"><div class="empty-sub">No data yet</div></div>`;
-  const max=Math.max(...buckets.map(b=>b[1]),1);
-  return`<div style="display:flex;align-items:flex-end;gap:6px;height:150px;padding:12px 10px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);overflow-x:auto">
-    ${buckets.map(([key,val])=>{
-      const h=Math.max(4,Math.round((val/max)*110));
-      return`<div style="flex:0 0 auto;width:32px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
-        <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;white-space:nowrap">${val}</div>
-        <div style="width:100%;max-width:26px;height:${h}px;background:var(--gold);border-radius:3px 3px 0 0"></div>
-        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;white-space:nowrap">${monthLabel(key)}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
+function dataBarChart(rows,seriesFn,valFn){
+  if(!rows.length)return`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No data yet</div></div></div></div>`;
+  const max=Math.max(...rows.map(valFn),1);
+  return`<div class="sq-chart">${rows.map((r,i)=>{
+    const d=new Date(String(r.month).slice(0,7)+'-01T12:00:00');
+    const mon=d.toLocaleDateString('en-GB',{month:'short'});
+    const yr=(i===0||d.getMonth()===0)?`<br>${d.getFullYear()}`:'';
+    return`<div class="col"><div class="val">${valFn(r)}</div><div class="bars">${seriesFn(r,max)}</div><div class="lbl">${mon}${yr}</div></div>`;}).join('')}</div>`;
 }
-
-function customerGrowthLineChart(buckets){
-  if(!buckets.length)return'';
-  let running=0;
-  const points=buckets.map(([key,val])=>{running+=val;return{key,total:running};});
-  const max=Math.max(...points.map(p=>p.total),1);
-  const stepW=50;
-  const w=Math.max(points.length*stepW,300);
-  const h=130,padTop=16,padBottom=20;
-  const plotH=h-padTop-padBottom;
-  const coords=points.map((p,i)=>({x:i*stepW+stepW/2,y:padTop+plotH-(p.total/max)*plotH,...p}));
-  const path=coords.map((c,i)=>`${i===0?'M':'L'}${c.x},${c.y}`).join(' ');
-  const areaPath=`${path} L${coords[coords.length-1].x},${h-padBottom} L${coords[0].x},${h-padBottom} Z`;
-  const showLabel=(i)=>i===0||i===coords.length-1||i%3===0;
-  return`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 10px;overflow-x:auto">
-    <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block">
-      <path d="${areaPath}" fill="var(--teal)" opacity="0.12"/>
-      <path d="${path}" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      ${coords.map((c,i)=>showLabel(i)?`<circle cx="${c.x}" cy="${c.y}" r="3" fill="var(--teal)"/>`:'').join('')}
-      ${coords.map((c,i)=>showLabel(i)?`<text x="${c.x}" y="${c.y-8}" font-size="10" fill="var(--text-soft)" text-anchor="middle" font-family="DM Mono, monospace">${c.total}</text>`:'').join('')}
-      ${coords.map(c=>`<text x="${c.x}" y="${h-4}" font-size="9" fill="var(--text-muted)" text-anchor="middle">${monthLabel(c.key)}</text>`).join('')}
-    </svg>
-  </div>`;
-}
-
 async function renderDataTab(){
   document.getElementById('topbarPage').textContent='Data';
   document.getElementById('topbarAction').innerHTML='';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let customers=[];
+  let act=[],neu=[],cs=[];
   try{
-    customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=customer_since&order=customer_since.asc`);
+    [act,neu,cs]=await Promise.all([
+      sb('v_active_customers_by_month?order=month.asc'),
+      sb('v_new_active_customers_by_month?order=month.asc'),
+      sb(`wc_customers?business_id=eq.${BUSINESS_ID}&is_test=eq.false&select=has_active_jobs`)
+    ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
-  const dated=customers.filter(c=>c.customer_since);
-  const undated=customers.length-dated.length;
-  const map={};
-  dated.forEach(c=>{const key=c.customer_since.slice(0,7);map[key]=(map[key]||0)+1;});
-  const buckets=Object.entries(map).sort((a,b)=>a[0]<b[0]?-1:1);
-
+  act=act||[];neu=neu||[];cs=cs||[];
+  const nowKey=todayStr().slice(0,7);
+  const cur=act.find(r=>String(r.month).slice(0,7)===nowKey)||{active:0,regular:0,one_off:0};
+  const prev=act.length>1?act[act.length-2]:null;
+  const delta=prev&&String(act[act.length-1].month).slice(0,7)===nowKey?cur.active-prev.active:null;
+  const activeNow=cs.filter(c=>c.has_active_jobs).length;
+  // new-customer chart: fill months with no new customers so the axis is continuous
+  const newMap={};neu.forEach(r=>{newMap[String(r.month).slice(0,7)]=r.new_customers;});
+  const newRows=act.map(r=>({month:r.month,n:newMap[String(r.month).slice(0,7)]||0}));
   el.innerHTML=`
-    <div class="sq-note">Customer growth over time</div>
-    <div class="round-summary" style="margin-bottom:16px">
-      <div class="round-stat"><div class="round-stat-val">${customers.length}</div><div class="round-stat-label">Total customers</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="color:var(--teal)">${dated.length}</div><div class="round-stat-label">With onboarding date</div></div>
+    <div class="sq-note">Customers actually being serviced, by month</div>
+    <div class="sq-grid2">
+      ${dTile('Active this month',cur.active,delta==null?'':`${delta>=0?'+':''}${delta} vs last month`,{color:'var(--done)'})}
+      ${dTile('Booked now',activeNow,'customers with upcoming jobs',{})}
+      ${dTile('Regular',cur.regular,'serviced on a cycle',{color:'var(--teal)'})}
+      ${dTile('One-off',cur.one_off,'single jobs this month',{color:'var(--gold)'})}
     </div>
-    ${undated?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">${undated} customer${undated!==1?'s have':' has'} no onboarding date on file and ${undated!==1?"aren't":"isn't"} included in the charts below.</div>`:''}
-    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">New customers per month</div>
-    ${customerGrowthBarChart(buckets)}
-    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Cumulative customers</div>
-    ${customerGrowthLineChart(buckets)}
-  `;
+    ${dSec('Active customers per month')}
+    ${dataBarChart(act,(r,max)=>`<div style="height:${Math.round(r.one_off/max*118)}px;background:var(--gold)"></div><div style="height:${Math.round(r.regular/max*118)}px;background:var(--teal)"></div>`,r=>r.active)}
+    <div class="sq-legend"><span><i style="background:var(--teal)"></i>Regular</span><span><i style="background:var(--gold)"></i>One-off</span></div>
+    ${dSec('New customers per month')}
+    ${dataBarChart(newRows,(r,max)=>`<div style="height:${Math.max(r.n?4:0,Math.round(r.n/max*118))}px;background:var(--violet)"></div>`,r=>r.n)}
+    <div class="sq-note" style="margin-top:14px">A customer counts in a month if a job was completed for them that month. Regular customers (jobs completed no more than 13 weeks apart, or with a recurring job still booked) also count in the months in between, so a customer on a 12-weekly cycle shows every month. A one-off, like a single gutter clean, counts only in the month it was done. “New” is the month of a customer’s first completed job, not when they were added. Test accounts are excluded.</div>`;
+  document.querySelectorAll('.sq-chart').forEach(c=>{c.scrollLeft=c.scrollWidth;});
 }
 
 // ── OPTIMIZER ─────────────────────────────────────────────────────────────────
