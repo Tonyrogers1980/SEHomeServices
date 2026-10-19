@@ -309,6 +309,128 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-wrap.has-change .job-card,.job-card-wrap.has-change .jc-banners{border-top-left-radius:0!important;border-top-right-radius:0!important}
 @keyframes chgPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,77,.55)}50%{box-shadow:0 0 0 7px rgba(255,45,77,0)}}
 @media (prefers-reduced-motion:reduce){.chg-banner,.chg-bar{animation:none}}
+/* ═══ v1.0.166 — design system (list rows, chips, hero, tabs, forms) ═══ */
+.sq-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.sq-spacer{flex:1;}
+.sq-pill{display:inline-flex;align-items:center;gap:9px;background:var(--navy-700);border:1px solid var(--border);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--text-soft);white-space:nowrap;}
+.sq-pill b{color:var(--white);font-weight:700;}
+.sq-pill .sq-vr{width:1px;height:14px;background:var(--border);}
+.sq-ibtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--navy-800);color:var(--text-soft);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;}
+.sq-ibtn svg{width:18px;height:18px;}
+.sq-ibtn.gold{background:var(--gold);border-color:var(--gold);color:var(--navy-900);}
+.sq-search{position:relative;margin-bottom:12px;}
+.sq-search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--text-muted);}
+.sq-search input{width:100%;padding:12px 14px 12px 40px;border:1px solid var(--border);border-radius:12px;font-family:inherit;font-size:15px;background:var(--navy-800);color:var(--text);outline:none;}
+.sq-search input:focus{border-color:var(--gold);}
+.sq-filters{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 12px;padding:2px 16px;scrollbar-width:none;}
+.sq-filters::-webkit-scrollbar{display:none;}
+.sq-fchip{flex-shrink:0;padding:7px 13px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--navy-800);color:var(--text-soft);font-family:inherit;white-space:nowrap;}
+.sq-fchip .n{opacity:.65;font-weight:500;margin-left:5px;}
+.sq-fchip.on{background:var(--gold);border-color:var(--gold);color:var(--navy-900);}
+.sq-fchip.danger{border-color:var(--danger);color:var(--danger);}
+.sq-fchip.danger.on{background:var(--danger);color:#fff;}
+.sq-list{background:var(--navy-800);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.35);}
+.sq-block+.sq-block{border-top:1px solid rgba(44,74,110,.75);}
+.sq-row{display:flex;gap:12px;padding:13px 14px 13px 15px;cursor:pointer;position:relative;align-items:flex-start;transition:background .12s;}
+.sq-row:active{background:var(--navy-700);}
+.sq-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,transparent);}
+.sq-av{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;letter-spacing:.3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);}
+.sq-av.lg{width:58px;height:58px;font-size:20px;}
+.sq-av svg{width:20px;height:20px;}
+.sq-body{flex:1;min-width:0;}
+.sq-name{font-size:15.5px;font-weight:700;color:var(--white);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sq-sub{font-size:12.5px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sq-sub a{color:inherit;text-decoration:none;}
+.sq-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.sq-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.sq-chip.ghost{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-weight:600;}
+.sq-chip.mono{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-family:'DM Mono',monospace;font-weight:500;text-transform:lowercase;}
+.sq-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;padding-left:4px;}
+.sq-amt{font-size:24px;font-weight:600;color:var(--white);line-height:1;letter-spacing:-.3px;white-space:nowrap;}
+.sq-amt .sq-cur,.sq-amt .sq-pence{font-size:13px;font-weight:500;color:var(--text-soft);vertical-align:.38em;}
+.sq-amt .sq-cur{margin-right:1px;}
+.sq-amt.zero{color:var(--text-muted);}
+.sq-amt.lg{font-size:30px;}
+.sq-amt.lg .sq-cur,.sq-amt.lg .sq-pence{font-size:15px;}
+.sq-lbl{font-size:9.5px;font-weight:800;letter-spacing:.9px;color:var(--text-muted);text-transform:uppercase;}
+.sq-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#fff;line-height:1.5;white-space:nowrap;}
+.sb-paid{background:#7b4fc4;}.sb-sent{background:#2f9e6e;}.sb-due,.sb-owed,.sb-declined{background:#d6455d;}.sb-draft{background:#52667d;}.sb-void{background:#3b4a5e;color:#aab8c8;}.sb-accepted{background:#2f9e6e;}.sb-viewed,.sb-follow{background:#8d4fc2;}.sb-age{background:#c58f00;}.sb-info{background:#3f86c5;}.sb-warn{background:#d9741a;}
+.sb-card{background:#a8780a;}.sb-cash{background:#0a8f86;}.sb-bank{background:#7a5af8;}.sb-invoice{background:#3f86c5;}.sb-unset{background:transparent;border:1px dashed #ff7a7a;color:#ff9a9a;}
+.sq-acts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 13px 67px;}
+.sq-act{padding:0 12px;height:34px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-soft);display:inline-flex;align-items:center;gap:5px;}
+.sq-act:active{filter:brightness(1.25);}
+.sq-act.primary{background:var(--gold);border-color:var(--gold);color:var(--navy-900);}
+.sq-act.danger{color:var(--danger);border-color:rgba(255,92,114,.4);}
+.sq-act.green{background:var(--done);border-color:var(--done);color:var(--navy-900);}
+.sq-act.ico{padding:0;width:38px;justify-content:center;font-size:16px;}
+.sq-right .sq-act.ico{width:32px;height:30px;font-size:14px;}
+.form-row .field{min-width:0;}
+.form-row .field input{width:100%;min-width:0;}
+.sq-ask{padding:0 14px 4px 67px;font-size:12px;color:var(--text-muted);}
+.sq-group{display:flex;align-items:center;gap:9px;background:var(--navy-700);border-radius:999px;padding:5px 14px 5px 5px;margin:18px 0 9px;width:max-content;max-width:100%;cursor:pointer;font-size:13px;font-weight:700;color:var(--text);}
+.sq-group:first-child{margin-top:4px;}
+.sq-count{min-width:26px;height:26px;border-radius:13px;background:var(--navy-900);display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0 7px;}
+.sq-sep{color:var(--text-muted);margin:0 3px;font-weight:400;}
+.sq-chev{width:16px;height:16px;transition:transform .15s;color:var(--text-soft);}
+.sq-group.collapsed .sq-chev{transform:rotate(180deg);}
+.sq-empty{text-align:center;padding:40px 20px;color:var(--text-muted);}
+.sq-empty b{display:block;color:var(--text);font-size:16px;margin-bottom:4px;}
+/* hero + tabs + items */
+.sq-hero{background:linear-gradient(160deg,var(--navy-600) 0%,var(--navy-800) 70%);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.sq-hero-top{display:flex;gap:14px;align-items:center;}
+.sq-hero-name{font-size:21px;font-weight:700;color:var(--white);line-height:1.2;}
+.sq-hero-ref{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-soft);margin-top:3px;}
+.sq-hero-addr{font-size:13px;color:var(--text-soft);margin-top:3px;}
+.sq-hero-amt{margin-left:auto;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.sq-hero-links{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:13.5px;}
+.sq-hero-links a{color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;}
+.sq-hero-links svg{width:15px;height:15px;color:var(--gold);flex-shrink:0;}
+.sq-qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin-top:14px;}
+.sq-qa a,.sq-qa button{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 2px;border-radius:12px;background:rgba(5,13,23,.55);border:1px solid var(--border);color:var(--text-soft);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;font-family:inherit;}
+.sq-qa svg{width:19px;height:19px;color:var(--gold);}
+.sq-tabs{display:flex;border-bottom:1px solid var(--border);margin:0 -16px 14px;padding:0 16px;position:sticky;top:-16px;background:var(--navy-900);z-index:4;}
+.sq-tab{flex:1;padding:13px 4px;text-align:center;font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--text-muted);border:none;background:none;border-bottom:3px solid transparent;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.sq-tab svg{width:20px;height:20px;}
+.sq-tab.on{color:var(--white);border-bottom-color:var(--gold);}
+.sq-sec{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 9px;font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);}
+.sq-sec .n{background:var(--navy-700);border-radius:999px;padding:1px 9px;color:var(--text-soft);margin-left:8px;letter-spacing:0;}
+.sq-item{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;}
+.sq-item:active{background:var(--navy-700);}
+.sq-item-body{flex:1;min-width:0;}
+.sq-item-t{font-size:14.5px;font-weight:700;color:var(--white);}
+.sq-item-v{font-size:13px;color:var(--text-muted);margin-top:2px;line-height:1.4;}
+.sq-item-v.warn{color:var(--warn);}
+.sq-item .sq-go{width:18px;height:18px;color:var(--text-muted);flex-shrink:0;}
+.sq-card{background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 4px 14px rgba(0,0,0,.3);}
+.sq-card-t{font-size:15px;font-weight:700;color:var(--white);line-height:1.3;}
+.sq-card-r{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-muted);margin-top:3px;}
+.sq-tl{margin-top:12px;border-top:1px solid rgba(44,74,110,.75);}
+.sq-tl-row{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid rgba(44,74,110,.5);cursor:default;}
+.sq-tl-row:last-child{border-bottom:none;}
+.sq-tl-row.link{cursor:pointer;}
+.sq-tl-ic{width:22px;height:22px;flex-shrink:0;color:var(--text-muted);}
+.sq-tl-body{flex:1;min-width:0;}
+.sq-tl-t{font-size:14px;font-weight:700;color:var(--white);}
+.sq-tl-d{font-size:12px;color:var(--text-muted);margin-top:1px;}
+.sq-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px;}
+.sq-tile{background:var(--navy-800);border:1px solid var(--border);border-radius:12px;padding:12px 10px;text-align:center;}
+.sq-tile .sq-amt{font-size:19px;}
+.sq-tile .sq-amt .sq-cur,.sq-tile .sq-amt .sq-pence{font-size:11px;}
+.sq-stack{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+.sq-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-soft);text-decoration:none;width:100%;}
+.sq-btn:active{filter:brightness(1.2);}
+.sq-btn.primary{background:var(--gold);border-color:var(--gold);color:var(--navy-900);}
+.sq-btn.green{background:var(--done);border-color:var(--done);color:var(--navy-900);}
+.sq-btn.danger{color:var(--danger);border-color:rgba(255,92,114,.4);}
+.sq-btn.sm{min-height:38px;font-size:13px;width:auto;padding:0 14px;}
+/* forms */
+.sq-form-sec{margin:6px 0 -4px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--gold);}
+.sq-seg{display:flex;background:var(--navy-900);border:1px solid var(--border);border-radius:12px;padding:3px;gap:3px;}
+.sq-seg button{flex:1;padding:10px 4px;border:none;border-radius:9px;background:transparent;color:var(--text-soft);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;line-height:1.2;}
+.sq-seg button.on{background:var(--navy-400);color:var(--navy-900);}
+.sq-setting{display:flex;flex-direction:column;gap:7px;}
+.sq-setting-t{font-size:13.5px;font-weight:700;color:var(--text);text-align:center;}
+.sq-hint{font-size:12px;color:var(--text-muted);line-height:1.4;margin-top:6px;}
 </style>
 </head>
 <body>
@@ -403,20 +525,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
         <div class="field"><label>Email *</label><input id="f-email" type="email" placeholder="email@example.com" autocomplete="email"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Access codes, dogs, gate codes…"></textarea></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
-        <div>
-          <div style="font-size:14px;font-weight:500;color:var(--text)">Auto-send invoice on job completion</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Automatically invoice when a job is marked done</div>
-        </div>
-        <label style="position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0">
-          <input type="checkbox" id="f-auto-invoice" style="opacity:0;width:0;height:0">
-          <span onclick="document.getElementById('f-auto-invoice').click()" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:13px;transition:.2s" id="autoInvoiceSlider"></span>
-        </label>
-      </div>
-      <label style="display:flex;align-items:center;gap:10px;padding:12px;margin-top:10px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">
-        <input type="checkbox" id="f-cash-payer" style="width:18px;height:18px;accent-color:var(--teal)">
-        <span><span style="display:block;font-size:14px;font-weight:500;color:var(--text)">Cash payer</span><span style="display:block;font-size:12px;color:var(--text-muted);margin-top:2px">Customer pays in cash — shows a £ CASH badge</span></span>
-      </label>
+      <div id="f-payment-fields" class="form-grid"></div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('customerModal')">Cancel</button>
@@ -758,8 +867,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='165';
-const BUILD_DATE='19 Oct 2026 16:00';
+const BUILD_VERSION='166';
+const BUILD_DATE='19 Oct 2026 19:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2523,111 +2632,258 @@ async function confirmReschedule(){
 }
 
 // ── CUSTOMERS ─────────────────────────────────────────────────────────────────
+// ── CUSTOMERS (v1.0.166 redesign) ────────────────────────────────────────────
+let custFilter='all',custQuery='',custRounds={},custTab='customer';
 async function renderCustomers(){
   document.getElementById('topbarPage').textContent='Customers';
-  document.getElementById('topbarAction').innerHTML=`<button class="btn btn-primary btn-sm" onclick="openAddCustomer()">+ Add</button>`;
+  document.getElementById('topbarAction').innerHTML='';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  try{customers=await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);}
-  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  try{
+    const [cs,js]=await Promise.all([
+      sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
+      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=customer_id,round_name`).catch(()=>[])
+    ]);
+    customers=cs;custRounds={};
+    (js||[]).forEach(j=>{if(!j.round_name)return;(custRounds[j.customer_id]=custRounds[j.customer_id]||[]);if(!custRounds[j.customer_id].includes(j.round_name))custRounds[j.customer_id].push(j.round_name);});
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   el.innerHTML=`
-    <div class="page-header">
-      <div><div class="page-title">Customers</div><div class="page-sub">${customers.length} active</div></div>
-      <button class="btn btn-primary btn-sm" onclick="openAddCustomer()">+ Add</button>
-    </div>
-    <div class="search-wrap">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-      <input class="search-input" placeholder="Search name, address, postcode…" oninput="filterCustomers(this.value)">
-    </div>
-    <div class="card-list" id="customerList">${customerCards(customers)}</div>`;
+    <div class="sq-top"><span class="sq-pill" id="custPill"></span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openAddCustomer()" aria-label="Add customer">${ic('plus')}</button></div>
+    <div class="sq-search">${ic('search')}<input placeholder="Search name, address, postcode…" value="${esc(custQuery)}" oninput="filterCustomers(this.value)"></div>
+    <div class="sq-filters" id="custChips"></div>
+    <div id="customerList"></div>`;
+  drawCustomers();
 }
-
+function custMatches(c){
+  const l=custQuery.toLowerCase();
+  if(l&&!(c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l)))return false;
+  if(custFilter==='all')return true;
+  if(custFilter==='owing')return parseFloat(c.balance||0)>0;
+  if(custFilter==='unset')return !c.payer_type;
+  return c.payer_type===custFilter;
+}
+function drawCustomers(){
+  const base=customers.filter(c=>{const l=custQuery.toLowerCase();return !l||c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l);});
+  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>parseFloat(c.balance||0)>0).length:k==='unset'?base.filter(c=>!c.payer_type).length:base.filter(c=>c.payer_type===k).length;
+  const list=customers.filter(custMatches);
+  const owed=list.reduce((s,c)=>s+Math.max(0,parseFloat(c.balance||0)),0);
+  document.getElementById('custPill').innerHTML=`<b>${list.length}</b><span>customers</span>${owed>0?`<i class="sq-vr"></i><b>£${owed.toFixed(2)}</b><span>owed</span>`:''}`;
+  document.getElementById('custChips').innerHTML=[['all','All'],['owing','Owing'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set']].map(([k,l])=>`<button class="sq-fchip${custFilter===k?' on':''}${k==='owing'&&cnt('owing')?' danger':''}" onclick="custFilter='${k}';drawCustomers()">${l}<span class="n">${cnt(k)}</span></button>`).join('');
+  document.getElementById('customerList').innerHTML=customerCards(list);
+}
 function customerCards(list){
-  if(!list.length)return'<div class="empty"><div class="empty-title">No customers found</div></div>';
-  return list.map(c=>`<div class="card" onclick="showCustomer('${c.id}')">
-    <div class="card-avatar">${c.name.charAt(0).toUpperCase()}</div>
-    <div class="card-info"><div class="card-name">${esc(c.name)}${cashBadge(c)}</div><div class="card-sub">${addrLink(c.address,c.postcode)}</div></div>
-    ${c.phone?`<div style="font-size:13px;color:var(--text-muted);flex-shrink:0">${esc(c.phone)}</div>`:''}
-  </div>`).join('');
+  if(!list.length)return sqEmpty('No customers found');
+  return`<div class="sq-list">${list.map(c=>{
+    const rounds=custRounds[c.id]||[];const bal=parseFloat(c.balance||0);
+    return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
+      ${sqAv(c.name,rounds.length?sqColor(rounds[0]):'#33475f')}
+      <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+        <div class="sq-chips">${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
+      <div class="sq-right">${sqMoney(bal,bal===0?'zero':'')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
+    </div></div>`;}).join('')}</div>`;
 }
+function filterCustomers(q){custQuery=q;drawCustomers();}
 
-function filterCustomers(q){
-  const l=q.toLowerCase();
-  document.getElementById('customerList').innerHTML=customerCards(customers.filter(c=>
-    c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)));
-}
-
-async function showCustomer(id){
+async function showCustomer(id,tab){
+  if(tab)custTab=tab;else if(!document.getElementById('custHeroId')||document.getElementById('custHeroId').dataset.id!==id)custTab='customer';
   const el=document.getElementById('mainContent');
-  el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  if(!document.getElementById('custHeroId')||document.getElementById('custHeroId').dataset.id!==id)el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let c=customers.find(x=>x.id===id);
-  if(!c){try{[c]=await sb(`wc_customers?id=eq.${id}&select=*`);}catch(e){}}
+  try{const [fresh]=await sb(`wc_customers?id=eq.${id}&select=*`);if(fresh){c=fresh;const i=customers.findIndex(x=>x.id===id);if(i>-1)customers[i]=fresh;else customers.push(fresh);}}catch(e){}
   if(!c){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
+  if(!custRounds[id]){try{const js=await sb(`wc_jobs?customer_id=eq.${id}&status=in.(scheduled,pending_assignment)&select=round_name`);custRounds[id]=[...new Set((js||[]).map(j=>j.round_name).filter(Boolean))];}catch(e){custRounds[id]=[];}}
+  const rounds=custRounds[id]||[];const bal=parseFloat(c.balance||0);
+  const waDigits=String(c.whatsapp_number||c.phone||'').replace(/\D/g,'');
+  const tabs=[['customer','Customer','user'],['finance','Finance','bank'],['messages','Messages','chat']];
   el.innerHTML=`
+    <span id="custHeroId" data-id="${id}"></span>
     <button class="back-btn" onclick="renderCustomers()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Customers</button>
-    <div class="page-header">
-      <div><div class="page-title">${esc(c.name)}${cashBadge(c)}</div><div class="page-sub">${addrLink(c.address,c.postcode)}</div></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="openQuoteForCustomer('${c.id}')">Quote</button>
-        <button class="btn btn-ghost btn-sm" onclick="openEditCustomer('${c.id}')">Edit</button>
+    <div class="sq-hero">
+      <div class="sq-hero-top">
+        ${sqAv(c.name,rounds.length?sqColor(rounds[0]):'#33475f',null,'lg')}
+        <div style="min-width:0"><div class="sq-hero-name">${esc(c.name)}</div>${c.customer_reference?`<div class="sq-hero-ref">${esc(c.customer_reference)}</div>`:''}</div>
+        <div class="sq-hero-amt">${sqMoney(bal,bal===0?'zero lg':'lg')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
+      </div>
+      <div class="sq-chips" style="margin-top:12px">${payerBadge(c)}${rounds.map(sqRoundChip).join('')}${c.cash_payer&&c.payer_type!=='cash'?sqBadge('Cash','cash'):''}</div>
+      <div class="sq-hero-links">
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.address||'')+' '+(c.postcode||''))}" target="_blank">${ic('pin')}<span>${esc(c.address||'No address')}${c.postcode?', '+esc(c.postcode):''}</span></a>
+        ${c.phone?`<a href="tel:${esc(c.phone)}">${ic('phone')}<span>${esc(c.phone)}</span></a>`:''}
+        ${c.email?`<a href="mailto:${esc(c.email)}">${ic('mail')}<span>${esc(c.email)}</span></a>`:''}
+      </div>
+      <div class="sq-qa">
+        ${c.phone?`<a href="tel:${esc(c.phone)}">${ic('phone')}Call</a>`:''}
+        ${waDigits?`<a href="https://wa.me/${waDigits}" target="_blank">${ic('chat')}WhatsApp</a>`:''}
+        <button onclick="openQuoteForCustomer('${c.id}')">${ic('doc')}Quote</button>
+        <button onclick="openAddJob('${c.id}')">${ic('cal')}Job</button>
+        <button onclick="openEditCustomer('${c.id}')">${ic('pencil')}Edit</button>
       </div>
     </div>
-    <div class="detail-section">
-      <div class="detail-section-header">Contact</div>
-      ${c.phone?`<div class="detail-row"><span class="detail-label">Phone</span><a href="tel:${esc(c.phone)}" class="detail-value" style="color:var(--gold)">${esc(c.phone)}</a></div>`:''}
-      ${c.whatsapp_number?`<div class="detail-row"><span class="detail-label">WhatsApp</span><span class="detail-value">${esc(c.whatsapp_number)}</span></div>`:''}
-      ${c.email?`<div class="detail-row"><span class="detail-label">Email</span><a href="mailto:${esc(c.email)}" class="detail-value" style="color:var(--gold)">${esc(c.email)}</a></div>`:''}
-      ${c.customer_reference?`<div class="detail-row"><span class="detail-label">Ref</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px">${esc(c.customer_reference)}</span></div>`:''}
-      ${!c.phone&&!c.whatsapp_number&&!c.email?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No contact details</span></div>':''}
+    <div class="sq-tabs">${tabs.map(([k,l,i])=>`<button class="sq-tab${custTab===k?' on':''}" onclick="showCustomer('${id}','${k}')">${ic(i)}${l}</button>`).join('')}</div>
+    <div id="custTabBody"></div>`;
+  if(custTab==='customer')renderCustomerTab(c);
+  else if(custTab==='finance')renderFinanceTab(c);
+  else renderMessagesTab(c);
+}
+function renderCustomerTab(c){
+  const body=document.getElementById('custTabBody');
+  const item=(t,v,click,warn)=>`<div class="sq-block"><div class="sq-item" ${click?`onclick="${click}"`:''}><div class="sq-item-body"><div class="sq-item-t">${t}</div>${v?`<div class="sq-item-v${warn?' warn':''}">${v}</div>`:''}</div>${click?ic('go','sq-go'):''}</div></div>`;
+  body.innerHTML=`
+    <div class="sq-list">
+      ${item('Payment',esc(payerSummary(c)),`openEditCustomer('${c.id}')`)}
+      ${c.notes?item('Notes',esc(c.notes),`openEditCustomer('${c.id}')`,true):''}
+      <div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t">Stripe</div>
+        ${c.stripe_customer_id
+          ?`<div class="sq-item-v" style="font-family:'DM Mono',monospace;color:var(--done)">${esc(c.stripe_customer_id)}</div><div id="stripePaymentMethod" class="sq-item-v">Checking card…</div>
+             ${c.stripe_setup_sent_at?`<div class="sq-item-v">Setup link sent ${fmtShort(c.stripe_setup_sent_at.split('T')[0])}</div>`:''}
+             <div class="sq-acts" style="padding:10px 0 0"><button class="sq-act" onclick="sendPaymentSetup('${c.id}')">↻ Resend setup link</button><button class="sq-act" onclick="openStripeLink('${c.id}','${esc(c.name)}','${esc(c.email||'')}')">🔗 Relink</button></div>`
+          :`<div class="sq-item-v">No Stripe account linked</div>
+             <div class="sq-acts" style="padding:10px 0 0"><button class="sq-act primary" onclick="sendPaymentSetup('${c.id}')">💳 Send setup invite</button><button class="sq-act" onclick="openStripeLink('${c.id}','${esc(c.name)}','${esc(c.email||'')}')">🔗 Link existing</button></div>`}
+      </div></div></div>
+      <div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t">Google review</div>
+        ${c.review_left_at
+          ?`<div class="sq-item-v" style="color:var(--done)">✓ Review left ${fmtShort(String(c.review_left_at).split('T')[0])}</div><div class="sq-acts" style="padding:10px 0 0"><button class="sq-act" onclick="setReviewLeft('${c.id}',false)">Undo</button></div>`
+          :`<div class="sq-item-v">${c.review_opt_out?'Opted out — never ask':`Asked ${(c.review_ask_count||0)} of 3${c.review_last_asked_at?` · last ${fmtShort(String(c.review_last_asked_at).split('T')[0])}`:''}`}</div>
+             <div class="sq-acts" style="padding:10px 0 0">${c.review_opt_out?`<button class="sq-act" onclick="setReviewOptOut('${c.id}',false)">Allow requests</button>`:`<button class="sq-act green" onclick="setReviewLeft('${c.id}',true)">✓ Reviewed</button><button class="sq-act" onclick="setReviewOptOut('${c.id}',true)">Never ask</button>`}</div>`}
+      </div></div></div>
     </div>
-    ${c.cash_payer?`<div class="detail-section"><div class="detail-section-header">Payment</div><div class="detail-row"><span class="detail-label">Pays by</span><span class="detail-value" style="color:var(--teal);font-weight:700">£ Cash payer</span></div></div>`:''}
-    ${c.balance&&parseFloat(c.balance)!==0?`<div class="detail-section"><div class="detail-section-header">Account</div><div class="detail-row"><span class="detail-label">Balance</span><span class="detail-value" style="color:${parseFloat(c.balance)>0?'var(--done)':'var(--danger)'}">£${parseFloat(c.balance).toFixed(2)}</span></div></div>`:''}
-    ${c.notes?`<div class="detail-section"><div class="detail-section-header">Notes</div><div class="detail-row"><span style="color:var(--warn);font-size:14px">⚠ ${esc(c.notes)}</span></div></div>`:''}
-    <div class="detail-section">
-      <div class="detail-section-header">Recent conversations</div>
-      <div id="customerConvos"><div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">Loading…</span></div></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-header">Stripe</div>
-      ${c.stripe_customer_id
-        ?`<div class="detail-row"><span class="detail-label">Customer ID</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--done)">${esc(c.stripe_customer_id)}</span></div>
-           ${c.stripe_setup_sent_at?`<div class="detail-row"><span class="detail-label">Setup sent</span><span class="detail-value">${fmtShort(c.stripe_setup_sent_at.split('T')[0])}</span></div>`:''}
-           <div id="stripePaymentMethod"><div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">Checking card…</span></div></div>
-           <div class="detail-row" style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap">
-             <button class="btn btn-ghost btn-sm" onclick="sendPaymentSetup('${c.id}')">↻ Resend setup link</button>
-             <button class="btn btn-ghost btn-sm" onclick="openStripeLink('${c.id}','${esc(c.name)}','${esc(c.email||'')}')">🔗 Relink</button>
-           </div>`
-        :`<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">No Stripe account linked</span></div>
-           <div class="detail-row" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
-             <button class="btn btn-primary btn-full" onclick="sendPaymentSetup('${c.id}')">💳 Send payment setup invite</button>
-             <button class="btn btn-ghost btn-full" onclick="openStripeLink('${c.id}','${esc(c.name)}','${esc(c.email||'')}')">🔗 Link existing Stripe customer</button>
-           </div>`
-      }
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-header">Google review</div>
-      ${c.review_left_at
-        ?`<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" style="color:var(--done)">✓ Review left ${fmtShort(String(c.review_left_at).split('T')[0])}</span></div>
-           <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full btn-sm" onclick="setReviewLeft('${c.id}',false)">Undo — not reviewed</button></div>`
-        :`<div class="detail-row"><span class="detail-label">Asked</span><span class="detail-value">${(c.review_ask_count||0)} of 3${c.review_last_asked_at?` · last ${fmtShort(String(c.review_last_asked_at).split('T')[0])}`:''}</span></div>
-           ${c.review_opt_out
-             ?`<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" style="color:var(--text-muted)">Opted out — never ask</span></div>
-                <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full btn-sm" onclick="setReviewOptOut('${c.id}',false)">Allow review requests</button></div>`
-             :`<div class="detail-row" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
-                  <button class="btn btn-primary btn-full btn-sm" onclick="setReviewLeft('${c.id}',true)">✓ Mark as reviewed (stop asking)</button>
-                  <button class="btn btn-ghost btn-full btn-sm" onclick="setReviewOptOut('${c.id}',true)">Never ask this customer</button>
-                </div>`}`
-      }
-    </div>
-      <div class="detail-section-header">Jobs<button class="btn btn-primary btn-sm" onclick="openAddJob('${c.id}')">+ Schedule</button></div>
-      <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
-    </div>
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="archiveCustomer('${c.id}')">Archive customer</button>
-    </div>`;
-  loadCustomerJobs(id);
-  loadCustomerConversations(c);
+    <div class="sq-sec"><span>Jobs<span class="n" id="custJobsN">…</span></span><button class="sq-act primary" onclick="openAddJob('${c.id}')">+ Schedule</button></div>
+    <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
+    <div class="sq-sec"><span>Quotes<span class="n" id="custQuotesN">…</span></span></div>
+    <div id="customerQuotes"></div>
+    <div style="margin-top:26px"><button class="sq-btn danger sm" onclick="archiveCustomer('${c.id}')">Archive customer</button></div>`;
+  loadCustomerJobs(c.id);loadCustomerQuotes(c.id);
   if(c.stripe_customer_id)loadPaymentMethod(c.stripe_customer_id);
+}
+async function renderFinanceTab(c){
+  const body=document.getElementById('custTabBody');
+  body.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  let owing=[],invs=[];
+  try{[owing,invs]=await Promise.all([fetchOwingJobs(c.id),sb(`wc_invoices?customer_id=eq.${c.id}&order=created_at.desc&limit=30&select=*`)]);}catch(e){}
+  invs=invs||[];
+  const paid=invs.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const owed=owing.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  body.innerHTML=`
+    <div class="sq-tiles">
+      <div class="sq-tile">${sqMoney(owed,owed===0?'zero':'')}<div class="sq-lbl" style="margin-top:6px">Owed</div></div>
+      <div class="sq-tile">${sqMoney(paid)}<div class="sq-lbl" style="margin-top:6px">Paid</div></div>
+      <div class="sq-tile"><span class="sq-amt">${invs.filter(i=>i.status!=='void').length}</span><div class="sq-lbl" style="margin-top:6px">Invoices</div></div>
+    </div>
+    <div class="sq-sec"><span>Owing<span class="n">${owing.length}</span></span></div>
+    ${owing.length?`<div class="sq-list">${owing.map(owingRow).join('')}</div>`:`<div class="sq-list">${'<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Nothing owing ✓</div></div></div>'}</div>`}
+    <div class="sq-sec"><span>Invoices<span class="n">${invs.length}</span></span></div>
+    ${invs.length?`<div class="sq-list">${invs.map(i=>invoiceRow({...i,wc_customers:c},true)).join('')}</div>`:`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No invoices yet</div></div></div></div>`}
+    <div class="sq-sec"><span>Payment settings</span></div>
+    <div class="sq-list"><div class="sq-block"><div class="sq-item" onclick="openEditCustomer('${c.id}')"><div class="sq-item-body"><div class="sq-item-t">How ${esc(c.name.split(' ')[0])} pays</div><div class="sq-item-v">${esc(payerSummary(c))}</div></div>${ic('go','sq-go')}</div></div></div>`;
+}
+function renderMessagesTab(c){
+  document.getElementById('custTabBody').innerHTML=`<div class="sq-list"><div id="customerConvos"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Loading…</div></div></div></div></div>`;
+  loadCustomerConversations(c);
+}
+async function loadCustomerQuotes(customerId){
+  const el=document.getElementById('customerQuotes');if(!el)return;
+  try{
+    const qs=await sb(`wc_quotes?customer_id=eq.${customerId}&order=created_at.desc&limit=10&select=*`)||[];
+    const n=document.getElementById('custQuotesN');if(n)n.textContent=qs.length;
+    if(!qs.length){el.innerHTML=`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No quotes yet</div></div></div></div>`;return;}
+    quotes=[...qs.map(q=>({...q,wc_customers:customers.find(c=>c.id===customerId)})),...quotes.filter(x=>!qs.find(q=>q.id===x.id))];
+    el.innerHTML=qs.map(q=>`<div class="sq-card" onclick="showQuote('${q.id}')" style="cursor:pointer"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div style="min-width:0"><div class="sq-card-t">${esc(sqShortSvc(q.service_type)||'Quote')}${q.frequency&&q.frequency!=='one-off'?` · ${esc(q.frequency)}`:''}</div><div class="sq-card-r">${fmtShort(String(q.created_at).split('T')[0])}</div></div>${sqMoney(q.price)}</div><div class="sq-chips">${quoteStatusBadge(q)}${q.round_name?sqRoundChip(q.round_name):''}</div></div>`).join('');
+  }catch(e){el.innerHTML='';}
+}
+async function loadCustomerJobs(customerId){
+  try{
+    const jobs=await sb(`wc_jobs?customer_id=eq.${customerId}&order=next_due.desc.nullslast,created_at.desc&limit=20`);
+    const el=document.getElementById('customerJobs');if(!el)return;
+    const n=document.getElementById('custJobsN');if(n)n.textContent=jobs.length;
+    if(!jobs.length){el.innerHTML=`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No jobs yet</div></div></div></div>`;return;}
+    // Group a recurring series into one card with its recent history; one-offs get their own card
+    const groups=new Map();
+    jobs.forEach(j=>{const k=j.series_id||j.id;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(j);});
+    el.innerHTML=[...groups.values()].map(js=>{
+      const head=js.find(j=>j.status==='scheduled'||j.status==='pending_assignment')||js[0];
+      const rows=js.slice(0,4).map(j=>{
+        const d=j.next_due||j.scheduled_date||j.last_done;const until=sqDaysUntil(d);
+        const icn=j.status==='done'?['check','var(--done)','Done']:j.status==='skipped'?['xcircle','var(--warn)','Skipped']:j.status==='cant-access'?['xcircle','var(--danger)',"Can't access"]:j.status==='pending_assignment'?['clock','var(--warn)','Needs round']:['cal','var(--navy-400)','Upcoming'];
+        const rel=d?(until===0?'today':until>0?`in ${until} day${until!==1?'s':''}`:`${-until} day${-until!==1?'s':''} ago`):'';
+        return`<div class="sq-tl-row"><svg class="sq-tl-ic" viewBox="0 0 24 24" fill="none" stroke="${icn[1]}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${SQI[icn[0]]}"/></svg>
+          <div class="sq-tl-body"><div class="sq-tl-t">${icn[2]}</div><div class="sq-tl-d">${d?sqDayLabel(d)+' · '+rel:'No date'}</div></div>
+          ${j.status==='scheduled'?`<button class="sq-act ico" title="Reschedule" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅</button>`:''}
+          ${j.status==='pending_assignment'?`<button class="sq-act primary" onclick="assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
+          <button class="sq-act ico" title="Edit job" onclick="openEditJob('${j.id}','${customerId}')">✏️</button></div>`;}).join('');
+      return`<div class="sq-card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div style="min-width:0"><div class="sq-card-t">${esc(sqShortSvc(head.service_type)||'Job')} · ${freqLabel(head.frequency)}</div>${head.job_reference?`<div class="sq-card-r">${esc(head.job_reference)}</div>`:''}</div>${sqMoney(head.price)}</div>
+        <div class="sq-chips">${head.round_name?sqRoundChip(head.round_name):''}${head.status==='pending_assignment'?sqBadge('Needs round','warn'):''}${head.assigned_to?'':sqBadge('Unassigned','due')}</div>
+        <div class="sq-tl">${rows}</div></div>`;}).join('');
+  }catch(e){}
+}
+async function loadPaymentMethod(stripeCustomerId){
+  const el=document.getElementById('stripePaymentMethod');
+  if(!el)return;
+  try{
+    const res=await Promise.race([
+      fetch(N8N_PAYMENT_METHOD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_customer_id:stripeCustomerId})}),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),8000))
+    ]);
+    const data=await res.json();
+    const methods=data.payment_methods||[];
+    if(!methods.length){el.innerHTML='No card on file — send a setup invite';return;}
+    const defaultId=data.default_payment_method;
+    const card=(defaultId&&methods.find(m=>m.id===defaultId))||methods[0];
+    const cc=card.card||{};const now=new Date();
+    const isExpired=cc.exp_year&&cc.exp_month&&(cc.exp_year<now.getFullYear()||(cc.exp_year===now.getFullYear()&&cc.exp_month<now.getMonth()+1));
+    const brand=(cc.brand||'card').replace(/^\w/,ch=>ch.toUpperCase());
+    const expStr=cc.exp_month&&cc.exp_year?`${String(cc.exp_month).padStart(2,'0')}/${String(cc.exp_year).slice(-2)}`:'—';
+    el.innerHTML=`${esc(brand)} •••• ${esc(cc.last4||'••••')} · ${isExpired?'Expired':'Exp'} ${expStr} ${isExpired?sqBadge('Expired','due'):sqBadge('Valid','sent')}`;
+  }catch(e){
+    el.innerHTML=`Could not check card${e.message==='timeout'?' (timed out)':''}`;
+  }
+}
+// ── customer form: payment settings ─────────────────────────────────────────
+const PAYER_HINTS={stripe:'Charged from the Owing page (or automatically if you switch that on). No invoice is sent unless you choose.',cash:'Owing until you mark it paid. Nothing is sent.',bank_transfer:'Owing until you mark the transfer received. Nothing is sent.',invoice:'An invoice with pay link, bank details and PO goes out when a job is done.'};
+function renderPaymentFields(c){
+  c=c||{};const t=c.payer_type||'';
+  document.getElementById('f-payment-fields').innerHTML=`
+    <div class="sq-form-sec">Payment</div>
+    <div class="field"><label>How they pay</label>${sqSeg('f-payer-type',[['stripe','💳 Card'],['cash','💵 Cash'],['bank_transfer','🏦 Bank'],['invoice','✉️ Invoice']],t)}<div class="sq-hint" id="f-payer-hint"></div></div>
+    <div class="field"><label>PO / reference on invoices</label><input id="f-po" placeholder="e.g. PO14994" value="${esc(c.po_reference||'')}"></div>
+    <div class="sq-setting"><div class="sq-setting-t">Send invoice when a job is done</div>${sqTri('f-send-invoice',c.send_invoice_on_completion,'No')}</div>
+    <div class="sq-setting" id="f-autocharge-wrap"><div class="sq-setting-t">Charge saved card automatically</div>${sqTri('f-auto-charge',c.auto_charge_on_completion,'No')}</div>
+    <div class="sq-setting"><div class="sq-setting-t">Overdue reminders</div>${sqTri('f-reminders',c.overdue_reminders,'No')}</div>
+    <div class="sq-setting"><div class="sq-setting-t">Payment terms</div>${sqSeg('f-terms-mode',[['','Default'],['custom','Custom']],c.payment_terms_days!=null?'custom':'')}<input id="f-terms" type="number" min="0" max="120" inputmode="numeric" placeholder="Days" value="${c.payment_terms_days!=null?c.payment_terms_days:''}" style="margin-top:8px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:var(--navy-900);outline:none;display:none"></div>
+    <div class="field"><label>Extra note on invoices</label><textarea id="f-inv-notes" placeholder="Shown on this customer's invoices">${esc(c.invoice_notes||'')}</textarea></div>`;
+  updatePaymentFields();
+}
+function updatePaymentFields(){
+  const t=sqSegVal('f-payer-type');
+  const inv=t==='invoice';
+  const setDef=(id,label)=>{const b=document.querySelector(`#${id} button[data-v=""]`);if(b)b.textContent=`Default (${label})`;};
+  setDef('f-send-invoice',inv?'Yes':'No');setDef('f-reminders',inv?'Yes':'No');
+  const terms=(billingSettings&&billingSettings.payment_terms_days)||7;
+  const tb=document.querySelector('#f-terms-mode button[data-v=""]');if(tb)tb.textContent=`Default (${terms} days)`;
+  const hint=document.getElementById('f-payer-hint');if(hint)hint.textContent=PAYER_HINTS[t]||'Not set — nothing automatic happens until you choose.';
+  const ac=document.getElementById('f-autocharge-wrap');if(ac)ac.style.display=t==='stripe'?'':'none';
+  const ti=document.getElementById('f-terms');if(ti)ti.style.display=sqSegVal('f-terms-mode')==='custom'?'':'none';
+}
+function openAddCustomer(){
+  editingCustomerId=null;
+  document.getElementById('customerModalTitle').textContent='Add customer';
+  ['name','address','postcode','phone','whatsapp','email','notes'].forEach(f=>document.getElementById('f-'+f).value='');
+  getBillingSettings().then(updatePaymentFields);
+  renderPaymentFields({});
+  document.getElementById('customerModal').classList.add('open');
+}
+function openEditCustomer(id){
+  const c=customers.find(x=>x.id===id);if(!c)return;
+  editingCustomerId=id;
+  document.getElementById('customerModalTitle').textContent='Edit customer';
+  document.getElementById('f-name').value=c.name||'';
+  document.getElementById('f-address').value=c.address||'';
+  document.getElementById('f-postcode').value=c.postcode||'';
+  document.getElementById('f-phone').value=c.phone||'';
+  document.getElementById('f-whatsapp').value=c.whatsapp_number||'';
+  document.getElementById('f-email').value=c.email||'';
+  document.getElementById('f-notes').value=c.notes||'';
+  getBillingSettings().then(updatePaymentFields);
+  renderPaymentFields(c);
+  document.getElementById('customerModal').classList.add('open');
 }
 
 // v1.0.144: the two most recent WhatsApp conversations for this customer, so there's context
@@ -2638,11 +2894,11 @@ async function loadCustomerConversations(c){
   const box=document.getElementById('customerConvos');
   if(!box)return;
   const keys=[...new Set([c.whatsapp_number,c.phone,c.alt_phone].map(phoneKey).filter(k=>k&&!/^0+$/.test(k)))];
-  if(!keys.length){box.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">No phone number to match conversations</span></div>';return;}
+  if(!keys.length){box.innerHTML='<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No phone number to match conversations</div></div></div>';return;}
   try{
     const orFilter=keys.map(k=>`customer_phone.like.*${k}`).join(',');
     const rows=await sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&or=(${orFilter})&order=last_message_at.desc&limit=2&select=id,stage,summary,last_message_at,booked_at,customer_phone`);
-    if(!rows.length){box.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">No WhatsApp conversations</span></div>';return;}
+    if(!rows.length){box.innerHTML='<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No WhatsApp conversations</div></div></div>';return;}
     // summary is often empty, so fall back to the latest message as the preview
     const lastMsgs=await Promise.all(rows.map(r=>r.summary?Promise.resolve([]):sb(`messages?conversation_id=eq.${r.id}&order=created_at.desc&limit=1&select=direction,message_text`).catch(()=>[])));
     rows.forEach((r,i)=>{if(!r.summary&&lastMsgs[i][0]&&lastMsgs[i][0].message_text){const m=lastMsgs[i][0];r.summary=(m.direction==='inbound'?'Customer: ':'Us: ')+m.message_text;}});
@@ -2650,15 +2906,15 @@ async function loadCustomerConversations(c){
       const label=STAGE_LABELS[r.stage]||r.stage||'New';
       const when=r.last_message_at?fmtShort(String(r.last_message_at).split('T')[0]):'';
       const snippet=r.summary?`<div style="font-size:12.5px;color:var(--text-soft);margin-top:4px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(r.summary)}</div>`:'';
-      return `<div class="detail-row" style="display:block;cursor:pointer;padding:12px 16px" onclick="openConversationFromCustomer('${r.id}')">
+      return `<div class="sq-block"><div class="sq-item" style="display:block" onclick="openConversationFromCustomer('${r.id}')">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--navy-900);border:1px solid var(--border);color:var(--gold)">${esc(label)}</span>
           <span style="font-size:12px;color:var(--text-muted)">${esc(when)} · Open ›</span>
         </div>${snippet}
-      </div>`;
+      </div></div>`;
     }).join('');
   }catch(e){
-    box.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--danger)">Could not load conversations</span></div>';
+    box.innerHTML='<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Could not load conversations</div></div></div>';
   }
 }
 // "allActive" is the unfiltered list (live and archived alike), so it works for booked/closed
@@ -2687,40 +2943,6 @@ async function setReviewOptOut(id,optOut){
     if(idx>-1)customers[idx].review_opt_out=optOut;
     showCustomer(id);
   }catch(e){showToast(e.message,'error');}
-}
-
-async function loadPaymentMethod(stripeCustomerId){
-  const el=document.getElementById('stripePaymentMethod');
-  if(!el)return;
-  try{
-    const res=await Promise.race([
-      fetch(N8N_PAYMENT_METHOD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_customer_id:stripeCustomerId})}),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),8000))
-    ]);
-    const data=await res.json();
-    const methods=data.payment_methods||[];
-    if(!methods.length){
-      el.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">No card on file</span></div>';
-      return;
-    }
-    const defaultId=data.default_payment_method;
-    const card=(defaultId&&methods.find(m=>m.id===defaultId))||methods[0];
-    const cc=card.card||{};
-    const now=new Date();
-    const isExpired=cc.exp_year&&cc.exp_month&&(cc.exp_year<now.getFullYear()||(cc.exp_year===now.getFullYear()&&cc.exp_month<now.getMonth()+1));
-    const brand=(cc.brand||'card').replace(/^\w/,ch=>ch.toUpperCase());
-    const expStr=cc.exp_month&&cc.exp_year?`${String(cc.exp_month).padStart(2,'0')}/${String(cc.exp_year).slice(-2)}`:'—';
-    el.innerHTML=`<div class="detail-row">
-      <span class="detail-label">Card on file</span>
-      <span class="detail-value" style="display:flex;align-items:center;gap:8px">
-        <span>${esc(brand)} •••• ${esc(cc.last4||'••••')}</span>
-        <span style="font-family:'DM Mono',monospace;font-size:12px;color:${isExpired?'var(--danger)':'var(--text-muted)'}">${isExpired?'Expired '+expStr:'Exp '+expStr}</span>
-        ${isExpired?'<span class="badge badge-cant">Expired</span>':'<span class="badge badge-done">Valid</span>'}
-      </span>
-    </div>`;
-  }catch(e){
-    el.innerHTML=`<div class="detail-row"><span class="detail-label" style="font-style:italic;color:var(--text-muted)">Could not check card${e.message==='timeout'?' (timed out)':''}</span></div>`;
-  }
 }
 
 async function assignRoundToJob(jobId, quoteId){
@@ -2759,56 +2981,6 @@ function saveRoundAssignment(){
   if(!document.getElementById('q-start-date').value){showToast('Pick a start date before saving — the job won\'t be scheduled without one','error');return;}
   saveQuote('draft');
 }
-async function loadCustomerJobs(customerId){
-  try{
-    const jobs=await sb(`wc_jobs?customer_id=eq.${customerId}&order=next_due.desc.nullslast,created_at.desc&limit=20`);
-    const el=document.getElementById('customerJobs');if(!el)return;
-    if(!jobs.length){el.innerHTML='<div class="detail-row"><span class="detail-label" style="font-style:italic">No jobs yet</span></div>';return;}
-    el.innerHTML=jobs.map(j=>`<div class="detail-row">
-      <div><div style="font-size:14px;font-weight:500;color:var(--white)">${fmtShort(j.next_due||j.scheduled_date)}</div>
-      <div style="font-size:12px;color:var(--text-muted)">${j.service_type||j.frequency||''}${j.round_name?' · '+j.round_name:''}</div></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--white)">£${parseFloat(j.price||0).toFixed(2)}</span>
-        <span class="badge ${badgeClass(j.status)}">${statusLabel(j.status)}</span>
-        ${j.status==='scheduled'?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅</button>`:''}
-        ${j.status==='pending_assignment'?`<button class="btn btn-primary btn-sm" style="padding:4px 10px;font-size:12px" onclick="assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
-        <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:12px" onclick="openEditJob('${j.id}','${customerId}')" title="Edit or delete this job">✏️</button>
-      </div>
-    </div>`).join('');
-  }catch(e){}
-}
-
-function updateSlider(){
-  const checked=document.getElementById('f-auto-invoice').checked;
-  const s=document.getElementById('autoInvoiceSlider');
-  if(s){s.style.background=checked?'var(--done)':'var(--border)';s.style.setProperty('--tx',checked?'18px':'2px');}
-}
-function openAddCustomer(){
-  editingCustomerId=null;
-  document.getElementById('customerModalTitle').textContent='Add customer';
-  ['name','address','postcode','phone','whatsapp','email','notes'].forEach(f=>document.getElementById('f-'+f).value='');
-  const ai=document.getElementById('f-auto-invoice');ai.checked=true;updateSlider();
-  ai.onchange=updateSlider;
-  document.getElementById('f-cash-payer').checked=false;
-  document.getElementById('customerModal').classList.add('open');
-}
-function openEditCustomer(id){
-  const c=customers.find(x=>x.id===id);if(!c)return;
-  editingCustomerId=id;
-  document.getElementById('customerModalTitle').textContent='Edit customer';
-  document.getElementById('f-name').value=c.name||'';
-  document.getElementById('f-address').value=c.address||'';
-  document.getElementById('f-postcode').value=c.postcode||'';
-  document.getElementById('f-phone').value=c.phone||'';
-  document.getElementById('f-whatsapp').value=c.whatsapp_number||'';
-  document.getElementById('f-email').value=c.email||'';
-  document.getElementById('f-notes').value=c.notes||'';
-  const ai=document.getElementById('f-auto-invoice');
-  ai.checked=c.auto_invoice!==false; // default true
-  updateSlider();
-  document.getElementById('f-cash-payer').checked=!!c.cash_payer;
-  document.getElementById('customerModal').classList.add('open');
-}
 function normalizePhoneUK(raw){
   if(!raw)return null;
   let v=String(raw).trim();
@@ -2833,7 +3005,10 @@ async function saveCustomer(){
   if(!phone){showToast('Phone number is required','error');return;}
   if(!isValidUKPhone(phone)){showToast('Enter a valid UK phone number, e.g. +447700900000','error');return;}
   if(!email){showToast('Email address is required','error');return;}
-  const autoInvoice=document.getElementById('f-auto-invoice').checked;
+  const payer=sqSegVal('f-payer-type');
+  const termsCustom=sqSegVal('f-terms-mode')==='custom';
+  const terms=termsCustom?parseInt(document.getElementById('f-terms').value,10):null;
+  if(termsCustom&&(isNaN(terms)||terms<0||terms>120)){showToast('Enter payment terms in days (0–120)','error');return;}
   let whatsapp=normalizePhoneUK(document.getElementById('f-whatsapp').value.trim());
   if(whatsapp&&!isValidUKPhone(whatsapp)){showToast('Enter a valid WhatsApp number, e.g. +447700900000','error');return;}
   // Auto-fill whatsapp from phone if it's a UK mobile and WhatsApp wasn't set separately
@@ -2843,8 +3018,15 @@ async function saveCustomer(){
   const payload={name,address,postcode,phone,email,
     whatsapp_number:whatsapp,
     notes:document.getElementById('f-notes').value.trim()||null,
-    auto_invoice:autoInvoice,
-    cash_payer:document.getElementById('f-cash-payer').checked};
+    payer_type:payer,
+    cash_payer:payer==='cash',
+    po_reference:document.getElementById('f-po').value.trim()||null,
+    send_invoice_on_completion:sqTriVal('f-send-invoice'),
+    auto_charge_on_completion:payer==='stripe'?sqTriVal('f-auto-charge'):null,
+    overdue_reminders:sqTriVal('f-reminders'),
+    payment_terms_days:terms,
+    invoice_notes:document.getElementById('f-inv-notes').value.trim()||null};
+  const editedId=editingCustomerId;
   try{
     if(editingCustomerId){
       await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
@@ -2858,7 +3040,8 @@ async function saveCustomer(){
         setTimeout(()=>sendPaymentSetup(newCust.id),500);
       }
     }
-    closeModal('customerModal');renderCustomers();
+    closeModal('customerModal');
+    if(editedId&&document.getElementById('custHeroId'))showCustomer(editedId);else renderCustomers();
   }catch(e){showToast(e.message,'error');}
 }
 async function archiveCustomer(id){
@@ -3179,6 +3362,14 @@ async function deleteJobConfirm(){
 }
 
 // ── QUOTES ────────────────────────────────────────────────────────────────────
+// ── QUOTES (v1.0.166 redesign) ───────────────────────────────────────────────
+function quoteStatusBadge(q){return sqBadge(esc(q.status||'draft'),q.status||'draft');}
+function followUpBadge(q){
+  if(q.follow_up_stage==='day1_sent')return sqBadge('Reminder sent','follow');
+  if(q.follow_up_stage==='cold')return sqChip('No response','#52667d');
+  return'';
+}
+const QUOTE_ICON={draft:['pencil','#52667d'],sent:['send','#3f86c5'],accepted:['check','#2f9e6e'],declined:['xcircle','#d6455d']};
 async function renderQuotes(){
   document.getElementById('topbarPage').textContent='Quotes';
   const el=document.getElementById('mainContent');
@@ -3188,78 +3379,65 @@ async function renderQuotes(){
   const counts={all:quotes.length,draft:0,sent:0,accepted:0,declined:0};
   quotes.forEach(q=>{if(counts[q.status]!==undefined)counts[q.status]++;});
   const filtered=quoteFilter==='all'?quotes:quotes.filter(q=>q.status===quoteFilter);
+  const open=quotes.filter(q=>q.status==='sent').reduce((s,q)=>s+parseFloat(q.price||0),0);
+  const groups=[];const idx={};
+  filtered.forEach(q=>{const k=String(q.created_at).slice(0,7);if(!(k in idx)){idx[k]=groups.length;groups.push({k,items:[]});}groups[idx[k]].items.push(q);});
   el.innerHTML=`
-    <div class="page-header">
-      <div><div class="page-title">Quotes</div><div class="page-sub">${counts.all} total</div></div>
-      <button class="btn btn-primary btn-sm" onclick="openNewQuote()">+ New</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      ${['all','draft','sent','accepted','declined'].map(f=>`
-        <button onclick="quoteFilter='${f}';renderQuotes()" style="padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${quoteFilter===f?'var(--gold)':'var(--navy-800)'};color:${quoteFilter===f?'var(--navy-900)':'var(--text-soft)'}">
-          ${f.charAt(0).toUpperCase()+f.slice(1)} (${counts[f]||0})
-        </button>`).join('')}
-    </div>
-    <div class="card-list">${filtered.length?filtered.map(q=>quoteCard(q)).join(''):'<div class="empty"><div class="empty-title">No quotes</div></div>'}</div>`;
+    <div class="sq-top"><span class="sq-pill"><b>${counts.all}</b><span>quotes</span>${open>0?`<i class="sq-vr"></i><b>£${open.toFixed(2)}</b><span>awaiting reply</span>`:''}</span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openNewQuote()" aria-label="New quote">${ic('plus')}</button></div>
+    <div class="sq-filters">${['all','draft','sent','accepted','declined'].map(f=>`<button class="sq-fchip${quoteFilter===f?' on':''}" onclick="quoteFilter='${f}';renderQuotes()">${f.charAt(0).toUpperCase()+f.slice(1)}<span class="n">${counts[f]||0}</span></button>`).join('')}</div>
+    ${groups.length?groups.map(g=>sqGroupHeader(g.items.length,sqMonthLabel(g.items[0].created_at),g.items.reduce((s,q)=>s+parseFloat(q.price||0),0))+`<div class="sq-list">${g.items.map(quoteCard).join('')}</div>`).join(''):sqEmpty('No quotes')}`;
 }
 function quoteCard(q){
-  const c=q.wc_customers||{};
-  const cols={draft:'var(--text-muted)',sent:'var(--navy-400)',accepted:'var(--done)',declined:'var(--danger)'};
-  const bgs={draft:'rgba(111,136,166,.15)',sent:'rgba(0,224,207,.2)',accepted:'var(--done-light)',declined:'var(--danger-light)'};
-  const col=cols[q.status]||'var(--text-muted)',bg=bgs[q.status]||'transparent';
-  return`<div class="card" onclick="showQuote('${q.id}')">
-    <div class="card-avatar" style="background:${bg};color:${col}">${q.status==='accepted'?'✓':q.status==='declined'?'✗':'£'}</div>
-    <div class="card-info"><div class="card-name">${esc(c.name||'Unknown')}</div>
-      <div class="card-sub">${q.service_type?esc(q.service_type):(c.address?esc(c.address):'')}</div>
-    </div>
-    <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--gold)">£${parseFloat(q.price||0).toFixed(2)}</div>
-      <div style="font-size:11px;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${q.status}</div>
-      ${followUpBadge(q)}
-    </div>
-  </div>`;
+  const c=q.wc_customers||{};const [icn,col]=QUOTE_ICON[q.status]||QUOTE_ICON.draft;
+  return`<div class="sq-block"><div class="sq-row" onclick="showQuote('${q.id}')" style="--accent:${col}">
+    <div class="sq-av" style="background:${col}">${ic(icn)}</div>
+    <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      <div class="sq-chips">${quoteStatusBadge(q)}${followUpBadge(q)}${q.service_type?sqChip(sqShortSvc(q.service_type),'#52667d','ghost'):''}${q.frequency&&q.frequency!=='one-off'?sqChip(q.frequency,'#52667d','ghost'):''}${q.round_name?sqRoundChip(q.round_name):''}</div></div>
+    <div class="sq-right">${sqMoney(q.price)}<span class="sq-lbl">${fmtShort(String(q.created_at).split('T')[0]).replace(/ 20\d\d$/,'')}</span></div>
+  </div></div>`;
 }
-function followUpBadge(q){
-  if(q.follow_up_stage==='day1_sent')return`<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:999px;background:rgba(177,139,255,.14);color:var(--violet);margin-top:4px;white-space:nowrap">Reminder sent</div>`;
-  if(q.follow_up_stage==='cold')return`<div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:999px;background:rgba(111,136,166,.14);color:var(--text-muted);margin-top:4px;white-space:nowrap">No response</div>`;
-  return'';
-}
+function sqTl(icn,color,title,detail,onclick){return`<div class="sq-tl-row${onclick?' link':''}" ${onclick?`onclick="${onclick}"`:''}><svg class="sq-tl-ic" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${SQI[icn]}"/></svg><div class="sq-tl-body"><div class="sq-tl-t">${title}</div>${detail?`<div class="sq-tl-d">${detail}</div>`:''}</div></div>`;}
+function sqDt(d){return d?`${fmtShort(String(d).split('T')[0])} · ${sqTime(d)}`:'';}
 async function showQuote(id){
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let q=quotes.find(x=>x.id===id);
-  if(!q){try{[q]=await sb(`wc_quotes?id=eq.${id}&select=*,wc_customers(name,address,postcode,phone,email)`);}catch(e){}}
+  if(!q||!q.wc_customers||!q.wc_customers.phone){try{[q]=await sb(`wc_quotes?id=eq.${id}&select=*,wc_customers(id,name,address,postcode,phone,email)`);}catch(e){}}
   if(!q){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
-  const c=q.wc_customers||{};
+  const c=q.wc_customers||{};const [icn,col]=QUOTE_ICON[q.status]||QUOTE_ICON.draft;
   const actionBtns=q.status==='draft'
-    ?`<button class="btn btn-primary btn-full" onclick="markQuoteSent('${q.id}')">Mark as sent</button>
-       <button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
+    ?`<button class="sq-btn primary" onclick="markQuoteSent('${q.id}')">Mark as sent</button><button class="sq-btn" onclick="openEditQuote('${q.id}')">Edit</button>`
     :q.status==='sent'
-    ?`<button class="btn btn-done btn-full" onclick="acceptQuote('${q.id}')">✓ Accept → Create job</button>
-       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="declineQuote('${q.id}')">Decline</button>
-       <button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
+    ?`<button class="sq-btn green" onclick="acceptQuote('${q.id}')">✓ Accept → create job</button><button class="sq-btn" onclick="openEditQuote('${q.id}')">Edit</button><button class="sq-btn danger" onclick="declineQuote('${q.id}')">Decline</button>`
     :q.status==='accepted'
-    ?`<button class="btn btn-ghost btn-full" onclick="openEditQuote('${q.id}')">Edit</button>`
-    :`<button class="btn btn-ghost btn-full" onclick="reopenQuote('${q.id}')">Reopen as draft</button>`;
+    ?`<button class="sq-btn" onclick="openEditQuote('${q.id}')">Edit</button>`
+    :`<button class="sq-btn" onclick="reopenQuote('${q.id}')">Reopen as draft</button>`;
+  const item=(t,v)=>v?`<div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t">${t}</div><div class="sq-item-v" style="white-space:pre-wrap">${esc(v)}</div></div></div></div>`:'';
   el.innerHTML=`
     <button class="back-btn" onclick="renderQuotes()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Quotes</button>
-    <div class="page-header">
-      <div><div class="page-title">${esc(c.name||'Unknown')}</div><div class="page-sub">${esc(c.address||'')}</div></div>
-      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${q.status==='accepted'?'var(--done-light)':q.status==='declined'?'var(--danger-light)':q.status==='sent'?'rgba(0,224,207,.2)':'rgba(111,136,166,.15)'};color:${q.status==='accepted'?'var(--done)':q.status==='declined'?'var(--danger)':q.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${q.status}</span>
+    <div class="sq-hero">
+      <div class="sq-hero-top"><div class="sq-av lg" style="background:${col}">${ic(icn)}</div>
+        <div style="min-width:0"><div class="sq-hero-name" ${c.id?`onclick="showCustomer('${c.id}')" style="cursor:pointer"`:''}>${esc(c.name||'Unknown')}</div><div class="sq-hero-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div></div>
+        <div class="sq-hero-amt">${sqMoney(q.price,'lg')}${quoteStatusBadge(q)}</div></div>
+      <div class="sq-chips" style="margin-top:12px">${q.service_type?sqChip(sqShortSvc(q.service_type),'#52667d','ghost'):''}${q.frequency?sqChip(q.frequency,'#52667d','ghost'):''}${q.round_name?sqRoundChip(q.round_name):''}${followUpBadge(q)}</div>
     </div>
-    <div class="detail-section">
-      <div class="detail-section-header">Quote details</div>
-      <div class="detail-row"><span class="detail-label">Price</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:18px">£${parseFloat(q.price||0).toFixed(2)}</span></div>
-      ${q.service_type?`<div class="detail-row"><span class="detail-label">Service</span><span class="detail-value">${esc(q.service_type)}</span></div>`:''}
-      ${q.follow_up_stage&&q.follow_up_stage!=='none'?`<div class="detail-row"><span class="detail-label">Follow-up</span><span class="detail-value" style="color:${q.follow_up_stage==='cold'?'var(--text-muted)':'var(--violet)'}">${q.follow_up_stage==='day1_sent'?'Reminder sent':'No response — marked cold'}${q.follow_up_last_sent_at?' · '+fmtShort(q.follow_up_last_sent_at.slice(0,10)):''}</span></div>`:''}
-      <div class="detail-row"><span class="detail-label">Frequency</span><span class="detail-value">${q.frequency||'one-off'}</span></div>
-      ${q.round_name?`<div class="detail-row"><span class="detail-label">Round</span><span class="detail-value">${esc(q.round_name)}</span></div>`:''}
-      ${q.notes?`<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value" style="white-space:pre-wrap">${esc(q.notes)}</span></div>`:''}
+    <div class="sq-sec"><span>Progress</span></div>
+    <div class="sq-card" style="padding:4px 14px"><div class="sq-tl" style="margin-top:0;border-top:none">
+      ${sqTl('doc','#6f88a6','Created',sqDt(q.created_at))}
+      ${q.sent_at?sqTl('send','#3f86c5','Sent',sqDt(q.sent_at)):''}
+      ${q.follow_up_last_sent_at?sqTl('bell','#8d4fc2',q.follow_up_stage==='cold'?'No response — marked cold':'Reminder sent',sqDt(q.follow_up_last_sent_at)):''}
+      ${q.accepted_at?sqTl('check','#2f9e6e','Accepted',sqDt(q.accepted_at)):''}
+      ${q.declined_at?sqTl('xcircle','#d6455d','Declined',sqDt(q.declined_at)):''}
+    </div></div>
+    <div class="sq-sec"><span>Details</span></div>
+    <div class="sq-list">
+      ${item('Service',q.service_type)}${item('Frequency',q.frequency||'one-off')}${item('Round',q.round_name)}${item('Start date',q.start_date?fmtShort(q.start_date):'')}${item('Notes',q.notes)}
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">${actionBtns}</div>
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="deleteQuote('${q.id}')">Delete quote</button>
-    </div>`;
+    <div class="sq-stack">${actionBtns}</div>
+    <div style="margin-top:26px"><button class="sq-btn danger sm" onclick="deleteQuote('${q.id}')">Delete quote</button></div>`;
 }
+
+
 function toggleInlineCustomer(){
   const form=document.getElementById('inlineCustomerForm'),btn=document.getElementById('newCustBtn');
   const isOpen=form.style.display!=='none';
@@ -3488,87 +3666,80 @@ async function deleteQuote(id){
 }
 
 // ── INVOICES ──────────────────────────────────────────────────────────────────
+// ── INVOICES (v1.0.166 redesign) ─────────────────────────────────────────────
+const INV_SELECT='*,wc_customers(id,name,address,postcode,phone,whatsapp_number,email,invoice_notes,payment_terms_days,payer_type,po_reference)';
 async function renderInvoices(){
   document.getElementById('topbarPage').textContent='Invoices';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  try{invoices=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);}
+  try{invoices=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&order=created_at.desc&select=${INV_SELECT}`);}
   catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   const counts={all:invoices.length,draft:0,sent:0,paid:0,void:0};
   invoices.forEach(i=>{if(counts[i.status]!==undefined)counts[i.status]++;});
   const overdueCount=invoices.filter(i=>isOverdue(i)).length;
   const filtered=invoiceFilter==='overdue'?invoices.filter(i=>isOverdue(i)):invoiceFilter==='all'?invoices:invoices.filter(i=>i.status===invoiceFilter);
-  const totalEarned=invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.amount||0),0);
-  const totalOutstanding=invoices.filter(i=>i.status==='sent').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const earned=invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const out=invoices.filter(i=>i.status==='sent').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const groups=[];const idx={};
+  filtered.forEach(i=>{const k=String(i.created_at).slice(0,10);if(!(k in idx)){idx[k]=groups.length;groups.push({k,items:[]});}groups[idx[k]].items.push(i);});
   el.innerHTML=`
-    <div class="page-header">
-      <div><div class="page-title">Invoices</div><div class="page-sub">£${totalEarned.toFixed(2)} paid · £${totalOutstanding.toFixed(2)} outstanding</div></div>
-      <button class="btn btn-primary btn-sm" onclick="openNewInvoice()">+ New</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      ${['all','overdue','draft','sent','paid','void'].map(f=>{
-        const cnt=f==='overdue'?overdueCount:f==='all'?counts.all:(counts[f]||0);
-        const isActive=invoiceFilter===f,isDanger=f==='overdue'&&cnt>0;
-        return`<button onclick="invoiceFilter='${f}';renderInvoices()" style="padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid ${isDanger&&!isActive?'var(--danger)':'var(--border)'};background:${isActive?(isDanger?'var(--danger)':'var(--gold)'):'var(--navy-800)'};color:${isActive?(isDanger?'var(--white)':'var(--navy-900)'):(isDanger?'var(--danger)':'var(--text-soft)')}">
-          ${f.charAt(0).toUpperCase()+f.slice(1)} (${cnt})</button>`;}).join('')}
-    </div>
-    <div class="card-list">${filtered.length?filtered.map(i=>invoiceCard(i)).join(''):'<div class="empty"><div class="empty-title">No invoices</div></div>'}</div>`;
+    <div class="sq-top"><span class="sq-pill"><b>£${earned.toFixed(2)}</b><span>paid</span><i class="sq-vr"></i><b>£${out.toFixed(2)}</b><span>outstanding</span></span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openNewInvoice()" aria-label="New invoice">${ic('plus')}</button></div>
+    <div class="sq-filters">${['all','overdue','draft','sent','paid','void'].map(f=>{const cnt=f==='overdue'?overdueCount:f==='all'?counts.all:(counts[f]||0);return`<button class="sq-fchip${invoiceFilter===f?' on':''}${f==='overdue'&&cnt>0?' danger':''}" onclick="invoiceFilter='${f}';renderInvoices()">${f.charAt(0).toUpperCase()+f.slice(1)}<span class="n">${cnt}</span></button>`;}).join('')}</div>
+    ${groups.length?groups.map(g=>sqGroupHeader(g.items.length,sqDayLabel(g.k),g.items.filter(i=>i.status!=='void').reduce((s,i)=>s+parseFloat(i.amount||0),0))+`<div class="sq-list">${g.items.map(i=>invoiceRow(i)).join('')}</div>`).join(''):sqEmpty('No invoices')}`;
 }
-function invoiceCard(inv){
-  const c=inv.wc_customers||{};
-  const overdue=isOverdue(inv);
-  const cols={draft:'var(--text-muted)',sent:overdue?'var(--danger)':'var(--navy-400)',paid:'var(--done)',void:'var(--text-muted)'};
-  const bgs={draft:'rgba(111,136,166,.15)',sent:overdue?'var(--danger-light)':'rgba(0,224,207,.2)',paid:'var(--done-light)',void:'rgba(111,136,166,.15)'};
-  const col=cols[inv.status]||'var(--text-muted)',bg=bgs[inv.status]||'transparent';
-  return`<div class="card" onclick="showInvoice('${inv.id}')" style="${overdue?'border-color:var(--danger);':''}">
-    <div class="card-avatar" style="background:${bg};color:${col}">${inv.status==='paid'?'✓':overdue?'!':'£'}</div>
-    <div class="card-info"><div class="card-name">${esc(c.name||'Unknown')}</div>
-      <div class="card-sub">${esc(c.address||'')}</div>
-      ${inv.due_date?`<div style="font-size:12px;color:${overdue?'var(--danger)':'var(--text-muted)'};margin-top:2px">${overdue?'⚠ Overdue since ':'Due '}${fmtShort(inv.due_date)}</div>`:''}
-    </div>
-    <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--gold)">£${parseFloat(inv.amount||0).toFixed(2)}</div>
-      <div style="font-size:11px;padding:2px 8px;border-radius:20px;background:${bg};color:${col};margin-top:4px">${overdue?'overdue':inv.status}</div>
-    </div>
-  </div>`;
+function invStatusBadge(inv){
+  if(isOverdue(inv)){const d=sqDaysAgo(inv.due_date);return sqBadge(`Due ${d} day${d!==1?'s':''} ago`,'due');}
+  return sqBadge(inv.status==='sent'?'Sent':inv.status==='paid'?'Paid':inv.status==='void'?'Void':'Draft',inv.status==='sent'?'sent':inv.status);
+}
+function invoiceRow(inv,compact){
+  const c=inv.wc_customers||{};const overdue=isOverdue(inv);
+  const [icn,col]=inv.status==='paid'?['check','#7b4fc4']:overdue?['clock','#d6455d']:inv.status==='sent'?['clock','#d9741a']:inv.status==='void'?['xcircle','#52667d']:['pencil','#52667d'];
+  const method={stripe:'Stripe',cash:'Cash',bank_transfer:'Bank'}[inv.payment_method];
+  return`<div class="sq-block"><div class="sq-row" onclick="showInvoice('${inv.id}')" style="--accent:${overdue?'#d6455d':'transparent'}">
+    <div class="sq-av" style="background:${col}">${ic(icn)}</div>
+    <div class="sq-body"><div class="sq-name">${compact?esc(inv.notes?sqShortSvc(inv.notes):'Invoice'):esc(c.name||'Unknown')}</div><div class="sq-sub">${compact?fmtShort(String(inv.created_at).split('T')[0]):esc(c.address||'')}</div>
+      <div class="sq-chips">${invStatusBadge(inv)}${method&&inv.status==='paid'?sqChip(method,'#52667d','ghost'):''}${inv.po_reference?sqChip(inv.po_reference,'','mono'):''}${inv.status==='sent'&&inv.due_date&&!overdue?sqChip('Due '+fmtShort(inv.due_date).replace(/ 20\d\d$/,''),'#52667d','ghost'):''}</div></div>
+    <div class="sq-right">${sqMoney(inv.amount,inv.status==='void'?'zero':'')}<span class="sq-lbl">${compact?'':sqTime(inv.created_at)||'Amount'}</span></div>
+  </div></div>`;
 }
 async function showInvoice(id){
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let inv=invoices.find(x=>x.id===id);
-  if(!inv){try{[inv]=await sb(`wc_invoices?id=eq.${id}&select=*,wc_customers(name,address,postcode,phone,whatsapp_number,email)`);}catch(e){}}
+  if(!inv){try{[inv]=await sb(`wc_invoices?id=eq.${id}&select=${INV_SELECT}`);}catch(e){}if(inv)invoices=[inv,...invoices];}
   if(!inv){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
-  const c=inv.wc_customers||{};
+  const c=inv.wc_customers||{};const overdue=isOverdue(inv);
+  const [icn,col]=inv.status==='paid'?['check','#7b4fc4']:overdue?['clock','#d6455d']:inv.status==='sent'?['clock','#d9741a']:inv.status==='void'?['xcircle','#52667d']:['pencil','#52667d'];
   const actionBtns=inv.status==='draft'
-    ?`<button class="btn btn-primary btn-full" id="sendInvoiceBtn" onclick="sendInvoice('${inv.id}')">Send invoice</button>
-       <button class="btn btn-ghost btn-full" onclick="openEditInvoice('${inv.id}')">Edit</button>`
+    ?`<button class="sq-btn primary" id="sendInvoiceBtn" onclick="sendInvoice('${inv.id}')">Send invoice</button><button class="sq-btn" onclick="openEditInvoice('${inv.id}')">Edit</button>`
     :inv.status==='sent'
-    ?`<button class="btn btn-done btn-full" onclick="markInvoicePaid('${inv.id}')">✓ Mark as paid</button>
-       ${inv.stripe_payment_link?`<a href="${esc(inv.stripe_payment_link)}" target="_blank" class="btn btn-ghost btn-full">View payment link ↗</a>`:''}
-       <button class="btn btn-ghost btn-full" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="voidInvoice('${inv.id}')">Void</button>`
-    :inv.status==='paid'?`<div style="color:var(--done);font-weight:600;text-align:center;padding:12px">✓ Paid${inv.paid_at?' on '+fmtShort(inv.paid_at.split('T')[0]):''}</div>`
-    :`<button class="btn btn-ghost btn-full" onclick="reopenInvoice('${inv.id}')">Reopen as draft</button>`;
+    ?`<button class="sq-btn green" onclick="markInvoicePaid('${inv.id}')">✓ Mark as paid</button><button class="sq-btn" id="sendInvoiceBtn" onclick="sendInvoice('${inv.id}')">Resend invoice</button>${inv.stripe_payment_link?`<a href="${esc(inv.stripe_payment_link)}" target="_blank" class="sq-btn">View payment link ↗</a>`:''}<button class="sq-btn danger" onclick="voidInvoice('${inv.id}')">Void</button>`
+    :inv.status==='paid'?''
+    :`<button class="sq-btn" onclick="reopenInvoice('${inv.id}')">Reopen as draft</button>`;
+  const method={stripe:'Card (Stripe)',cash:'Cash',bank_transfer:'Bank transfer'}[inv.payment_method];
+  const item=(t,v,mono)=>v?`<div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t">${t}</div><div class="sq-item-v"${mono?` style="font-family:'DM Mono',monospace"`:''}>${v}</div></div></div></div>`:'';
   el.innerHTML=`
     <button class="back-btn" onclick="renderInvoices()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Invoices</button>
-    <div class="page-header">
-      <div><div class="page-title">${esc(c.name||'Unknown')}</div><div class="page-sub">${esc(c.address||'')}</div></div>
-      <span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:${inv.status==='paid'?'var(--done-light)':inv.status==='void'?'var(--danger-light)':inv.status==='sent'?'rgba(0,224,207,.2)':'rgba(111,136,166,.15)'};color:${inv.status==='paid'?'var(--done)':inv.status==='void'?'var(--danger)':inv.status==='sent'?'var(--navy-400)':'var(--text-muted)'}">${inv.status}</span>
+    <div class="sq-hero">
+      <div class="sq-hero-top"><div class="sq-av lg" style="background:${col}">${ic(icn)}</div>
+        <div style="min-width:0"><div class="sq-hero-name" ${c.id?`onclick="showCustomer('${c.id}')" style="cursor:pointer"`:''}>${esc(c.name||'Unknown')}</div><div class="sq-hero-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div></div>
+        <div class="sq-hero-amt">${sqMoney(inv.amount,'lg')}${invStatusBadge(inv)}</div></div>
+      ${inv.po_reference||method?`<div class="sq-chips" style="margin-top:12px">${inv.po_reference?sqChip('PO '+inv.po_reference,'','mono'):''}${method&&inv.status==='paid'?sqChip(method,'#52667d','ghost'):''}</div>`:''}
     </div>
-    <div class="detail-section">
-      <div class="detail-section-header">Invoice details</div>
-      <div class="detail-row"><span class="detail-label">Amount</span><span class="detail-value" style="font-family:'DM Mono',monospace;color:var(--gold);font-size:20px">£${parseFloat(inv.amount||0).toFixed(2)}</span></div>
-      ${inv.po_reference?`<div class="detail-row"><span class="detail-label">PO / Ref</span><span class="detail-value" style="font-family:'DM Mono',monospace">${esc(inv.po_reference)}</span></div>`:''}
-      ${inv.due_date?`<div class="detail-row"><span class="detail-label">Due</span><span class="detail-value">${fmtShort(inv.due_date)}</span></div>`:''}
-      ${inv.notes?`<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${esc(inv.notes)}</span></div>`:''}
-      ${inv.sent_at?`<div class="detail-row"><span class="detail-label">Sent</span><span class="detail-value">${fmtShort(inv.sent_at.split('T')[0])}</span></div>`:''}
-      ${inv.paid_at?`<div class="detail-row"><span class="detail-label">Paid</span><span class="detail-value" style="color:var(--done)">${fmtShort(inv.paid_at.split('T')[0])}</span></div>`:''}
-      ${inv.stripe_payment_link?`<div class="detail-row"><span class="detail-label">Link</span><a href="${esc(inv.stripe_payment_link)}" target="_blank" style="color:var(--gold);font-size:12px;word-break:break-all">${esc(inv.stripe_payment_link)}</a></div>`:''}
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">${actionBtns}</div>
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(255,92,114,.3)" onclick="deleteInvoice('${inv.id}')">Delete invoice</button>
-    </div>`;
+    <div class="sq-sec"><span>Progress</span></div>
+    <div class="sq-card" style="padding:4px 14px"><div class="sq-tl" style="margin-top:0;border-top:none">
+      ${sqTl('doc','#6f88a6','Created',sqDt(inv.created_at))}
+      ${inv.sent_at?sqTl('send','#3f86c5','Sent to customer',sqDt(inv.sent_at)):''}
+      ${inv.due_date&&inv.status!=='paid'&&inv.status!=='void'?sqTl('cal',overdue?'#d6455d':'#6f88a6',overdue?'Overdue':'Due',fmtShort(inv.due_date)):''}
+      ${inv.paid_at?sqTl('check','#7b4fc4','Paid'+(method?' · '+method:''),sqDt(inv.paid_at)):''}
+    </div></div>
+    <div class="sq-sec"><span>Details</span></div>
+    <div class="sq-list">${item('Service',esc(inv.notes||''))}${item('PO / reference',esc(inv.po_reference||''),true)}${inv.stripe_payment_link?`<div class="sq-block"><div class="sq-item" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(inv.stripe_payment_link)}');showToast('Payment link copied','success')"><div class="sq-item-body"><div class="sq-item-t">Payment link</div><div class="sq-item-v" style="word-break:break-all">${esc(inv.stripe_payment_link)}</div></div>${ic('doc','sq-go')}</div></div>`:''}</div>
+    <div class="sq-stack">${actionBtns}</div>
+    <div style="margin-top:26px"><button class="sq-btn danger sm" onclick="deleteInvoice('${inv.id}')">Delete invoice</button></div>`;
 }
+
+
 async function openNewInvoice(){
   editingInvoiceId=null;
   document.getElementById('invModalTitle').textContent='New Invoice';
@@ -3607,30 +3778,17 @@ async function saveInvoice(){
 }
 async function sendInvoice(id){
   const inv=invoices.find(x=>x.id===id);if(!inv)return;
-  const btn=document.getElementById('sendInvoiceBtn');
+  const btn=document.getElementById('sendInvoiceBtn');const label=btn?btn.textContent:'Send invoice';
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
   try{
-    const customer=customers.find(c=>c.id===inv.customer_id)||inv.wc_customers||{};
-    const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      invoice_id:inv.id,customer_name:customer.name||'Customer',
-      customer_phone:customer.whatsapp_number||customer.phone||'',
-      customer_email:customer.email||'',amount:inv.amount,
-      service_type:inv.notes||'Window Cleaning',due_date:inv.due_date||'',notes:''
-    })});
-    if(res.ok){
-      const data=await res.json().catch(()=>({}));
-      if(data.payment_link)inv.stripe_payment_link=data.payment_link;
-      showToast('Invoice sent ✓','success');
-      setTimeout(()=>renderInvoices(),1500);
-    }else{
-      const err=await res.json().catch(()=>({}));
-      const msg=err?.message||`Delivery failed (${res.status})`;
-      showToast('⚠ '+msg,'error');
-      if(btn){btn.disabled=false;btn.textContent='Send invoice';}
-    }
+    const c=inv.wc_customers||customers.find(x=>x.id===inv.customer_id)||{};
+    if(!c.email)throw new Error('No email on file for '+(c.name||'customer'));
+    await dispatchInvoice(inv,{price:inv.amount,service_type:inv.notes||'Window Cleaning'},c);
+    showToast('Invoice sent ✓','success');
+    setTimeout(()=>renderInvoices(),1500);
   }catch(e){
-    showToast('⚠ Could not reach delivery service — check n8n','error');
-    if(btn){btn.disabled=false;btn.textContent='Send invoice';}
+    showToast('⚠ '+e.message,'error');
+    if(btn){btn.disabled=false;btn.textContent=label;}
   }
 }
 async function markInvoicePaid(id){
@@ -3651,91 +3809,139 @@ async function deleteInvoice(id){
 
 // ── OWING / PAYMENTS ──────────────────────────────────────────────────────────
 
+// ═══ v1.0.166 design-system helpers ═══════════════════════════════════════════
+const SQI={
+  phone:'M3 5a2 2 0 012-2h2.3a1 1 0 01.95.68l1.1 3.3a1 1 0 01-.27 1.06L7.6 9.5a12 12 0 006.9 6.9l1.46-1.48a1 1 0 011.06-.27l3.3 1.1a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z',
+  mail:'M3 7l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
+  chat:'M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8a10 10 0 01-3.6-.7L3 21l1.5-4.2A7.6 7.6 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z',
+  plus:'M12 5v14M5 12h14',
+  pencil:'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4',
+  search:'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  user:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0',
+  bank:'M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18',
+  bell:'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0',
+  check:'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  clock:'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z',
+  xcircle:'M10 14l4-4m0 4l-4-4m11 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  go:'M9 5l7 7-7 7',
+  cal:'M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z',
+  card:'M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm0 3h18',
+  doc:'M7 3h7l5 5v13H7V3zm7 0v5h5M10 13h6M10 17h6',
+  send:'M3 11l18-8-8 18-2-7-8-3z',
+  pin:'M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11zm0-8.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+  list:'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
+  repeat:'M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3'
+};
+function ic(name,cls){return`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"${cls?` class="${cls}"`:''}><path d="${SQI[name]||''}"/></svg>`;}
+const SQ_PALETTE=['#3f86c5','#8d4fc2','#d9741a','#2f9e6e','#c0486b','#4a6fa5','#0aa89d','#b5882a'];
+const SQ_ROUND_COLORS={'danny: all':'#8d4fc2','blackheath/chiselhurst/eltham sat':'#3f86c5','sidcup/eltham sat':'#0aa89d','tony friday':'#d9741a','tony weekdays':'#d9741a','danny: weds':'#c0486b','danny: fri':'#4a6fa5','gutter clean':'#2f9e6e','pool cleaning':'#4a6fa5','shop signage cleaning':'#b5882a'};
+function sqHash(s){let h=0;for(const ch of String(s||''))h=(h*31+ch.charCodeAt(0))>>>0;return h;}
+function sqColor(s){const k=String(s||'').toLowerCase();return SQ_ROUND_COLORS[k]||SQ_PALETTE[sqHash(k)%SQ_PALETTE.length];}
+function sqInitials(n){const p=String(n||'?').trim().split(/\s+/).filter(Boolean);const a=((p[0]||'?')[0]||'?')+(p.length>1?((p[p.length-1][0])||''):'');return a.replace(/[^A-Za-z0-9]/g,'').toUpperCase()||'?';}
+function sqAv(name,color,inner,cls){return`<div class="sq-av${cls?' '+cls:''}" style="background:${color||'#33475f'}">${inner||esc(sqInitials(name))}</div>`;}
+function sqChip(text,color,cls){return`<span class="sq-chip${cls?' '+cls:''}" style="background:${color||'#52667d'}">${esc(text)}</span>`;}
+function sqRoundChip(r){return r?sqChip(r,sqColor(r)):'';}
+function sqMoney(n,cls){const v=Math.abs(parseFloat(n)||0);const [w,p]=v.toFixed(2).split('.');return`<span class="sq-amt${cls?' '+cls:''}"><span class="sq-cur">£</span>${Number(w).toLocaleString('en-GB')}<span class="sq-pence">.${p}</span></span>`;}
+function sqBadge(text,kind){return`<span class="sq-badge sb-${kind}">${text}</span>`;}
+function ordSuffix(n){const j=n%10,k=n%100;if(j===1&&k!==11)return'st';if(j===2&&k!==12)return'nd';if(j===3&&k!==13)return'rd';return'th';}
+function sqDayLabel(d){const x=new Date(String(d).split('T')[0]+'T12:00:00');const wd=x.toLocaleDateString('en-GB',{weekday:'short'});const mo=x.toLocaleDateString('en-GB',{month:'short'});return`${wd}, ${mo} ${x.getDate()}${ordSuffix(x.getDate())}`;}
+function sqMonthLabel(d){return new Date(String(d).split('T')[0]+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+function sqDaysAgo(d){if(!d)return null;const a=new Date(String(d).split('T')[0]+'T12:00:00'),b=new Date(todayStr()+'T12:00:00');return Math.max(0,Math.round((b-a)/86400000));}
+function sqDaysUntil(d){if(!d)return null;const a=new Date(String(d).split('T')[0]+'T12:00:00'),b=new Date(todayStr()+'T12:00:00');return Math.round((a-b)/86400000);}
+function sqShortSvc(s){
+  let t=String(s||'').replace(/^Window Cleaning:\s*/i,'').replace(/^Window cleaning$/i,'Windows');
+  t=t.replace(/Front and Back Standard/i,'Front & back').replace(/Front Only Standard/i,'Front only').replace(/\s+Standard$/i,'').replace(/Gutter Cleaning:\s*/i,'Gutters · ').replace(/Conservatory Cleaning:\s*/i,'Conservatory · ');
+  return t;
+}
+function sqTime(d){if(!d)return'';return new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function sqGroupHeader(count,label,total){return`<div class="sq-group" onclick="sqToggleGroup(this)"><span class="sq-count">${count}</span><span>${label}${total!=null?` <span class="sq-sep">|</span> £${(parseFloat(total)||0).toFixed(2)}`:''}</span><svg class="sq-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/></svg></div>`;}
+function sqToggleGroup(h){const l=h.nextElementSibling;if(!l)return;const hide=l.style.display!=='none';l.style.display=hide?'none':'';h.classList.toggle('collapsed',hide);}
+function sqEmpty(title,sub){return`<div class="sq-empty"><b>${title}</b>${sub||''}</div>`;}
+// payer type presentation
+const PAYER_LABEL={stripe:'Card',cash:'Cash',bank_transfer:'Bank',invoice:'Invoice'};
+const PAYER_KIND={stripe:'card',cash:'cash',bank_transfer:'bank',invoice:'invoice'};
+function payerBadge(c){const t=c&&c.payer_type;return t&&PAYER_LABEL[t]?sqBadge(PAYER_LABEL[t],PAYER_KIND[t]):sqBadge('Set payer','unset');}
+function payerSummary(c){
+  const e=effectiveBilling(c);
+  if(!e.type)return'Not set — tap to choose how they pay';
+  const p=[{stripe:'Card',cash:'Cash',bank_transfer:'Bank transfer',invoice:'Invoice'}[e.type]];
+  p.push(e.autoCharge?'charged automatically':e.type==='stripe'?'charged manually':e.sendOnCompletion?'invoice sent when done':'no invoice sent');
+  if(e.reminders)p.push('reminders on');
+  if(c.po_reference)p.push('PO '+c.po_reference);
+  return p.join(' · ');
+}
+// segmented controls (Default / No / Yes style, as on Squeegee's customer settings)
+function sqSeg(id,opts,val){const cur=val==null?'':String(val);return`<div class="sq-seg" id="${id}" data-val="${esc(cur)}">${opts.map(([v,l])=>`<button type="button" data-v="${esc(String(v))}" class="${String(v)===cur?'on':''}" onclick="sqSegPick(this)">${l}</button>`).join('')}</div>`;}
+function sqSegPick(btn){const el=btn.parentElement;el.dataset.val=btn.dataset.v;[...el.children].forEach(b=>b.classList.toggle('on',b===btn));if(el.id==='f-payer-type')updatePaymentFields();if(el.id==='f-terms-mode')updatePaymentFields();}
+function sqSegVal(id){const v=document.getElementById(id)?.dataset.val;return v===''||v==null?null:v;}
+function sqTri(id,val,defLabel){const v=val===true?'yes':val===false?'no':'';return sqSeg(id,[['',`Default (${defLabel})`],['no','No'],['yes','Yes']],v);}
+function sqTriVal(id){const v=sqSegVal(id);return v==='yes'?true:v==='no'?false:null;}
+
+// Done-but-unpaid jobs (optionally for one customer). A job counts as paid if ANY invoice for it is paid.
+async function fetchOwingJobs(customerId){
+  const sel='id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes,balance';
+  const jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false${customerId?`&customer_id=eq.${customerId}`:''}&select=*,wc_customers(${sel})&order=last_done.asc`)||[];
+  const ids=jobs.map(j=>j.id);const byJob={},paid=new Set();
+  for(let i=0;i<ids.length;i+=40){
+    const invs=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${ids.slice(i,i+40).join(',')})&select=id,job_id,status,stripe_payment_link,payment_method&order=created_at.desc`)||[];
+    invs.forEach(inv=>{if(!inv.job_id)return;if(inv.status==='paid')paid.add(inv.job_id);if(inv.status!=='void'&&!byJob[inv.job_id])byJob[inv.job_id]=inv;});
+  }
+  return jobs.filter(j=>!paid.has(j.id)).map(j=>({...j,_invoice:byJob[j.id]||null}));
+}
+
+// ── OWING ────────────────────────────────────────────────────────────────────
+let owingJobs=[],owingFilter='all';
 async function renderOwing(){
   document.getElementById('topbarPage').textContent='Owing';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  let jobs=[];
-  try{
-    // Done jobs not yet paid — whether or not they've already been invoiced/sent
-    jobs=await sb(
-      `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false` +
-      `&select=*,wc_customers(id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes)` +
-      `&order=last_done.desc`
-    );
-    // Attach the latest invoice (any status) for each job, so we can reuse it instead of
-    // creating duplicates, and exclude only jobs that are actually PAID.
-    const jobIds=jobs.map(j=>j.id);
-    let invByJob={};
-    if(jobIds.length){
-      const existingInvs=[];for(let i=0;i<jobIds.length;i+=40){existingInvs.push(...(await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.slice(i,i+40).join(',')})&select=id,job_id,status,stripe_payment_link,payment_method&order=created_at.desc`)||[]));}
-      existingInvs.sort((a,b)=>0); // order within chunks is created_at.desc; chunks hold disjoint jobs
-      existingInvs.forEach(inv=>{if(inv.job_id&&!invByJob[inv.job_id])invByJob[inv.job_id]=inv;}); // first = latest due to order
-    }
-    jobs=jobs.filter(j=>invByJob[j.id]?.status!=='paid').map(j=>({...j,_invoice:invByJob[j.id]||null}));
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
-  const total=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
-
-  el.innerHTML=`
-    <div class="page-header">
-      <div><div class="page-title">Owing</div><div class="page-sub">${jobs.length} unpaid job${jobs.length!==1?'s':''} · £${total.toFixed(2)} total</div></div>
-    </div>
-    ${jobs.length===0?`<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="empty-title">All clear!</div><div class="empty-sub">No completed jobs waiting for payment.</div></div>`:`
-    <div class="card-list" id="owingList">
-      ${jobs.map(j=>owingCard(j)).join('')}
-    </div>`}`;
+  try{owingJobs=await fetchOwingJobs();}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  drawOwing();
 }
-
-const PAYER_META={stripe:{label:'CARD'},cash:{label:'CASH'},bank_transfer:{label:'BANK'},invoice:{label:'INVOICE'}};
-function payerBadge(c){
-  const t=c&&c.payer_type;
-  if(t&&PAYER_META[t])return`<span class="payer-badge payer-${t}">${PAYER_META[t].label}</span>`;
-  return`<span class="payer-badge payer-unset">SET PAYER</span>`;
-}
-
-function owingCard(j){
-  const c=j.wc_customers||{};
-  const inv=j._invoice;
-  const alreadySent=inv&&inv.status==='sent';
-  const type=c.payer_type||null;
-  const chargeBtn=`<button class="job-action action-charge" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge card</button>`;
-  const invoiceBtn=`<button class="job-action action-charge" onclick="sendOwingInvoice('${j.id}')">✉️ ${alreadySent?'Resend invoice':'Send invoice'}</button>`;
-  const cashBtn=`<button class="job-action action-charge" onclick="recordCash('${j.id}')">💵 Mark paid — cash</button>`;
-  const bankBtn=`<button class="job-action action-charge" onclick="recordBankTransfer('${j.id}')">🏦 Mark paid — bank transfer</button>`;
-  let actions='';
+function owingRow(j){
+  const c=j.wc_customers||{};const type=c.payer_type||null;
+  const days=sqDaysAgo(j.last_done||j.completed_at);
+  const ageKind=days>=30?'owed':days>=14?'warn':'age';
+  const color=j.round_name?sqColor(j.round_name):sqColor(c.name);
+  const inv=j._invoice;const alreadySent=inv&&inv.status==='sent';
+  const chargeArgs=`'${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}'`;
+  const A=(cls,onclick,label)=>`<button class="sq-act ${cls}" onclick="event.stopPropagation();${onclick}">${label}</button>`;
+  let acts='';
   if(!type){
-    actions=`<div class="owing-q">How does ${esc(c.name||'this customer')} pay?</div>
-    <div class="owing-row">
-      <button class="owing-sec" onclick="setPayerType('${c.id}','stripe')">💳 Card</button>
-      <button class="owing-sec" onclick="setPayerType('${c.id}','cash')">💵 Cash</button>
-      <button class="owing-sec" onclick="setPayerType('${c.id}','bank_transfer')">🏦 Bank</button>
-      <button class="owing-sec" onclick="setPayerType('${c.id}','invoice')">✉️ Invoice</button>
-    </div>`;
+    acts=`<div class="sq-ask">How does ${esc(c.name||'this customer')} pay?</div><div class="sq-acts">${A('',`setPayerType('${c.id}','stripe')`,'💳 Card')}${A('',`setPayerType('${c.id}','cash')`,'💵 Cash')}${A('',`setPayerType('${c.id}','bank_transfer')`,'🏦 Bank')}${A('',`setPayerType('${c.id}','invoice')`,'✉️ Invoice')}</div>`;
   }else{
-    const primary=type==='stripe'?chargeBtn:type==='invoice'?invoiceBtn:type==='cash'?cashBtn:bankBtn;
+    const prim=type==='stripe'?A('primary',`chargeJobStripe(${chargeArgs})`,'💳 Charge card')
+      :type==='invoice'?A('primary',`sendOwingInvoice('${j.id}')`,`✉️ ${alreadySent?'Resend invoice':'Send invoice'}`)
+      :type==='cash'?A('green',`recordCash('${j.id}')`,'💵 Mark paid — cash')
+      :A('green',`recordBankTransfer('${j.id}')`,'🏦 Mark paid — bank');
     const sec=[];
-    if(type!=='cash')sec.push(`<button class="owing-sec" onclick="recordCash('${j.id}')">💵 Paid cash</button>`);
-    if(type!=='bank_transfer')sec.push(`<button class="owing-sec" onclick="recordBankTransfer('${j.id}')">🏦 Paid bank</button>`);
-    if(type!=='invoice')sec.push(`<button class="owing-sec" onclick="sendOwingInvoice('${j.id}')">✉️ Invoice</button>`);
-    if(type!=='stripe'&&c.stripe_customer_id)sec.push(`<button class="owing-sec" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`);
-    actions=`<div class="job-card-actions" style="grid-template-columns:1fr">${primary}</div><div class="owing-row">${sec.join('')}</div>`;
+    const AI=(onclick,label,title)=>`<button class="sq-act ico" title="${title}" aria-label="${title}" onclick="event.stopPropagation();${onclick}">${label}</button>`;
+    if(type!=='cash')sec.push(AI(`recordCash('${j.id}')`,'💵','Paid cash'));
+    if(type!=='bank_transfer')sec.push(AI(`recordBankTransfer('${j.id}')`,'🏦','Paid by bank transfer'));
+    if(type!=='invoice')sec.push(AI(`sendOwingInvoice('${j.id}')`,'✉️','Send invoice'));
+    if(type!=='stripe'&&c.stripe_customer_id)sec.push(AI(`chargeJobStripe(${chargeArgs})`,'💳','Charge card'));
+    acts=`<div class="sq-acts">${prim}${sec.join('')}</div>`;
   }
-  return`<div class="job-card" id="owing-${j.id}">
-    <div class="job-card-header">
-      <div class="job-card-num">£</div>
-      <div class="job-card-body">
-        <div class="job-card-name">${custPill(c)}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}${payerBadge(c)}</div>
-        <div class="job-card-addr">${addrLink(c.address,c.postcode)}</div>
-        ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
-        ${j.last_done?`<div style="font-size:11px;color:var(--text-muted)">Done ${fmtShort(j.last_done)}</div>`:''}
-        ${c.po_reference?`<div style="font-size:11px;color:var(--text-muted)">PO ${esc(c.po_reference)}</div>`:''}
-        ${alreadySent?`<div style="font-size:11px;color:var(--warn)">⏳ Invoice sent, awaiting payment</div>`:''}
-      </div>
-      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
-    </div>
-    ${actions}
-  </div>`;
+  return`<div class="sq-block"><div class="sq-row" style="--accent:${days>=30?'#d6455d':days>=14?'#d9741a':'transparent'}" onclick="showCustomer('${c.id}')">
+    ${sqAv(c.name,color)}
+    <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      <div class="sq-chips">${payerBadge(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqBadge('Invoice sent','info'):''}</div></div>
+    <div class="sq-right">${sqMoney(j.price)}${days!=null?sqBadge(days===0?'Done today':`Owed (${days} day${days!==1?'s':''})`,days===0?'info':ageKind):sqBadge('Owed','age')}</div>
+  </div>${acts}</div>`;
+}
+function drawOwing(){
+  const el=document.getElementById('mainContent');
+  const typeOf=j=>j.wc_customers?.payer_type||'unset';
+  const counts={all:owingJobs.length,stripe:0,invoice:0,cash:0,bank_transfer:0,unset:0};
+  owingJobs.forEach(j=>{counts[typeOf(j)]=(counts[typeOf(j)]||0)+1;});
+  const list=(owingFilter==='all'?owingJobs:owingJobs.filter(j=>typeOf(j)===owingFilter)).slice().sort((a,b)=>String(a.last_done||a.completed_at||'').localeCompare(String(b.last_done||b.completed_at||'')));
+  const total=list.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const chips=[['all','All'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set']].filter(([k])=>k==='all'||counts[k]>0||owingFilter===k);
+  el.innerHTML=`
+    <div class="sq-top"><span class="sq-pill"><b>${list.length}</b><i class="sq-vr"></i><b>£${total.toFixed(2)}</b><span>owing</span></span></div>
+    <div class="sq-filters">${chips.map(([k,l])=>`<button class="sq-fchip${owingFilter===k?' on':''}${k==='unset'&&counts.unset?' danger':''}" onclick="owingFilter='${k}';drawOwing()">${l}<span class="n">${counts[k]||0}</span></button>`).join('')}</div>
+    ${list.length?`<div class="sq-list">${list.map(owingRow).join('')}</div>`:sqEmpty('All clear','Nothing owing right now.')}`;
 }
 
 // ── Billing settings & effective per-customer behaviour ─────────────────────
@@ -3763,7 +3969,7 @@ function effectiveBilling(c){
 async function setPayerType(customerId,type){
   try{
     await sb(`wc_customers?id=eq.${customerId}`,{method:'PATCH',body:JSON.stringify({payer_type:type,cash_payer:type==='cash'}),prefer:'return=minimal'});
-    showToast('Saved ✓','success');renderOwing();
+    showToast('Saved ✓','success');if(getCurrentPage()==='owing')renderOwing();else if(getCurrentPage()==='customers')renderCustomers();
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -3895,45 +4101,28 @@ async function renderJobs(){
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   await loadUsers();
   if(jobsAssignees===null)jobsAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
-
   let jobs=[];
-  try{
-    jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=*,wc_customers(id,name,address,postcode)&order=next_due.asc.nullsfirst`);
-  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-
-  // One row per client job — recurring series collapse to their soonest upcoming occurrence;
-  // one-off jobs (no series_id) are each their own row.
-  const seen=new Set();
-  const deduped=[];
-  for(const j of jobs){
-    const key=j.series_id||j.id;
-    if(seen.has(key))continue;
-    seen.add(key);
-    deduped.push(j);
-  }
-
+  try{jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=*,wc_customers(id,name,address,postcode)&order=next_due.asc.nullsfirst`);}
+  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  // One row per client job — recurring series collapse to their soonest upcoming occurrence
+  const seen=new Set();const deduped=[];
+  for(const j of jobs){const key=j.series_id||j.id;if(seen.has(key))continue;seen.add(key);deduped.push(j);}
   const q=jobsSearch.trim().toLowerCase();
   const filtered=deduped.filter(j=>{
-    const assigneeKey=j.assigned_to||'unassigned';
-    if(!jobsAssignees.has(assigneeKey))return false;
+    if(!jobsAssignees.has(j.assigned_to||'unassigned'))return false;
     if(q&&!(j.wc_customers?.name||'').toLowerCase().includes(q))return false;
     return true;
   });
   const totalValue=filtered.reduce((s,j)=>s+parseFloat(j.price||0),0);
-
+  const needsAttention=filtered.filter(j=>!j.assigned_to||j.status==='pending_assignment').length;
   el.innerHTML=`
-    <div class="page-header"><div><div class="page-title">Jobs</div><div class="page-sub">${filtered.length} active job${filtered.length!==1?'s':''} · £${totalValue.toFixed(2)} total value</div></div></div>
-    <div class="search-wrap">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-      <input class="search-input" placeholder="Search by customer…" value="${esc(jobsSearch)}" oninput="jobsSearch=this.value;renderJobs()">
+    <div class="sq-top"><span class="sq-pill"><b>${filtered.length}</b><span>job${filtered.length!==1?'s':''}</span><i class="sq-vr"></i><b>£${totalValue.toFixed(2)}</b><span>per round</span></span>${needsAttention?`<span class="sq-pill" style="border-color:var(--danger);color:#ff9aa8"><b style="color:#ff9aa8">${needsAttention}</b><span>need attention</span></span>`:''}</div>
+    <div class="sq-search">${ic('search')}<input placeholder="Search by customer…" value="${esc(jobsSearch)}" oninput="jobsSearch=this.value;renderJobs()"></div>
+    <div class="sq-filters">
+      ${wcUsers.map(u=>`<button class="sq-fchip${jobsAssignees.has(u.id)?' on':''}" onclick="toggleJobsAssignee('${u.id}')">${esc(u.name.split(' ')[0])}</button>`).join('')}
+      <button class="sq-fchip${jobsAssignees.has('unassigned')?' on':''}" onclick="toggleJobsAssignee('unassigned')">Unassigned</button>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 16px">
-      ${wcUsers.map(u=>`<button class="assignee-pill${jobsAssignees.has(u.id)?' selected':''}" onclick="toggleJobsAssignee('${u.id}')">${esc(u.name)}</button>`).join('')}
-      <button class="assignee-pill${jobsAssignees.has('unassigned')?' selected':''}" onclick="toggleJobsAssignee('unassigned')">Unassigned</button>
-    </div>
-    ${filtered.length===0?`<div class="empty"><div class="empty-title">No jobs found</div></div>`:`
-    <div class="card-list">${filtered.map(j=>jobsOverviewCard(j)).join('')}</div>`}
-  `;
+    ${filtered.length===0?sqEmpty('No jobs found'):`<div class="sq-list">${filtered.map(j=>jobsOverviewCard(j)).join('')}</div>`}`;
 }
 
 function toggleJobsAssignee(key){
@@ -3950,29 +4139,18 @@ function toggleRoundAssignee(key){
 
 function jobsOverviewCard(j){
   const c=j.wc_customers||{};
-  const needsRound=j.status==='pending_assignment'; // round/date not yet set — scheduling admin, doesn't block the work itself
-  const needsPerson=!j.assigned_to; // nobody assigned to actually do the job — this is what matters
+  const needsRound=j.status==='pending_assignment';
+  const needsPerson=!j.assigned_to;
   const assigneeName=j.assigned_to?(wcUsers.find(u=>u.id===j.assigned_to)?.name||'Unknown'):'Unassigned';
-  return`<div class="job-card" style="${needsPerson?'border-color:var(--danger)':needsRound?'border-color:var(--warn)':''}">
-    <div class="job-card-header" style="cursor:pointer" onclick="showCustomer('${c.id}')">
-      <div class="job-card-body">
-        <div class="job-card-name">${custPill(c)}${needsPerson?' <span class="badge" style="margin-left:6px;font-size:10px;vertical-align:middle;background:rgba(255,92,114,.16);color:var(--danger)">Needs person</span>':needsRound?' <span class="badge badge-pending" style="margin-left:6px;font-size:10px;vertical-align:middle">Needs round</span>':''}</div>
-        <div class="job-card-addr">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      </div>
-      <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
-    </div>
-    <div style="padding:0 12px 12px 46px;display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:12px;color:var(--text-muted)">
-      <div>🧹 ${esc(j.service_type||'—')}</div>
-      <div>🔁 ${freqLabel(j.frequency)}</div>
-      <div>📅 ${needsRound?'Needs date':'Next: '+(j.next_due?fmtShort(j.next_due):'—')}</div>
-      <div>🧭 ${needsRound?'No round yet':esc(j.round_name||'No round')}</div>
-      <div style="grid-column:1/-1;${needsPerson?'color:var(--danger);font-weight:600':''}">👤 ${esc(assigneeName)}</div>
-      <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding-top:4px">
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditJob('${j.id}','${c.id}')">✏️ Edit</button>
-        ${needsRound?`<button class="btn btn-primary btn-sm" style="flex:1;margin-left:8px" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
-      </div>
-    </div>
-  </div>`;
+  const until=sqDaysUntil(j.next_due);
+  const due=needsRound?sqBadge('Needs date','warn'):until==null?'':until<0?sqBadge(`Overdue ${-until}d`,'due'):until===0?sqBadge('Due today','due'):until===1?sqBadge('Tomorrow','info'):sqChip(`In ${until} days`,'#4a6fa5');
+  const accent=needsPerson?'#d6455d':needsRound?'#d9741a':sqColor(j.round_name);
+  return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${accent}">
+    ${sqAv(c.name,needsRound?'#d9741a':sqColor(j.round_name))}
+    <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      <div class="sq-chips">${sqChip(sqShortSvc(j.service_type)||'Job','#52667d','ghost')}${sqChip(freqLabel(j.frequency),'#52667d','ghost')}${needsRound?'':sqRoundChip(j.round_name||'No round')}${needsPerson?sqBadge('Unassigned','due'):sqChip(assigneeName.split(' ')[0],'#2f9e6e')}</div></div>
+    <div class="sq-right">${sqMoney(j.price)}${due}<button class="sq-act ico" style="margin-top:2px" title="Edit job" onclick="event.stopPropagation();openEditJob('${j.id}','${c.id}')">✏️</button></div>
+  </div>${needsRound?`<div class="sq-acts"><button class="sq-act primary" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round &amp; date</button></div>`:''}</div>`;
 }
 
 // ── REVENUE ───────────────────────────────────────────────────────────────────
