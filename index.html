@@ -194,6 +194,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .job-card-name{font-size:16px;font-weight:600;color:var(--white);line-height:1.2;}
 .stripe-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;color:var(--gold);vertical-align:middle;}
 .stripe-badge svg{width:16px;height:16px;}
+.payer-badge{display:inline-flex;align-items:center;margin-left:6px;padding:1px 7px;border-radius:999px;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.3px;vertical-align:middle;white-space:nowrap;border:1px solid;}
+.payer-stripe{background:rgba(255,178,0,.14);border-color:var(--gold);color:var(--gold);}
+.payer-cash{background:rgba(0,224,207,.14);border-color:var(--teal);color:var(--teal);}
+.payer-bank_transfer{background:rgba(177,139,255,.14);border-color:var(--violet);color:var(--violet);}
+.payer-invoice{background:rgba(120,170,255,.14);border-color:#78aaff;color:#78aaff;}
+.payer-unset{background:rgba(255,90,90,.12);border-color:#ff5a5a;color:#ff7a7a;}
+.owing-q{padding:0 12px 6px;font-size:12px;color:var(--text-muted);}
+.owing-row{display:grid;gap:6px;padding:0 10px 10px;grid-template-columns:repeat(auto-fit,minmax(0,1fr));}
+.owing-sec{background:transparent;border:1px solid var(--border);color:var(--text-soft);border-radius:8px;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;min-height:38px;}
+.owing-sec:active{filter:brightness(1.2);}
 .cash-badge{display:inline-flex;align-items:center;margin-left:6px;padding:1px 7px;border-radius:999px;background:rgba(0,224,207,.14);border:1px solid var(--teal);color:var(--teal);font-family:'DM Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.3px;vertical-align:middle;white-space:nowrap;}
 .job-card-addr{font-size:13px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .job-card-svc{font-size:12px;color:var(--text-muted);margin-top:3px;}
@@ -748,8 +758,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='164';
-const BUILD_DATE='19 Oct 2026 10:00';
+const BUILD_VERSION='165';
+const BUILD_DATE='19 Oct 2026 16:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2416,41 +2426,27 @@ async function markDone(id){
 
 async function autoInvoiceJob(jobId){
   try{
-    // Fetch job with customer details
-    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=*,wc_customers(id,name,email,phone,whatsapp_number,auto_invoice)`);
-    if(!job)return;
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=*,wc_customers(id,name,email,phone,whatsapp_number,stripe_customer_id,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes)`);
+    if(!job||job.legacy_billed)return;
     const c=job.wc_customers||{};
-    if(c.auto_invoice===false)return; // opted out
-    if(!c.email&&!c.whatsapp_number&&!c.phone)return; // no contact — skip silently
-
-    const PAYMENT_TERMS_DAYS=7; // Tony's confirmed payment terms — keep in sync with any other due-date logic
-    const dueDate=(()=>{const d=new Date();d.setDate(d.getDate()+PAYMENT_TERMS_DAYS);return localDateStr(d);})();
-
-    // Create invoice
-    const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
-      business_id:BUSINESS_ID,
-      customer_id:job.customer_id,
-      job_id:jobId,
-      amount:job.price,
-      notes:job.service_type||null,
-      status:'sent',
-      due_date:dueDate,
-      sent_at:new Date().toISOString()
-    }),prefer:'return=representation'});
-
-    // Fire n8n delivery webhook
-    if(inv){
-      fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        invoice_id:inv.id,
-        customer_name:c.name||'Customer',
-        customer_phone:c.whatsapp_number||c.phone||'',
-        customer_email:c.email||'',
-        amount:job.price,
-        service_type:job.service_type||'Window Cleaning',
-        due_date:dueDate,notes:''
-      })}).catch(()=>{});
-      showToast('Invoice sent to '+c.name,'success');
+    const eff=effectiveBilling(c);
+    if(!eff.type)return; // payer type not set: stays owing, nothing automatic
+    const [already]=await sb(`wc_invoices?job_id=eq.${jobId}&status=in.(sent,paid)&select=id&limit=1`);
+    if(already)return; // never double-invoice a job
+    if(eff.autoCharge&&c.stripe_customer_id){
+      const inv=await ensureInvoice(jobId,job.price,job.service_type);
+      const res=await fetch(N8N_CHARGE_SAVED_CARD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        stripe_customer_id:c.stripe_customer_id,amount:parseFloat(job.price),invoice_id:inv?.id,description:job.service_type||'Window Cleaning'
+      })});
+      const data=await res.json().catch(()=>({}));
+      showToast(data.ok?('Charged '+(c.name||'customer')+' ✓'):((c.name||'Customer')+': charge failed — still owing'),data.ok?'success':'error');
+      return;
     }
+    if(!eff.sendOnCompletion)return;
+    if(!c.email){showToast((c.name||'Customer')+': no email — send invoice from Owing','error');return;}
+    const inv=await ensureInvoice(jobId,job.price,job.service_type);
+    await dispatchInvoice(inv,job,c);
+    showToast('Invoice sent to '+(c.name||'customer'),'success');
   }catch(e){console.warn('Auto-invoice failed',e);}
 }
 function openSkip(id,status){
@@ -3664,7 +3660,7 @@ async function renderOwing(){
     // Done jobs not yet paid — whether or not they've already been invoiced/sent
     jobs=await sb(
       `wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false` +
-      `&select=*,wc_customers(id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer)` +
+      `&select=*,wc_customers(id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes)` +
       `&order=last_done.desc`
     );
     // Attach the latest invoice (any status) for each job, so we can reuse it instead of
@@ -3691,37 +3687,131 @@ async function renderOwing(){
     </div>`}`;
 }
 
+const PAYER_META={stripe:{label:'CARD'},cash:{label:'CASH'},bank_transfer:{label:'BANK'},invoice:{label:'INVOICE'}};
+function payerBadge(c){
+  const t=c&&c.payer_type;
+  if(t&&PAYER_META[t])return`<span class="payer-badge payer-${t}">${PAYER_META[t].label}</span>`;
+  return`<span class="payer-badge payer-unset">SET PAYER</span>`;
+}
+
 function owingCard(j){
   const c=j.wc_customers||{};
   const inv=j._invoice;
   const alreadySent=inv&&inv.status==='sent';
+  const type=c.payer_type||null;
+  const chargeBtn=`<button class="job-action action-charge" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge card</button>`;
+  const invoiceBtn=`<button class="job-action action-charge" onclick="sendOwingInvoice('${j.id}')">✉️ ${alreadySent?'Resend invoice':'Send invoice'}</button>`;
+  const cashBtn=`<button class="job-action action-charge" onclick="recordCash('${j.id}')">💵 Mark paid — cash</button>`;
+  const bankBtn=`<button class="job-action action-charge" onclick="recordBankTransfer('${j.id}')">🏦 Mark paid — bank transfer</button>`;
+  let actions='';
+  if(!type){
+    actions=`<div class="owing-q">How does ${esc(c.name||'this customer')} pay?</div>
+    <div class="owing-row">
+      <button class="owing-sec" onclick="setPayerType('${c.id}','stripe')">💳 Card</button>
+      <button class="owing-sec" onclick="setPayerType('${c.id}','cash')">💵 Cash</button>
+      <button class="owing-sec" onclick="setPayerType('${c.id}','bank_transfer')">🏦 Bank</button>
+      <button class="owing-sec" onclick="setPayerType('${c.id}','invoice')">✉️ Invoice</button>
+    </div>`;
+  }else{
+    const primary=type==='stripe'?chargeBtn:type==='invoice'?invoiceBtn:type==='cash'?cashBtn:bankBtn;
+    const sec=[];
+    if(type!=='cash')sec.push(`<button class="owing-sec" onclick="recordCash('${j.id}')">💵 Paid cash</button>`);
+    if(type!=='bank_transfer')sec.push(`<button class="owing-sec" onclick="recordBankTransfer('${j.id}')">🏦 Paid bank</button>`);
+    if(type!=='invoice')sec.push(`<button class="owing-sec" onclick="sendOwingInvoice('${j.id}')">✉️ Invoice</button>`);
+    if(type!=='stripe'&&c.stripe_customer_id)sec.push(`<button class="owing-sec" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>`);
+    actions=`<div class="job-card-actions" style="grid-template-columns:1fr">${primary}</div><div class="owing-row">${sec.join('')}</div>`;
+  }
   return`<div class="job-card" id="owing-${j.id}">
     <div class="job-card-header">
       <div class="job-card-num">£</div>
       <div class="job-card-body">
-        <div class="job-card-name">${custPill(c)}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}${cashBadge(c)}</div>
+        <div class="job-card-name">${custPill(c)}${c.stripe_customer_id?`<span class="stripe-badge" title="Stripe customer — card on file"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M2 9.5h20" stroke="currentColor" stroke-width="1.8"/></svg></span>`:''}${payerBadge(c)}</div>
         <div class="job-card-addr">${addrLink(c.address,c.postcode)}</div>
         ${j.service_type?`<div class="job-card-svc">${esc(j.service_type)}</div>`:''}
         ${j.last_done?`<div style="font-size:11px;color:var(--text-muted)">Done ${fmtShort(j.last_done)}</div>`:''}
+        ${c.po_reference?`<div style="font-size:11px;color:var(--text-muted)">PO ${esc(c.po_reference)}</div>`:''}
         ${alreadySent?`<div style="font-size:11px;color:var(--warn)">⏳ Invoice sent, awaiting payment</div>`:''}
       </div>
       <div class="job-card-price">£${parseFloat(j.price||0).toFixed(2)}</div>
     </div>
-    <div class="job-card-actions" style="grid-template-columns:1fr">
-      <button class="job-action action-charge" onclick="chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge</button>
-    </div>
+    ${actions}
   </div>`;
 }
 
+// ── Billing settings & effective per-customer behaviour ─────────────────────
+let billingSettings=null;
+async function getBillingSettings(){
+  if(billingSettings)return billingSettings;
+  let r={};
+  try{[r]=await sb('app_settings?id=eq.true&select=payment_terms_days,bank_details,invoice_footer');}catch(e){}
+  billingSettings={payment_terms_days:7,bank_details:'',invoice_footer:'',...(r||{})};
+  if(billingSettings.payment_terms_days==null)billingSettings.payment_terms_days=7;
+  return billingSettings;
+}
+// Effective setting = customer override ?? payer-type default. No payer type = nothing automatic.
+function effectiveBilling(c){
+  c=c||{};const type=c.payer_type||null;
+  if(!type)return{type:null,sendOnCompletion:false,autoCharge:false,reminders:false,termsDays:null};
+  return{
+    type,
+    sendOnCompletion:c.send_invoice_on_completion!=null?!!c.send_invoice_on_completion:type==='invoice',
+    autoCharge:type==='stripe'&&c.auto_charge_on_completion===true,
+    reminders:c.overdue_reminders!=null?!!c.overdue_reminders:type==='invoice',
+    termsDays:c.payment_terms_days!=null?c.payment_terms_days:null
+  };
+}
+async function setPayerType(customerId,type){
+  try{
+    await sb(`wc_customers?id=eq.${customerId}`,{method:'PATCH',body:JSON.stringify({payer_type:type,cash_payer:type==='cash'}),prefer:'return=minimal'});
+    showToast('Saved ✓','success');renderOwing();
+  }catch(e){showToast(e.message,'error');}
+}
+
 async function ensureInvoice(jobId,amount,serviceType){
-  const [existing]=await sb(`wc_invoices?job_id=eq.${jobId}&status=neq.paid&order=created_at.desc&limit=1`);
+  const [existing]=await sb(`wc_invoices?job_id=eq.${jobId}&status=in.(draft,sent)&order=created_at.desc&limit=1`);
   if(existing)return existing;
-  const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
+  const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,wc_customers(po_reference)`);
   const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
     business_id:BUSINESS_ID,customer_id:job?.customer_id,job_id:jobId,amount:parseFloat(amount),
-    notes:serviceType||'Window Cleaning',status:'sent',sent_at:new Date().toISOString()
+    notes:serviceType||'Window Cleaning',status:'sent',sent_at:new Date().toISOString(),
+    po_reference:job?.wc_customers?.po_reference||null
   }),prefer:'return=representation'});
   return inv;
+}
+
+// Sends an existing invoice by email (pay link + bank details + PO) via n8n
+async function dispatchInvoice(inv,job,c){
+  const bs=await getBillingSettings();
+  const eff=effectiveBilling(c);
+  const terms=eff.termsDays!=null?eff.termsDays:bs.payment_terms_days;
+  const d=new Date();d.setDate(d.getDate()+terms);
+  const due=inv.due_date||localDateStr(d);
+  const po=inv.po_reference||c.po_reference||'';
+  const patch={};
+  if(!inv.due_date)patch.due_date=due;
+  if(!inv.po_reference&&c.po_reference)patch.po_reference=c.po_reference;
+  if(Object.keys(patch).length)await sb(`wc_invoices?id=eq.${inv.id}`,{method:'PATCH',body:JSON.stringify(patch),prefer:'return=minimal'});
+  const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    invoice_id:inv.id,customer_name:c.name||'Customer',
+    customer_phone:c.whatsapp_number||c.phone||'',customer_email:c.email||'',
+    amount:job.price,service_type:job.service_type||'Window Cleaning',due_date:due,
+    po_reference:po,invoice_notes:c.invoice_notes||'',
+    bank_details:bs.bank_details||'',invoice_footer:bs.invoice_footer||'',notes:''
+  })});
+  if(!res.ok)throw new Error('Invoice delivery failed ('+res.status+')');
+}
+
+async function sendOwingInvoice(jobId){
+  try{
+    const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=id,price,service_type,customer_id,wc_customers(id,name,email,phone,whatsapp_number,po_reference,invoice_notes,payment_terms_days,payer_type,send_invoice_on_completion)`);
+    if(!job)return;
+    const c=job.wc_customers||{};
+    if(!c.email){showToast('No email on file for '+(c.name||'customer'),'error');return;}
+    const inv=await ensureInvoice(jobId,job.price,job.service_type);
+    await dispatchInvoice(inv,job,c);
+    showToast('Invoice sent to '+(c.name||'customer')+' ✓','success');
+    renderOwing();
+  }catch(e){showToast(e.message,'error');}
 }
 
 async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone,stripeCustomerId){
@@ -3752,6 +3842,7 @@ function openPaymentChoice(jobId,customerName,amount,reason){
   body.innerHTML=`
     <div style="padding:0 16px 16px;font-size:13px;color:var(--text-muted)">${esc(customerName)} · £${parseFloat(amount||0).toFixed(2)} · ${esc(reason||'no card on file')}</div>
     <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');sendOwingInvoice('${jobId}')">✉️ Send invoice (pay link + bank details)</button>
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordCash('${jobId}')">💵 Record as cash</button>
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordBankTransfer('${jobId}')">🏦 Record as bank transfer</button>
       <button class="btn btn-primary btn-full" onclick="closeModal('paymentChoiceModal');sendStripeSetupFromJob('${jobId}')">🔗 Send Stripe setup link</button>
@@ -3770,16 +3861,16 @@ async function sendStripeSetupFromJob(jobId){
 async function recordManualPayment(jobId,method,label){
   if(!confirm(`Record this job as paid by ${label}?`))return;
   try{
-    const [existing]=await sb(`wc_invoices?job_id=eq.${jobId}&status=neq.paid&order=created_at.desc&limit=1`);
-    if(existing){
-      await sb(`wc_invoices?id=eq.${existing.id}`,{method:'PATCH',body:JSON.stringify({
+    const open=await sb(`wc_invoices?job_id=eq.${jobId}&status=in.(draft,sent)&select=id`);
+    if(open&&open.length){
+      await sb(`wc_invoices?job_id=eq.${jobId}&status=in.(draft,sent)`,{method:'PATCH',body:JSON.stringify({
         status:'paid',paid_at:new Date().toISOString(),payment_method:method
       }),prefer:'return=minimal'});
     }else{
-      const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,price,service_type`);
+      const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,price,service_type,wc_customers(po_reference)`);
       await sb('wc_invoices',{method:'POST',body:JSON.stringify({
         business_id:BUSINESS_ID,customer_id:job.customer_id,job_id:jobId,
-        amount:job.price,notes:job.service_type||null,
+        amount:job.price,notes:job.service_type||null,po_reference:job.wc_customers?.po_reference||null,
         status:'paid',paid_at:new Date().toISOString(),payment_method:method,
         sent_at:new Date().toISOString()
       }),prefer:'return=minimal'});
