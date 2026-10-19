@@ -603,6 +603,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
   </div>
 </div>
 
+<div class="modal-overlay" id="seriesScopeModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title">Update recurring job</div>
+      <button class="modal-close" onclick="closeModal('seriesScopeModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div style="font-size:14px;color:var(--text-soft);line-height:1.5;margin-bottom:14px" id="seriesScopeMsg"></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" onclick="applyJobSave('all')" id="seriesScopeAll">This and all future jobs</button>
+      <button class="btn btn-ghost" onclick="applyJobSave('single')">Just this job</button>
+      <button class="btn btn-ghost" style="opacity:.7" onclick="closeModal('seriesScopeModal')">Cancel</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="rescheduleModal">
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
@@ -734,8 +748,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='163';
-const BUILD_DATE='16 Oct 2026 17:40';
+const BUILD_VERSION='164';
+const BUILD_DATE='19 Oct 2026 10:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3096,6 +3110,21 @@ async function saveJob(){
     status:'scheduled'};
   try{
     if(editingJobId){
+      // Recurring job with later bookings? Ask whether to update just this one or all future ones.
+      if(editingJobSeriesId){
+        const orig=editingJobOriginalDate||date;
+        const others=await sb(`wc_jobs?series_id=eq.${editingJobSeriesId}&id=neq.${editingJobId}&status=in.(scheduled,pending_assignment)&next_due=gt.${orig}&select=id,next_due`);
+        if(others&&others.length){
+          pendingJobSave={fields,others,orig,date};
+          const off=Math.round((new Date(date+'T12:00:00')-new Date(orig+'T12:00:00'))/86400000);
+          document.getElementById('seriesScopeMsg').textContent=
+            `This job is part of a recurring series with ${others.length} later booking${others.length!==1?'s':''}. `+
+            (off!==0?`Moving it by ${off>0?'+':''}${off} day${Math.abs(off)!==1?'s':''} — do you want the later bookings moved by the same amount too?`:'Do you want these changes applied to the later bookings as well?');
+          document.getElementById('seriesScopeAll').textContent=`This and all ${others.length} future job${others.length!==1?'s':''}`;
+          document.getElementById('seriesScopeModal').classList.add('open');
+          return;
+        }
+      }
       await sb(`wc_jobs?id=eq.${editingJobId}`,{method:'PATCH',body:JSON.stringify(fields),prefer:'return=minimal'});
       showToast('Job updated','success');
     }else{
@@ -3106,6 +3135,30 @@ async function saveJob(){
       showToast('Job scheduled','success');
     }
     closeModal('jobModal');loadCustomerJobs(jobCustomerId);
+  }catch(e){showToast(e.message,'error');}
+}
+let pendingJobSave=null;
+async function applyJobSave(scope){
+  const p=pendingJobSave;if(!p)return;
+  try{
+    await sb(`wc_jobs?id=eq.${editingJobId}`,{method:'PATCH',body:JSON.stringify(p.fields),prefer:'return=minimal'});
+    if(scope==='all'){
+      const off=Math.round((new Date(p.date+'T12:00:00')-new Date(p.orig+'T12:00:00'))/86400000);
+      const {scheduled_date,next_due,status,...rest}=p.fields; // dates shifted per-row; status left as-is
+      await Promise.all(p.others.map(o=>{
+        const body={...rest};
+        if(off!==0){
+          const d=new Date(o.next_due+'T12:00:00');d.setDate(d.getDate()+off);
+          const ds=localDateStr(d);body.next_due=ds;body.scheduled_date=ds;
+        }
+        return sb(`wc_jobs?id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify(body),prefer:'return=minimal'});
+      }));
+      showToast(`Updated this job and ${p.others.length} future job${p.others.length!==1?'s':''}`,'success');
+    }else{
+      showToast('Job updated','success');
+    }
+    pendingJobSave=null;
+    closeModal('seriesScopeModal');closeModal('jobModal');loadCustomerJobs(jobCustomerId);
   }catch(e){showToast(e.message,'error');}
 }
 async function deleteJobConfirm(){
