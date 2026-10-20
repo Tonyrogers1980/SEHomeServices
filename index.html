@@ -947,8 +947,8 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='168';
-const BUILD_DATE='19 Oct 2026 22:30';
+const BUILD_VERSION='169';
+const BUILD_DATE='20 Oct 2026 14:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1801,6 +1801,11 @@ function convTabBar(counts){
   const tabs=[['needsReply','Needs reply',counts.needsReply,'urgent'],['service','Customer service',counts.service,'neutral'],['sales','Sales',counts.sales,'neutral'],['archive','Archive',counts.archive,'archived'],['allActive','All',counts.all,'neutral']];
   return `<div class="sq-filters">${tabs.map(([id,label,count,tone])=>`<button class="sq-fchip${convTab===id?' on':''}${tone==='urgent'&&count?' danger':''}" onclick="setConvTab('${id}')">${label}<span class="n">${count}</span></button>`).join('')}</div>`;
 }
+function convSubFilterBar(list,showQuoted){
+  const opts=[['live','Everything'],['waiting','Waiting on you'],['ai','With the AI'],['hold','On hold']];
+  if(showQuoted)opts.push(['quoted','Quote sent']);
+  return `<div class="sq-filters">${opts.map(([id,label])=>`<button class="sq-fchip${convSubFilter===id?' on':''}" onclick="setConvSubFilter('${id}')">${label}<span class="n">${applyConvSub(list,id).length}</span></button>`).join('')}</div>`;
+}
 function archiveFilterBar(counts){
   const opts=[['ALL','All',counts.archive],['BOOKED','Booked',counts.archiveBooked],['FAILED_TO_CONVERT','Failed to convert',counts.archiveFailed],['TIME_WASTER','Time waster',counts.archiveTimeWaster],['CLOSED','Closed',counts.archiveClosed]];
   return `<div class="sq-filters">${opts.map(([id,label,count])=>`<button class="sq-fchip${archiveFilter===id?' on':''}" onclick="setArchiveFilter('${id}')">${label}<span class="n">${count}</span></button>`).join('')}</div>`;
@@ -1908,7 +1913,8 @@ async function renderMessaging(){
     custRows.forEach(c=>{[c.whatsapp_number,c.phone,c.alt_phone].forEach(p=>{const k=phoneKey(p);if(k&&!/^0+$/.test(k))customerIdByPhone[k]=c.id;});});
   }catch(e){/* customer ring is a nice-to-have — cards still render without it, and Customer service/Sales fall back on topic */}
   convSectionCache={convs,escalations,messagesByConv};
-  renderMessagingFromCache();
+  try{renderMessagingFromCache();}
+  catch(e){console.error('Conversations render failed',e);el.innerHTML=`<div class="empty"><div class="empty-title">Could not display conversations</div><div style="font-size:12px;color:var(--text-muted);margin-top:6px">${esc(e.message||String(e))}</div></div>`;}
 }
 
 function escalationReasonLabel(code){
