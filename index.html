@@ -834,6 +834,10 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
           Reschedule all future occurrences in this series
         </label>
       </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
+        <input type="checkbox" id="rs-notify" checked style="accent-color:var(--gold)">
+        Tell the customer (WhatsApp + email)
+      </label>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('rescheduleModal')">Cancel</button>
@@ -946,9 +950,10 @@ const N8N_ACCEPT_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearroun
 const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-payment-setup';
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
+const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='169';
-const BUILD_DATE='20 Oct 2026 14:00';
+const BUILD_VERSION='170';
+const BUILD_DATE='23 Oct 2026 09:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2540,6 +2545,7 @@ function openReschedule(jobId, seriesId){
   dateEl.min=minLeadDateStr();
   dateEl.value='';
   document.getElementById('rs-single').checked=true;
+  document.getElementById('rs-notify').checked=true;
   // Only show "all series" option if job belongs to a series
   document.getElementById('rs-all-label').style.display=seriesId?'flex':'none';
   document.getElementById('rescheduleModal').classList.add('open');
@@ -2550,7 +2556,10 @@ async function confirmReschedule(){
   if(!newDate){showToast('Select a new date','error');return;}
   if(isDateTooSoon(newDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const scope=document.querySelector('input[name="reschedule-scope"]:checked').value;
+  const notify=document.getElementById('rs-notify').checked;
   try{
+    let oldDate=null;
+    try{const [cur]=await sb(`wc_jobs?id=eq.${rescheduleJobId}&select=next_due`);oldDate=cur?.next_due||null;}catch(_){}
     if(scope==='single'||!rescheduleSeriesId){
       // Move just this job
       await sb(`wc_jobs?id=eq.${rescheduleJobId}`,{
@@ -2576,6 +2585,11 @@ async function confirmReschedule(){
         return sb(`wc_jobs?id=eq.${fj.id}`,{method:'PATCH',body:JSON.stringify({next_due:d,scheduled_date:d}),prefer:'return=minimal'});
       }));
       showToast(`${futureJobs.length} jobs rescheduled`,'success');
+    }
+    if(notify){
+      fetch(N8N_JOB_RESCHEDULED_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:rescheduleJobId,old_date:oldDate,new_date:newDate,scope:(scope==='all'&&rescheduleSeriesId)?'all':'single'})})
+        .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);showToast('Customer notified','success');})
+        .catch(()=>showToast('Rescheduled, but the customer message failed to send','error'));
     }
     closeModal('rescheduleModal');renderRound();
   }catch(e){showToast(e.message,'error');}
