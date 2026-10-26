@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='173';
-const BUILD_DATE='26 Oct 2026 18:00';
+const BUILD_VERSION='174';
+const BUILD_DATE='26 Oct 2026 18:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2825,7 +2825,7 @@ async function loadCustomerJobs(customerId){
       const head=js.find(j=>j.status==='scheduled'||j.status==='pending_assignment')||js[0];
       const rows=js.slice(0,4).map(j=>{
         const d=j.next_due||j.scheduled_date||j.last_done;const until=sqDaysUntil(d);
-        const icn=j.status==='done'?['check','var(--done)','Done']:j.status==='skipped'?['xcircle','var(--warn)','Skipped']:j.status==='cant-access'?['xcircle','var(--danger)',"Can't access"]:j.status==='pending_assignment'?['clock','var(--warn)','Needs round']:['cal','var(--navy-400)','Upcoming'];
+        const icn=j.status==='done'?['check','var(--done)','Done']:j.status==='skipped'?['xcircle','var(--warn)','Skipped']:j.status==='cant-access'?['xcircle','var(--danger)',"Can't access"]:j.status==='pending_assignment'?['clock','var(--warn)','Needs round']:(j.status==='scheduled'&&d&&until<0)?['clock','var(--danger)','Overdue']:['cal','var(--navy-400)','Upcoming'];
         const rel=d?(until===0?'today':until>0?`in ${until} day${until!==1?'s':''}`:`${-until} day${-until!==1?'s':''} ago`):'';
         return`<div class="sq-tl-row"><svg class="sq-tl-ic" viewBox="0 0 24 24" fill="none" stroke="${icn[1]}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${SQI[icn[0]]}"/></svg>
           <div class="sq-tl-body"><div class="sq-tl-t">${icn[2]}</div><div class="sq-tl-d">${d?sqDayLabel(d)+' · '+rel:'No date'}</div></div>
