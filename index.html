@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='172';
-const BUILD_DATE='26 Oct 2026 17:30';
+const BUILD_VERSION='173';
+const BUILD_DATE='26 Oct 2026 18:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -1194,6 +1194,7 @@ const NAV_SECTIONS=[
   {section:'Work & Planning',items:[
     {id:'round',label:'Round',icon:ICON_ROUND},
     {id:'jobs',label:'Jobs',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>'},
+    {id:'overdue',label:'Overdue',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},
     {id:'optimizer',label:'Optimizer',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg>'},
   ]},
   {section:'Messaging',items:[
@@ -1307,6 +1308,7 @@ function navigate(page){
   else if(page==='owing')renderOwing();
   else if(page==='revenue')renderRevenue();
   else if(page==='data')renderDataTab();
+  else if(page==='overdue')renderOverdue();
   else if(page==='optimizer')renderOptimizer();
   else if(page==='rounds-config')renderRoundsConfig();
   else if(page==='service-types-config')renderServiceTypesConfig();
@@ -2272,6 +2274,49 @@ function initialsFor(name){
 }
 
 
+
+// ── OVERDUE (v1.0.173) ───────────────────────────────────────────────────────
+function refreshRoundish(){if(currentPageId==='overdue')renderOverdue();else renderRound();}
+let overdueAssignees=null;
+async function renderOverdue(){
+  document.getElementById('topbarPage').textContent='Overdue';
+  document.getElementById('topbarAction').innerHTML='';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
+  await loadUsers();
+  if(overdueAssignees===null)overdueAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
+  const today=todayStr();
+  const cust='wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)';
+  let jobs=[];
+  try{
+    const a=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&next_due=lt.${today}&select=*,${cust}&order=next_due.asc`)||[];
+    const b=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&next_due=is.null&scheduled_date=lt.${today}&select=*,${cust}&order=scheduled_date.asc`)||[];
+    jobs=[...a,...b];
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderOverdue()">Retry</button></div>`;return;}
+  await loadCrewActions();
+  const dueOf=j=>String(j.next_due||j.scheduled_date).split('T')[0];
+  const filtered=jobs.filter(j=>overdueAssignees.has(j.assigned_to||'unassigned')).sort((x,y)=>dueOf(x).localeCompare(dueOf(y)));
+  const total=filtered.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const groups=new Map();
+  filtered.forEach(j=>{const k=dueOf(j);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(j);});
+  let n=0;
+  const body=[...groups.entries()].map(([d,js])=>{
+    const days=sqDaysAgo(d);
+    return `<div class="sq-sec"><span>${esc(sqDayLabel(d))} \u00b7 ${days} day${days!==1?'s':''} overdue<span class="n">${js.length}</span></span></div>`+js.map(j=>jobCard(j,++n)).join('');
+  }).join('');
+  el.innerHTML=`
+    <div class="sq-top"><span class="sq-pill"><b>${filtered.length}</b><span>overdue</span><i class="sq-vr"></i><b>\u00a3${total.toFixed(2)}</b><span>value</span></span></div>
+    <div class="sq-filters">
+      ${wcUsers.map(u=>`<button class="sq-fchip${overdueAssignees.has(u.id)?' on':''}" onclick="toggleOverdueAssignee('${u.id}')">${esc(u.name.split(' ')[0])}</button>`).join('')}
+      <button class="sq-fchip${overdueAssignees.has('unassigned')?' on':''}" onclick="toggleOverdueAssignee('unassigned')">Unassigned</button>
+    </div>
+    ${filtered.length?body:sqEmpty('Nothing overdue','All scheduled jobs are on or after today.')}`;
+}
+function toggleOverdueAssignee(key){
+  if(overdueAssignees.has(key))overdueAssignees.delete(key);else overdueAssignees.add(key);
+  renderOverdue();
+}
+
 // ── CREW CHANGE ACTIONS (conversation_actions) ────────────────────────────────
 let crewActions=[];
 async function loadCrewActions(){
@@ -2325,14 +2370,14 @@ async function ackAction(id){
   try{
     await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({crew_ack_at:new Date().toISOString(),crew_ack_by:currentUser?.id||null}),prefer:'return=minimal'});
     showToast('✓ Got it','success');
-    renderRound();
+    refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 async function approveAction(id){
   try{
     await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({approved_at:new Date().toISOString()}),prefer:'return=minimal'});
     showToast('Price confirmed','success');
-    renderRound();
+    refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 async function closeJobActions(jobId){
@@ -2489,12 +2534,12 @@ async function renderRoundMonth(el){
 
 async function markDone(id){
   try{
-    await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:roundDate}),prefer:'return=minimal'});
+    await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:currentPageId==='overdue'?todayStr():roundDate}),prefer:'return=minimal'});
     closeJobActions(id);
     showToast('✓ Done','success');
     // Auto-invoice if customer has it enabled
     autoInvoiceJob(id);
-    renderRound();
+    refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -2535,13 +2580,13 @@ async function confirmSkip(){
   try{
     await sb(`wc_jobs?id=eq.${skipJobId}`,{method:'PATCH',body:JSON.stringify({status:skipStatus,notes}),prefer:'return=minimal'});
     showToast(skipStatus==='skipped'?'Job skipped':'Marked no access','success');
-    closeModal('skipModal');renderRound();
+    closeModal('skipModal');refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 async function undoStatus(id){
   try{
     await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'scheduled',last_done:null,notes:null}),prefer:'return=minimal'});
-    showToast('Reset','success');renderRound();
+    showToast('Reset','success');refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 
@@ -2603,7 +2648,7 @@ async function confirmReschedule(){
         .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);showToast('Customer notified','success');})
         .catch(()=>showToast('Rescheduled, but the customer message failed to send','error'));
     }
-    closeModal('rescheduleModal');renderRound();
+    closeModal('rescheduleModal');refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 
