@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='175';
-const BUILD_DATE='26 Oct 2026 18:45';
+const BUILD_VERSION='176';
+const BUILD_DATE='26 Oct 2026 19:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3319,7 +3319,9 @@ async function saveJob(){
         const orig=editingJobOriginalDate||date;
         const others=await sb(`wc_jobs?series_id=eq.${editingJobSeriesId}&id=neq.${editingJobId}&status=in.(scheduled,pending_assignment)&next_due=gt.${orig}&select=id,next_due`);
         if(others&&others.length){
-          const freqChanged=!!editingJobOriginalFreq&&frequency!==editingJobOriginalFreq&&!!FREQ_DAYS[frequency];
+          const stepDays=FREQ_DAYS[frequency]||0;
+          const gapsOff=stepDays&&[...others].sort((a,b)=>String(a.next_due).localeCompare(String(b.next_due))).some((o,i)=>Math.round((new Date(String(o.next_due).split('T')[0]+'T12:00:00')-new Date(orig+'T12:00:00'))/86400000)!==stepDays*(i+1));
+          const freqChanged=!!stepDays&&((!!editingJobOriginalFreq&&frequency!==editingJobOriginalFreq)||gapsOff);
           pendingJobSave={fields,others,orig,date,freqChanged};
           const off=Math.round((new Date(date+'T12:00:00')-new Date(orig+'T12:00:00'))/86400000);
           document.getElementById('seriesScopeMsg').textContent=
