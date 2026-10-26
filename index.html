@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='176';
-const BUILD_DATE='26 Oct 2026 19:10';
+const BUILD_VERSION='177';
+const BUILD_DATE='26 Oct 2026 19:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2819,6 +2819,14 @@ async function loadCustomerJobs(customerId){
     const n=document.getElementById('custJobsN');if(n)n.textContent=jobs.length;
     if(!jobs.length){el.innerHTML=`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No jobs yet</div></div></div></div>`;return;}
     // Group a recurring series into one card with its recent history; one-offs get their own card
+    const paidIds=new Set();
+    try{
+      const dIds=jobs.filter(j=>j.status==='done').map(j=>j.id);
+      for(let i=0;i<dIds.length;i+=40){
+        const pi=await sb(`wc_invoices?status=eq.paid&job_id=in.(${dIds.slice(i,i+40).join(',')})&select=job_id`)||[];
+        pi.forEach(x=>{if(x.job_id)paidIds.add(x.job_id);});
+      }
+    }catch(e){console.warn('paidIds',e);}
     const groups=new Map();
     jobs.forEach(j=>{const k=j.series_id||j.id;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(j);});
     el.innerHTML=[...groups.values()].map(js=>{
@@ -2828,7 +2836,7 @@ async function loadCustomerJobs(customerId){
         const icn=j.status==='done'?['check','var(--done)','Done']:j.status==='skipped'?['xcircle','var(--warn)','Skipped']:j.status==='cant-access'?['xcircle','var(--danger)',"Can't access"]:j.status==='pending_assignment'?['clock','var(--warn)','Needs round']:(j.status==='scheduled'&&d&&until<0)?['clock','var(--danger)','Overdue']:['cal','var(--navy-400)','Upcoming'];
         const rel=d?(until===0?'today':until>0?`in ${until} day${until!==1?'s':''}`:`${-until} day${-until!==1?'s':''} ago`):'';
         return`<div class="sq-tl-row"><svg class="sq-tl-ic" viewBox="0 0 24 24" fill="none" stroke="${icn[1]}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${SQI[icn[0]]}"/></svg>
-          <div class="sq-tl-body"><div class="sq-tl-t">${icn[2]}</div><div class="sq-tl-d">${d?sqDayLabel(d)+' · '+rel:'No date'}</div></div>
+          <div class="sq-tl-body"><div class="sq-tl-t">${icn[2]}${j.status==='done'&&(j.legacy_billed||paidIds.has(j.id))?' '+sqBadge('Paid','paid'):''}</div><div class="sq-tl-d">${d?sqDayLabel(d)+' · '+rel:'No date'}</div></div>
           ${j.status==='scheduled'?`<button class="sq-act ico" title="Reschedule" onclick="openReschedule('${j.id}','${j.series_id||''}')">📅</button>`:''}
           ${j.status==='pending_assignment'?`<button class="sq-act primary" onclick="assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round</button>`:''}
           <button class="sq-act ico" title="Edit job" onclick="openEditJob('${j.id}','${customerId}')">✏️</button></div>`;}).join('');
