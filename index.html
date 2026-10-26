@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='171';
-const BUILD_DATE='23 Oct 2026 09:30';
+const BUILD_VERSION='172';
+const BUILD_DATE='26 Oct 2026 17:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -2166,6 +2166,7 @@ async function renderDashboard(){
   `;
 }
 
+let roundPaid=new Set();
 async function renderRound(){
   document.getElementById('topbarPage').textContent="Today's Round";
   document.getElementById('topbarAction').innerHTML='';
@@ -2184,6 +2185,14 @@ async function renderRound(){
     const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
     const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
     jobs=[...byDue,...byDate];
+    roundPaid=new Set();
+    try{
+      const doneIds=jobs.filter(j=>j.status==='done').map(j=>j.id);
+      for(let i=0;i<doneIds.length;i+=40){
+        const pinv=await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&status=eq.paid&job_id=in.(${doneIds.slice(i,i+40).join(',')})&select=job_id`)||[];
+        pinv.forEach(x=>{if(x.job_id)roundPaid.add(x.job_id);});
+      }
+    }catch(e){console.warn('roundPaid',e);}
     if(currentUser?.view_mode!=='round_only'){
       unassignedJobs=await sb(`wc_jobs?assigned_to=is.null&status=in.(scheduled,pending_assignment)&business_id=eq.${BUSINESS_ID}&select=*,wc_customers(id,name)&order=created_at.desc`);
     }
@@ -2375,7 +2384,7 @@ function jobCard(j,num){
           <div class="sq-sub">${custPill(c)}</div>
           <div class="sq-chips">${j.service_type?sqChip(sqShortSvc(j.service_type),'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqLabel(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${c.stripe_customer_id?sqChip('S','#635bff'):''}${flags.join('')}</div>
         </div>
-        <div class="sq-right">${sqMoney(j.price)}${isDone?sqBadge('Done','accepted'):isSkip?sqBadge('Skipped','warn'):isCant?sqBadge("Can't access",'due'):''}</div>
+        <div class="sq-right">${sqMoney(j.price)}${isDone?sqBadge('Done','accepted')+((j.legacy_billed||roundPaid.has(j.id))?sqBadge('Paid','paid'):''):isSkip?sqBadge('Skipped','warn'):isCant?sqBadge("Can't access",'due'):''}</div>
       </div>
       ${actions}
     </div>
