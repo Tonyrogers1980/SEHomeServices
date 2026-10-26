@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='174';
-const BUILD_DATE='26 Oct 2026 18:20';
+const BUILD_VERSION='175';
+const BUILD_DATE='26 Oct 2026 18:45';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -3266,11 +3266,13 @@ function toggleWindowAttrFields(){
   const isWindow=(document.getElementById('j-service').value||'').toLowerCase().includes('window');
   document.getElementById('j-window-attrs').style.display=isWindow?'':'none';
 }
+let editingJobOriginalFreq='';
+const FREQ_DAYS={'weekly':7,'fortnightly':14,'3-weekly':21,'4-weekly':28,'6-weekly':42,'8-weekly':56,'12-weekly':84,'26-weekly':182};
 async function openEditJob(jobId,customerId){
   let j;
   try{[j]=await sb(`wc_jobs?id=eq.${jobId}`);}catch(e){showToast('Could not load job','error');return;}
   if(!j){showToast('Job not found','error');return;}
-  jobCustomerId=customerId;editingJobId=jobId;editingJobOriginalDate=j.next_due||j.scheduled_date||'';editingJobSeriesId=j.series_id||null;
+  jobCustomerId=customerId;editingJobId=jobId;editingJobOriginalDate=j.next_due||j.scheduled_date||'';editingJobSeriesId=j.series_id||null;editingJobOriginalFreq=j.frequency||'';
   document.getElementById('jobModalTitle').textContent='Edit job';
   document.getElementById('j-btn-delete').style.display='';
   document.getElementById('j-price').value=j.price||'';
@@ -3317,11 +3319,12 @@ async function saveJob(){
         const orig=editingJobOriginalDate||date;
         const others=await sb(`wc_jobs?series_id=eq.${editingJobSeriesId}&id=neq.${editingJobId}&status=in.(scheduled,pending_assignment)&next_due=gt.${orig}&select=id,next_due`);
         if(others&&others.length){
-          pendingJobSave={fields,others,orig,date};
+          const freqChanged=!!editingJobOriginalFreq&&frequency!==editingJobOriginalFreq&&!!FREQ_DAYS[frequency];
+          pendingJobSave={fields,others,orig,date,freqChanged};
           const off=Math.round((new Date(date+'T12:00:00')-new Date(orig+'T12:00:00'))/86400000);
           document.getElementById('seriesScopeMsg').textContent=
             `This job is part of a recurring series with ${others.length} later booking${others.length!==1?'s':''}. `+
-            (off!==0?`Moving it by ${off>0?'+':''}${off} day${Math.abs(off)!==1?'s':''} — do you want the later bookings moved by the same amount too?`:'Do you want these changes applied to the later bookings as well?');
+            (freqChanged?`You've changed the frequency to ${freqLabel(frequency)}. Re-space the ${others.length} later booking${others.length!==1?'s':''} to match (every ${FREQ_DAYS[frequency]/7} weeks from this job)?`:off!==0?`Moving it by ${off>0?'+':''}${off} day${Math.abs(off)!==1?'s':''} — do you want the later bookings moved by the same amount too?`:'Do you want these changes applied to the later bookings as well?');
           document.getElementById('seriesScopeAll').textContent=`This and all ${others.length} future job${others.length!==1?'s':''}`;
           document.getElementById('seriesScopeModal').classList.add('open');
           return;
@@ -3347,9 +3350,14 @@ async function applyJobSave(scope){
     if(scope==='all'){
       const off=Math.round((new Date(p.date+'T12:00:00')-new Date(p.orig+'T12:00:00'))/86400000);
       const {scheduled_date,next_due,status,...rest}=p.fields; // dates shifted per-row; status left as-is
-      await Promise.all(p.others.map(o=>{
+      const step=p.freqChanged?FREQ_DAYS[p.fields.frequency]:0;
+      const ordered=[...p.others].sort((a,b)=>String(a.next_due).localeCompare(String(b.next_due)));
+      await Promise.all(ordered.map((o,idx)=>{
         const body={...rest};
-        if(off!==0){
+        if(step){
+          const d=new Date(p.date+'T12:00:00');d.setDate(d.getDate()+step*(idx+1));
+          const ds=localDateStr(d);body.next_due=ds;body.scheduled_date=ds;
+        }else if(off!==0){
           const d=new Date(o.next_due+'T12:00:00');d.setDate(d.getDate()+off);
           const ds=localDateStr(d);body.next_due=ds;body.scheduled_date=ds;
         }
