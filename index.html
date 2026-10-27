@@ -919,6 +919,25 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   </div>
 </div>
 
+<div class="modal-overlay" id="emailModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Email customer</div>
+      <button class="modal-close" onclick="closeModal('emailModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>To</label><input id="em-to" type="email" inputmode="email" autocomplete="off" placeholder="customer@email.com"><div id="em-to-hint" style="font-size:11px;color:var(--text-muted)"></div></div>
+      <div class="field"><label>Subject</label><input id="em-subject" maxlength="150"></div>
+      <div class="field"><label>Message</label><textarea id="em-message" rows="8" maxlength="5000"></textarea></div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.4">Sent from support@sehomeservices.co.uk with a "Reply to us on WhatsApp" link, which reopens the 24h window when they reply. Email replies go to your inbox, not into ClearRound.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('emailModal')">Cancel</button>
+      <button class="btn btn-primary" id="em-send-btn" onclick="sendCustomerEmail()">Send email</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="deleteConversationModal">
   <div class="modal" style="max-width:360px">
     <div class="modal-header">
@@ -948,8 +967,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='184';
-const BUILD_DATE='27 Oct 2026 15:30';
+const BUILD_VERSION='185';
+const BUILD_DATE='27 Oct 2026 15:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1484,7 +1503,7 @@ function escalationCardHtml(r,msgs,lead){
       <summary class="conv-transcript-toggle">View full conversation (${msgs.length} messages)</summary>
       <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
         ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
-          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':(m.message_type==='email'?'✉ Emailed':'Sent')} · ${escTimeAgo(m.created_at)}</div>
           <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}${renderMessageMedia(m)}</div>
         </div>`).join('')}
       </div>
@@ -1497,6 +1516,7 @@ function escalationCardHtml(r,msgs,lead){
     <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
       ${cqHidden(conv)?'':`<button class="btn btn-primary btn-sm" data-cq="${r.conversation_id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="createQuoteFromConversation('${r.conversation_id}')">Create quote</button>`}
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
+      <button class="btn btn-neutral btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openEmailModal('${r.conversation_id}')">✉ Email</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="blockSender('${conv.customer_phone||''}','${r.id}','${r.conversation_id}','${esc(conv.customer_name||'this sender').replace(/'/g,"\\'")}')">🚫 Block</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${r.conversation_id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
     </div>
@@ -1592,14 +1612,15 @@ function renderConvCard(conv,msgs,badge){
       <summary class="conv-transcript-toggle">View full conversation (${msgs.length} messages)</summary>
       <div style="margin-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--navy-900);border-radius:8px">
         ${msgs.map(m=>`<div style="align-self:${m.direction==='inbound'?'flex-start':'flex-end'};max-width:85%">
-          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':'Sent'} · ${escTimeAgo(m.created_at)}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;text-align:${m.direction==='inbound'?'left':'right'}">${m.direction==='inbound'?'Customer':(m.message_type==='email'?'✉ Emailed':'Sent')} · ${escTimeAgo(m.created_at)}</div>
           <div style="background:${m.direction==='inbound'?'var(--border)':'var(--gold)'};color:${m.direction==='inbound'?'var(--text)':'var(--navy-900)'};padding:8px 10px;border-radius:10px;font-size:13px;white-space:pre-wrap">${esc(m.message_text||'')}${renderMessageMedia(m)}</div>
         </div>`).join('')}
       </div>
     </details>`:''}
-    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;background:rgba(255,178,0,.14);border:1.5px solid rgba(255,178,0,.4);border-radius:8px;padding:8px 10px">
-      <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">24h window closed — needs a reply</span>
-      <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
+    ${windowClosed?`<div style="width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(255,178,0,.14);border:1.5px solid rgba(255,178,0,.4);border-radius:8px;padding:8px 10px;box-sizing:border-box">
+      <span style="font-size:12px;font-weight:600;color:var(--text);flex:1 1 100%">24h window closed — needs a reply</span>
+      <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex:1;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
+      <button class="btn btn-neutral btn-sm" style="flex:1;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openEmailModal('${conv.id}')">✉ Email instead</button>
     </div>`:''}
     ${suggestedReplyHtml(conv.id)}
     ${cqHidden(conv)?'':`<button class="btn btn-primary btn-sm" data-cq="${conv.id}" style="width:100%;background:var(--gold);color:var(--navy-900);font-weight:700;min-height:36px" onclick="createQuoteFromConversation('${conv.id}')">Create quote</button>`}
@@ -1607,6 +1628,7 @@ function renderConvCard(conv,msgs,badge){
       <textarea id="reply-${conv.id}" placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}" rows="2" ${windowClosed?'disabled':''} style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;${windowClosed?'opacity:.5':''}"></textarea>
       <button class="btn btn-primary btn-sm" id="send-btn-${conv.id}" style="align-self:flex-end" ${windowClosed?'disabled':''} onclick="sendManualReply('${conv.id}')">Send</button>
     </div>
+    ${windowClosed?'':`<div><button class="btn btn-neutral btn-sm" style="padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openEmailModal('${conv.id}')">✉ Email customer</button></div>`}
   </div>`;
 }
 const MANUAL_REPLY_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/cr-send-manual-reply-9f2a7c';
@@ -1629,6 +1651,60 @@ async function sendFollowupTemplate(conversationId){
     showToast(e.message,'error');
     btn.disabled=false;btn.textContent='Send follow-up';
   }
+}
+const SEND_EMAIL_WEBHOOK_URL='https://sehomeservices.app.n8n.cloud/webhook/cr-send-customer-email';
+let emailConvId=null,emailCustomerId=null,emailHadOnFile=false;
+async function openEmailModal(convId){
+  const conv=messagingConvById[convId];
+  if(!conv){showToast('Conversation not found','error');return;}
+  emailConvId=convId;emailCustomerId=null;emailHadOnFile=false;
+  const first=String(conv.customer_name||'').trim().split(/\s+/)[0]||'there';
+  const sug=openEscalationByConv[convId]&&openEscalationByConv[convId].suggested_reply;
+  document.getElementById('em-to').value='';
+  document.getElementById('em-to-hint').textContent='Looking up email…';
+  document.getElementById('em-subject').value='Your enquiry — SE Home Services';
+  document.getElementById('em-message').value=sug?sug.replace(/\s*[\u2014\u2013]\s*/g,', '):`Hi ${first},\n\n`;
+  document.getElementById('emailModal').classList.add('open');
+  let email='',src='';
+  try{
+    const cid=conv.wc_customer_id||customerIdByPhone[phoneKey(conv.customer_phone)]||null;
+    if(cid){
+      const r=await sb(`wc_customers?id=eq.${cid}&select=id,email`);
+      if(r&&r[0]){emailCustomerId=r[0].id;email=(r[0].email||'').trim();if(email)src='customer record';}
+    }
+    if(!email){
+      const l=await sb(`leads?conversation_id=eq.${convId}&email=not.is.null&select=email&order=updated_at.desc&limit=1`);
+      if(l&&l[0]&&l[0].email){email=String(l[0].email).trim();src='enquiry details';}
+    }
+  }catch(e){}
+  if(emailConvId!==convId)return;
+  document.getElementById('em-to').value=email;
+  emailHadOnFile=!!email;
+  document.getElementById('em-to-hint').textContent=email?`From the ${src}`:'No email on file, type one in';
+}
+async function sendCustomerEmail(){
+  const to=document.getElementById('em-to').value.trim();
+  const subject=document.getElementById('em-subject').value.trim();
+  const message=document.getElementById('em-message').value.trim();
+  if(!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(to)){showToast('Enter a valid email address','error');return;}
+  if(!message){showToast('Write a message first','error');return;}
+  const token=crToken();
+  if(!token){showToast('Please log out and back in','error');return;}
+  const btn=document.getElementById('em-send-btn');
+  btn.disabled=true;btn.textContent='Sending…';
+  try{
+    const res=await fetch(SEND_EMAIL_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,conversation_id:emailConvId,to_email:to,subject,message})});
+    let j=null;try{j=await res.json();}catch(e){}
+    if(res.status===401)throw new Error('Session expired — log out and back in');
+    if(!res.ok||!j||!j.success)throw new Error((j&&j.error)||'Failed to send email');
+    if(emailCustomerId&&!emailHadOnFile){
+      try{await sb(`wc_customers?id=eq.${emailCustomerId}`,{method:'PATCH',body:JSON.stringify({email:to}),prefer:'return=minimal'});}catch(e){}
+    }
+    closeModal('emailModal');
+    showToast('Email sent','success');
+    renderMessaging();
+  }catch(e){showToast(e.message,'error');}
+  btn.disabled=false;btn.textContent='Send email';
 }
 async function sendManualReply(conversationId){
   const ta=document.getElementById('reply-'+conversationId);
