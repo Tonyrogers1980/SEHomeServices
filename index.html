@@ -721,6 +721,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <button class="modal-close" onclick="closeModal('quoteModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
+      <div id="cq-banner" style="display:none;grid-column:1/-1;background:rgba(255,178,0,.12);border:1.5px solid rgba(255,178,0,.4);border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--text)"></div>
       <div class="field"><label>Customer *</label>
         <div style="display:flex;gap:6px">
           <select id="q-customer" style="flex:1"></select>
@@ -953,7 +954,7 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='181';
+const BUILD_VERSION='182';
 const BUILD_DATE='27 Oct 2026 10:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -1493,7 +1494,7 @@ function escalationCardHtml(r,msgs,lead){
       <button class="btn btn-primary btn-sm" id="send-btn-${r.conversation_id}" style="align-self:flex-end" onclick="sendManualReply('${r.conversation_id}')">Send</button>
     </div>
     <div style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px">
-      ${lead?`<button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="openQuoteFromLead('${r.conversation_id}')">Send Quote</button>`:''}
+      <button class="btn btn-primary btn-sm" data-cq="${r.conversation_id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap;background:var(--gold);color:var(--navy-900)" onclick="createQuoteFromConversation('${r.conversation_id}')">Create quote</button>
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="resolveEscalation('${r.id}','${r.conversation_id}')">Close</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="blockSender('${conv.customer_phone||''}','${r.id}','${r.conversation_id}','${esc(conv.customer_name||'this sender').replace(/'/g,"\\'")}')">🚫 Block</button>
       <button class="btn btn-outline-danger btn-sm" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="openDeleteConversationModal('${r.conversation_id}','${esc(conv.customer_name||'this conversation').replace(/'/g,"\\'")}')">Delete</button>
@@ -1600,6 +1601,7 @@ function renderConvCard(conv,msgs,badge){
       <button class="btn btn-primary btn-sm" id="followup-btn-${conv.id}" style="flex-shrink:0;padding:6px 10px;font-size:12px;min-height:32px;white-space:nowrap" onclick="sendFollowupTemplate('${conv.id}')">Send follow-up</button>
     </div>`:''}
     ${suggestedReplyHtml(conv.id)}
+    ${['BOOKED','CLOSED','FAILED_TO_CONVERT','TIME_WASTER'].includes(conv.stage)?'':`<button class="btn btn-primary btn-sm" data-cq="${conv.id}" style="width:100%;background:var(--gold);color:var(--navy-900);font-weight:700;min-height:36px" onclick="createQuoteFromConversation('${conv.id}')">Create quote</button>`}
     <div style="display:flex;gap:8px;width:100%">
       <textarea id="reply-${conv.id}" placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}" rows="2" ${windowClosed?'disabled':''} style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:var(--navy-900);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;${windowClosed?'opacity:.5':''}"></textarea>
       <button class="btn btn-primary btn-sm" id="send-btn-${conv.id}" style="align-self:flex-end" ${windowClosed?'disabled':''} onclick="sendManualReply('${conv.id}')">Send</button>
@@ -3520,6 +3522,7 @@ async function saveInlineCustomer(){
   }catch(e){showToast(e.message,'error');}
 }
 function resetQuoteModalActions(){
+  const cqb=document.getElementById('cq-banner');if(cqb)cqb.style.display='none';
   document.getElementById('q-btn-draft').style.display='';
   const sendBtn=document.getElementById('q-btn-send');
   sendBtn.textContent='Save & send';
@@ -3605,6 +3608,153 @@ async function openQuoteFromLead(conversationId){
   document.getElementById('q-frequency').value=leadFrequencySelectValue(lead);
   document.getElementById('q-notes').value=leadNotesSummary(lead);
   document.getElementById('quoteModal').classList.add('open');
+}
+// ── CREATE QUOTE FROM CONVERSATION ───────────────────────────────────────────
+// One-tap flow: reads the whole WhatsApp thread (n8n extraction), pre-fills the quote
+// modal for review, then creates the customer (if new) + quote + sends it in one call.
+const N8N_EXTRACT_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-extract-quote';
+const N8N_CREATE_QUOTE_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-create-quote';
+let convQuoteCtx=null;
+function cqServiceName(ex){
+  const names=(wcServiceTypes||[]).map(s=>s.name);
+  const has=n=>names.includes(n)?n:'';
+  const svc=ex&&ex.service_type;
+  if(svc==='window_cleaning')return ex.frequency==='repeat'?has('Window Cleaning: Front and Back Standard'):has('Window Cleaning: One Off');
+  if(svc==='gutter_repairs')return has('Gutter Repairs');
+  if(svc==='pressure_washing')return has('Pressure Washing');
+  return'';
+}
+function cqFrequencyValue(ex){
+  if(!ex||ex.frequency!=='repeat')return'one-off';
+  const map={1:'weekly',2:'fortnightly',3:'3-weekly',4:'4-weekly',6:'6-weekly',8:'8-weekly',12:'12-weekly',26:'26-weekly'};
+  return map[ex.frequency_weeks]||'4-weekly';
+}
+function cqExFromLead(lead){
+  if(!lead)return{};
+  return{customer_name:lead.customer_name||null,email:lead.email||null,full_address:lead.full_address||null,postcode:lead.postcode||null,
+    price:lead.quote_amount?parseFloat(lead.quote_amount):null,
+    frequency:lead.frequency==='one_off'?'one_off':'repeat',frequency_weeks:lead.frequency_weeks||null,
+    service_type:lead.service_type||'window_cleaning',property_details:leadNotesSummary(lead)||null,preferred_days:lead.preferred_days||null};
+}
+async function createQuoteFromConversation(conversationId){
+  const btns=[...document.querySelectorAll(`[data-cq="${conversationId}"]`)];
+  btns.forEach(b=>{b.dataset.label=b.textContent;b.disabled=true;b.textContent='Reading conversation…';});
+  const restore=()=>btns.forEach(b=>{b.disabled=false;b.textContent=b.dataset.label||'Create quote';});
+  let data=null;
+  try{
+    const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);
+    const res=await fetch(N8N_EXTRACT_QUOTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:conversationId}),signal:ctrl.signal});
+    clearTimeout(timer);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    data=await res.json();
+    if(!data||!data.success)throw new Error((data&&data.error)||'Extraction failed');
+  }catch(e){
+    console.warn('Quote extraction failed',e);
+    data=null;
+    showToast('Could not read the conversation automatically — fill in the details below','error');
+  }
+  restore();
+  await openQuoteFromConversation(conversationId,data);
+}
+async function openQuoteFromConversation(conversationId,data){
+  const conv=messagingConvById[conversationId]||{};
+  const lead=messagingLeadsByConv[conversationId]||null;
+  const ex=(data&&data.extracted)||cqExFromLead(lead);
+  const phone=(data&&data.customer_phone)||conv.customer_phone||'';
+  const existing=(data&&data.existing_customer)||null;
+  convQuoteCtx={conversationId,leadId:(data&&data.lead_id)||(lead&&lead.id)||null,phone,existing};
+  await openNewQuote();
+  document.getElementById('quoteModalTitle').textContent='Create Quote';
+  const sel=document.getElementById('q-customer');
+  if(existing){
+    if(![...sel.options].some(o=>o.value===existing.id)){const o=document.createElement('option');o.value=existing.id;o.textContent=existing.name||'Existing customer';sel.appendChild(o);}
+    sel.value=existing.id;
+  }else{
+    toggleInlineCustomer();
+    document.getElementById('nc-name').value=ex.customer_name||conv.customer_name||'';
+    document.getElementById('nc-address').value=ex.full_address||'';
+    document.getElementById('nc-postcode').value=ex.postcode||'';
+    document.getElementById('nc-phone').value=phone;
+    document.getElementById('nc-whatsapp').value=phone;
+    document.getElementById('nc-email').value=ex.email||'';
+  }
+  document.getElementById('q-price').value=ex.price||'';
+  document.getElementById('q-frequency').value=cqFrequencyValue(ex);
+  const svc=cqServiceName(ex);if(svc)document.getElementById('q-service').value=svc;
+  const noteParts=[ex.scope,ex.property_details,ex.access_notes?('Access: '+ex.access_notes):null].filter(Boolean).map(p=>String(p).trim().replace(/\.+$/,''));
+  document.getElementById('q-notes').value=noteParts.length?noteParts.join('. ')+'.':'';
+  const missing=[];
+  if(!(ex.price>0))missing.push('price');
+  if(!existing){if(!ex.email)missing.push('email');if(!ex.full_address)missing.push('address');if(!ex.postcode)missing.push('postcode');}
+  const b=document.getElementById('cq-banner');
+  b.innerHTML=`<div><b>${data?'Pulled from the conversation':'Partly filled from the lead'}</b> — check before sending.</div>`
+    +`<div style="margin-top:3px;color:var(--text-soft)">${existing?`Existing customer: ${esc(existing.name||'')}`:'A new customer will be created'}</div>`
+    +(missing.length?`<div style="margin-top:3px;color:var(--gold);font-weight:600">Still needed: ${missing.join(', ')}</div>`:'')
+    +(ex.preferred_days?`<div style="margin-top:3px;color:var(--text-soft)">Customer asked for: ${esc(ex.preferred_days)}</div>`:'');
+  b.style.display='block';
+  const sendBtn=document.getElementById('q-btn-send');
+  sendBtn.textContent='Create & send quote';
+  sendBtn.onclick=submitConversationQuote;
+  document.getElementById('q-btn-draft').style.display='none';
+}
+async function submitConversationQuote(){
+  const ctx=convQuoteCtx;if(!ctx)return;
+  const btn=document.getElementById('q-btn-send');
+  const price=parseFloat(document.getElementById('q-price').value);
+  if(!price||price<=0){showToast('Enter a valid price','error');return;}
+  const startDate=document.getElementById('q-start-date').value||null;
+  if(isDateTooSoon(startDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
+  const inlineOpen=document.getElementById('inlineCustomerForm').style.display!=='none';
+  let customerId=null,name,address,postcode,email,phone;
+  if(inlineOpen){
+    name=document.getElementById('nc-name').value.trim();
+    address=document.getElementById('nc-address').value.trim();
+    postcode=document.getElementById('nc-postcode').value.trim();
+    email=document.getElementById('nc-email').value.trim()||null;
+    const phoneRaw=(document.getElementById('nc-phone').value||document.getElementById('nc-whatsapp').value||ctx.phone||'').trim();
+    phone=phoneRaw?normalizePhoneUK(phoneRaw):null;
+    if(!name||!address||!postcode){showToast('Name, address and postcode required','error');return;}
+    if(!phone||!isValidUKPhone(phone)){showToast('Enter a valid UK phone number, e.g. +447700900000','error');return;}
+  }else{
+    customerId=document.getElementById('q-customer').value;
+    if(!customerId){showToast('Select a customer, or tap ✕ and add a new one','error');return;}
+    const c=customers.find(x=>x.id===customerId)||ctx.existing||{};
+    name=c.name;email=c.email||null;phone=c.whatsapp_number||c.phone||ctx.phone;address=c.address||'';postcode=c.postcode||'';
+  }
+  const body={
+    conversation_id:ctx.conversationId,lead_id:ctx.leadId,customer_id:customerId,
+    customer_name:name,customer_phone:phone,email,postcode,full_address:address,
+    service_type:document.getElementById('q-service').value||'Window Cleaning',
+    price,wc_frequency:document.getElementById('q-frequency').value||'one-off',
+    round_name:document.getElementById('q-round').value||null,
+    day_of_week:document.getElementById('q-day').value||null,
+    assigned_to:document.getElementById('q-assigned').value||null,
+    start_date:startDate,
+    notes:document.getElementById('q-notes').value.trim()||null,
+    source:'Whatsapp'
+  };
+  btn.disabled=true;btn.textContent='Creating…';
+  try{
+    const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);
+    const res=await fetch(N8N_CREATE_QUOTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+    clearTimeout(timer);
+    const out=await res.json().catch(()=>({}));
+    if(!res.ok||!out.success)throw new Error(out.message||`Quote creation failed (${res.status})`);
+    // Link the conversation + lead to the new customer/quote so Jarvis and the views see it
+    await sb(`conversations?id=eq.${ctx.conversationId}`,{method:'PATCH',body:JSON.stringify({wc_customer_id:out.customer_id,stage:'QUOTED'}),prefer:'return=minimal'}).catch(e=>console.warn('conversation link failed',e));
+    if(ctx.leadId){
+      await sb(`leads?id=eq.${ctx.leadId}`,{method:'PATCH',body:JSON.stringify({email,full_address:address,postcode,quote_amount:price,updated_at:new Date().toISOString()}),prefer:'return=minimal'}).catch(e=>console.warn('lead update failed',e));
+    }
+    customers=[];
+    showToast(inlineOpen?'Customer created & quote sent ✓':'Quote sent ✓','success');
+    closeModal('quoteModal');
+    convQuoteCtx=null;
+    resetQuoteModalActions();
+    renderMessaging();
+  }catch(e){
+    showToast(e.name==='AbortError'?'Timed out — check Quotes before retrying':e.message,'error');
+    btn.disabled=false;btn.textContent='Create & send quote';
+  }
 }
 async function saveQuote(status){
   const customerId=document.getElementById('q-customer').value;
