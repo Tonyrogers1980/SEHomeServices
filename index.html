@@ -57,7 +57,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .topbar-logo{font-family:'DM Mono',monospace;font-size:15px;color:var(--white);}
 .topbar-logo span{color:var(--gold);}
 .topbar-page{font-size:15px;font-weight:600;color:var(--white);flex:1;}
-.topbar-user{font-size:12px;color:var(--text-muted);}
+.topbar-user{font-family:inherit;font-size:13px;font-weight:600;color:var(--text);background:var(--navy-900);border:1px solid var(--border);border-radius:999px;padding:6px 12px;min-height:34px;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.topbar-user::after{content:'▾';font-size:10px;opacity:.7;}
+.topbar-user:active{filter:brightness(1.2);}
+.user-menu{position:absolute;top:calc(100% + 6px);right:12px;min-width:210px;background:var(--navy-800);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.45);padding:6px;z-index:60;}
+.user-menu-name{font-size:14px;font-weight:700;color:var(--white);padding:8px 10px 0;}
+.user-menu-role{font-size:12px;color:var(--text-muted);padding:2px 10px 8px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.user-menu-btn{display:block;width:100%;text-align:left;font-family:inherit;font-size:14px;font-weight:600;color:var(--danger);background:transparent;border:none;border-radius:8px;padding:10px;cursor:pointer;}
+.user-menu-btn:active{background:var(--navy-900);}
 .topbar-action{margin-left:auto;}
 
 /* MAIN SCROLL AREA */
@@ -570,7 +577,12 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <button onclick="refreshCurrentPage()" title="Refresh" style="width:34px;height:34px;border-radius:8px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0" id="refreshBtn">
         <svg id="refreshIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
-      <div class="topbar-user" id="topbarUser"></div>
+      <button type="button" class="topbar-user" id="topbarUser" onclick="toggleUserMenu(event)" aria-haspopup="true" aria-expanded="false"></button>
+      <div class="user-menu" id="userMenu" style="display:none">
+        <div class="user-menu-name" id="userMenuName"></div>
+        <div class="user-menu-role" id="userMenuRole"></div>
+        <button type="button" class="user-menu-btn" onclick="closeUserMenu();logout()">Log out</button>
+      </div>
     </div>
     <div class="main-scroll">
       <div class="main" id="mainContent"></div>
@@ -967,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='187';
-const BUILD_DATE='27 Oct 2026 16:30';
+const BUILD_VERSION='188';
+const BUILD_DATE='27 Oct 2026 16:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1151,6 +1163,8 @@ function launchApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').classList.add('visible');
   document.getElementById('topbarUser').textContent=currentUser.name.split(' ')[0];
+  document.getElementById('userMenuName').textContent=currentUser.name;
+  document.getElementById('userMenuRole').textContent=(currentUser.role==='owner'?'Owner':'Employee')+' · '+(currentUser.view_mode==='round_only'?'Round view only':'Full access');
   buildNav();
   loadConfig();
   const deepLinkConvId=consumeDeepLinkConvId();
@@ -1195,7 +1209,21 @@ navigator.serviceWorker&&navigator.serviceWorker.addEventListener&&navigator.ser
   }
 });
 
+function toggleUserMenu(e){
+  if(e)e.stopPropagation();
+  const m=document.getElementById('userMenu');if(!m)return;
+  const open=m.style.display==='none';
+  m.style.display=open?'block':'none';
+  document.getElementById('topbarUser').setAttribute('aria-expanded',open?'true':'false');
+}
+function closeUserMenu(){
+  const m=document.getElementById('userMenu');if(m)m.style.display='none';
+  const b=document.getElementById('topbarUser');if(b)b.setAttribute('aria-expanded','false');
+}
+document.addEventListener('click',e=>{const m=document.getElementById('userMenu');if(m&&m.style.display!=='none'&&!m.contains(e.target))closeUserMenu();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeUserMenu();});
 function logout(){
+  closeUserMenu();
   const _t=crToken();
   if(_t){sb('rpc/logout_session',{method:'POST',body:JSON.stringify({p_token:_t})}).catch(()=>{});}
   localStorage.removeItem('cr_session');localStorage.removeItem('cr_user');
