@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='179';
-const BUILD_DATE='27 Oct 2026 09:20';
+const BUILD_VERSION='180';
+const BUILD_DATE='27 Oct 2026 09:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
@@ -4160,7 +4160,9 @@ async function renderJobs(){
     return true;
   });
   const totalValue=filtered.reduce((s,j)=>s+parseFloat(j.price||0),0);
-  const needsAttention=filtered.filter(j=>!j.assigned_to||j.status==='pending_assignment').length;
+  const jobNeedsAttn=j=>!j.assigned_to||j.status==='pending_assignment'||(j.next_due&&String(j.next_due).split('T')[0]<todayStr());
+  const attnJobs=filtered.filter(jobNeedsAttn),restJobs=filtered.filter(j=>!jobNeedsAttn(j));
+  const needsAttention=attnJobs.length;
   el.innerHTML=`
     <div class="sq-top"><span class="sq-pill"><b>${filtered.length}</b><span>job${filtered.length!==1?'s':''}</span><i class="sq-vr"></i><b>£${totalValue.toFixed(2)}</b><span>per round</span></span>${needsAttention?`<span class="sq-pill" style="border-color:var(--danger);color:#ff9aa8"><b style="color:#ff9aa8">${needsAttention}</b><span>need attention</span></span>`:''}</div>
     <div class="sq-search">${ic('search')}<input placeholder="Search by customer…" value="${esc(jobsSearch)}" oninput="jobsSearch=this.value;renderJobs()"></div>
@@ -4168,7 +4170,7 @@ async function renderJobs(){
       ${wcUsers.map(u=>`<button class="sq-fchip${jobsAssignees.has(u.id)?' on':''}" onclick="toggleJobsAssignee('${u.id}')">${esc(u.name.split(' ')[0])}</button>`).join('')}
       <button class="sq-fchip${jobsAssignees.has('unassigned')?' on':''}" onclick="toggleJobsAssignee('unassigned')">Unassigned</button>
     </div>
-    ${filtered.length===0?sqEmpty('No jobs found'):`<div class="sq-list">${filtered.map(j=>jobsOverviewCard(j)).join('')}</div>`}`;
+    ${filtered.length===0?sqEmpty('No jobs found'):`${attnJobs.length?`<div class="sq-sec"><span>Needs attention<span class="n">${attnJobs.length}</span></span></div><div class="sq-list">${attnJobs.map(j=>jobsOverviewCard(j)).join('')}</div>`:''}${restJobs.length?`${attnJobs.length?`<div class="sq-sec"><span>Everything else<span class="n">${restJobs.length}</span></span></div>`:''}<div class="sq-list">${restJobs.map(j=>jobsOverviewCard(j)).join('')}</div>`:''}`}`;
 }
 
 function toggleJobsAssignee(key){
