@@ -967,8 +967,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='186';
-const BUILD_DATE='27 Oct 2026 16:05';
+const BUILD_VERSION='187';
+const BUILD_DATE='27 Oct 2026 16:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -991,7 +991,7 @@ function isDateTooSoon(dateStr){if(!dateStr)return false;return dateStr<minLeadD
 function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return localDateStr(d);}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
 function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
-function custPill(c){if(!c||!c.id)return`<div class="job-card-name-sub">${esc((c&&c.name)||'Unknown')}</div>`;return`<span class="cust-pill" title="Open customer" onclick="event.stopPropagation();showCustomer('${c.id}')">${esc(c.name||'Unknown')} <span style="opacity:.7">›</span></span>`;}
+function custPill(c){if(!c||!c.id)return`<div class="job-card-name-sub">${esc((c&&c.name)||'Unknown')}</div>`;if(hidePrices())return`<span class="cust-pill" style="pointer-events:none">${esc(c.name||'Unknown')}</span>`;return`<span class="cust-pill" title="Open customer" onclick="event.stopPropagation();showCustomer('${c.id}')">${esc(c.name||'Unknown')} <span style="opacity:.7">›</span></span>`;}
 function cashBadge(c){return c&&c.cash_payer?'<span class="cash-badge" title="Pays by cash">£ CASH</span>':'';}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function badgeClass(s){return s==='done'?'badge-done':s==='skipped'?'badge-skipped':s==='cant-access'?'badge-cant':s==='pending_assignment'?'badge-pending':'badge-scheduled';}
@@ -1251,6 +1251,8 @@ const ROUND_ONLY_PAGES=[
 ];
 
 function getPages(){return currentUser?.view_mode==='round_only'?ROUND_ONLY_PAGES:FULL_PAGES;}
+// Round-only (employee) logins never see prices, totals or balances, and can't open the customer page or edit-job form.
+function hidePrices(){return currentUser?.view_mode==='round_only';}
 
 let collapsedNavSections=new Set(JSON.parse(localStorage.getItem('collapsedNavSections')||'[]'));
 function toggleNavSection(name){
@@ -2319,11 +2321,11 @@ async function renderRound(){
       ${wcUsers.map(u=>`<button class="assignee-pill${roundAssignees.has(u.id)?' selected':''}" onclick="toggleRoundAssignee('${u.id}')">${esc(u.name)}</button>`).join('')}
       <button class="assignee-pill${roundAssignees.has('unassigned')?' selected':''}" onclick="toggleRoundAssignee('unassigned')">Unassigned</button>
     </div>`:''}
-    <div class="round-summary">
+    <div class="round-summary"${hidePrices()?' style="grid-template-columns:repeat(3,1fr)"':''}>
       <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
-      <div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>
+      ${hidePrices()?'':`<div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>`}
     </div>
     ${filtered.length
       ? jobsHtml
@@ -2491,21 +2493,21 @@ function jobCard(j,num){
   const balanceNum=parseFloat(c.balance||0);
   const noteText=[c.notes,j.notes].filter(Boolean).join(' · ');
   const banners=[];
-  if(balanceNum>0)banners.push(`<span class="sq-flag owe">⚠ Owes £${balanceNum.toFixed(2)}</span>`);
+  if(balanceNum>0)banners.push(`<span class="sq-flag owe">${hidePrices()?'⚠ Payment owing':'⚠ Owes £'+balanceNum.toFixed(2)}</span>`);
   if(noteText)banners.push(`<span class="sq-flag note">📝 ${esc(noteText)}</span>`);
   const chg=jobChangeBlock(j.id);
   return`<div class="job-card-wrap${chg?' has-change':''}">
     ${chg}
     <div class="sq-job ${stateClass}" id="jc-${j.id}">
       ${banners.join('')}
-      <div class="sq-row" style="--accent:${accent}" onclick="openEditJob('${j.id}','${c.id}')">
+      <div class="sq-row" style="--accent:${accent}"${isAdmin?` onclick="openEditJob('${j.id}','${c.id}')"`:''}>
         ${sqAv(null,avBg,avInner)}
         <div class="sq-body">
           <div class="sq-name">${addrLink(c.address,c.postcode,'')}</div>
           <div class="sq-sub">${custPill(c)}</div>
           <div class="sq-chips">${j.service_type?sqChip(sqShortSvc(j.service_type),'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqLabel(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${c.stripe_customer_id?sqChip('S','#635bff'):''}${flags.join('')}</div>
         </div>
-        <div class="sq-right">${sqMoney(j.price)}${isDone?sqBadge('Done','accepted')+((j.legacy_billed||roundPaid.has(j.id))?sqBadge('Paid','paid'):''):isSkip?sqBadge('Skipped','warn'):isCant?sqBadge("Can't access",'due'):''}</div>
+        <div class="sq-right">${hidePrices()?'':sqMoney(j.price)}${isDone?sqBadge('Done','accepted')+((j.legacy_billed||roundPaid.has(j.id))?sqBadge('Paid','paid'):''):isSkip?sqBadge('Skipped','warn'):isCant?sqBadge("Can't access",'due'):''}</div>
       </div>
       ${actions}
     </div>
@@ -2540,7 +2542,7 @@ async function renderRoundWeek(el){
       <div class="date-display" style="font-size:13px">${fmtShort(weekStart)} – ${fmtShort(weekEnd)}</div>
       <button class="date-nav-btn" onclick="roundDate='${nextWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this week</span><i class="sq-vr"></i><b style="color:var(--done)">£${weekDone.toFixed(0)}</b><span>done</span><i class="sq-vr"></i><b>£${weekTotal.toFixed(0)}</b><span>total</span></span></div>
+    <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this week</span>${hidePrices()?'':`<i class="sq-vr"></i><b style="color:var(--done)">£${weekDone.toFixed(0)}</b><span>done</span><i class="sq-vr"></i><b>£${weekTotal.toFixed(0)}</b><span>total</span>`}</span></div>
     <div class="sq-list">${days.map((date,i)=>{
         const dayJobs=jobs.filter(j=>j.next_due===date);
         const dayDone=dayJobs.filter(j=>j.status==='done').length;
@@ -2550,7 +2552,7 @@ async function renderRoundWeek(el){
         return`<div class="sq-block"><div class="sq-row" style="--accent:${isToday?'var(--gold)':isPast&&dayJobs.length&&dayDone<dayJobs.length?'var(--warn)':'transparent'}" onclick="roundDate='${date}';roundView='day';renderRound()">
           <div style="width:42px;text-align:center;flex-shrink:0"><div class="sq-lbl" style="${isToday?'color:var(--gold)':''}">${DAYS[i]}</div><div style="font-size:22px;font-weight:600;color:${isToday?'var(--gold)':'var(--white)'}">${new Date(date+'T12:00:00').getDate()}</div></div>
           <div class="sq-body">${dayJobs.length===0?`<div class="sq-sub" style="margin-top:10px">No jobs</div>`:`<div class="sq-name">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div><div class="sq-chips">${rounds.map(sqRoundChip).join('')}</div>`}</div>
-          <div class="sq-right">${dayJobs.length?`${sqMoney(dayTotal)}<span class="sq-lbl">${dayDone}/${dayJobs.length} done</span>`:''}</div>
+          <div class="sq-right">${dayJobs.length?`${hidePrices()?'':sqMoney(dayTotal)}<span class="sq-lbl">${dayDone}/${dayJobs.length} done</span>`:''}</div>
         </div></div>`;
       }).join('')}</div>`;
 }
@@ -2601,7 +2603,7 @@ async function renderRoundMonth(el){
       <div class="date-display">${monthName}</div>
       <button class="date-nav-btn" onclick="roundDate='${nextMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this month</span><i class="sq-vr"></i><b>£${monthTotal.toFixed(0)}</b></span></div>
+    <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this month</span>${hidePrices()?'':`<i class="sq-vr"></i><b>£${monthTotal.toFixed(0)}</b>`}</span></div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
       ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${x}</div>`).join('')}
     </div>
@@ -2784,6 +2786,7 @@ function customerCards(list){
 function filterCustomers(q){custQuery=q;drawCustomers();}
 
 async function showCustomer(id,tab){
+  if(hidePrices())return;
   if(tab)custTab=tab;else if(!document.getElementById('custHeroId')||document.getElementById('custHeroId').dataset.id!==id)custTab='customer';
   const el=document.getElementById('mainContent');
   if(!document.getElementById('custHeroId')||document.getElementById('custHeroId').dataset.id!==id)el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
@@ -3355,6 +3358,7 @@ function toggleWindowAttrFields(){
 let editingJobOriginalFreq='';
 const FREQ_DAYS={'weekly':7,'fortnightly':14,'3-weekly':21,'4-weekly':28,'6-weekly':42,'8-weekly':56,'12-weekly':84,'26-weekly':182};
 async function openEditJob(jobId,customerId){
+  if(hidePrices())return;
   let j;
   try{[j]=await sb(`wc_jobs?id=eq.${jobId}`);}catch(e){showToast('Could not load job','error');return;}
   if(!j){showToast('Job not found','error');return;}
