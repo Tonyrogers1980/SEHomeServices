@@ -523,16 +523,8 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 
   <div style="width:100%;max-width:300px;margin-bottom:6px">
     <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;text-align:center">Who are you?</div>
-    <div class="user-pick" id="userPick" style="display:flex;gap:10px;width:100%;max-width:300px;margin-bottom:20px">
-      <!-- Hardcoded immediately — JS updates once Supabase responds -->
-      <button class="user-btn" id="ubtn-efaaa644-c709-44da-bc47-63977fe4f64f" onclick="selectUser('efaaa644-c709-44da-bc47-63977fe4f64f')">
-        <div style="font-size:22px;margin-bottom:4px">T</div>
-        <div>Tony</div>
-      </button>
-      <button class="user-btn" id="ubtn-82d5dce0-5c85-499d-b72e-4cd816e2619f" onclick="selectUser('82d5dce0-5c85-499d-b72e-4cd816e2619f')">
-        <div style="font-size:22px;margin-bottom:4px">D</div>
-        <div>Danny</div>
-      </button>
+    <div class="user-pick" id="userPick" style="display:flex;flex-wrap:wrap;gap:10px;width:100%;max-width:300px;margin-bottom:20px">
+      <div id="userPickMsg" style="width:100%;text-align:center;font-size:13px;color:var(--text-muted);padding:18px 0">Loading…</div>
     </div>
   </div>
 
@@ -543,6 +535,8 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <div class="pin-dot" id="d1"></div>
       <div class="pin-dot" id="d2"></div>
       <div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="d4"></div>
+      <div class="pin-dot" id="d5"></div>
     </div>
   </div>
 
@@ -872,7 +866,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
         <div class="field"><label>Role</label><select id="t-role"><option value="owner">Owner</option><option value="employee">Employee</option></select></div>
         <div class="field"><label>App access</label><select id="t-view-mode"><option value="full">Full access</option><option value="round_only">Round view only</option></select></div>
       </div>
-      <div class="field"><label>PIN * (4 digits, used to log in)</label><input id="t-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1234"></div>
+      <div class="field"><label>PIN (6 digits, used to log in)</label><input id="t-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6 digits" autocomplete="off"></div>
       <div class="field">
         <label>Skills (window cleaning)</label>
         <div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
@@ -954,11 +948,11 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='183';
-const BUILD_DATE='27 Oct 2026 10:00';
+const BUILD_VERSION='184';
+const BUILD_DATE='27 Oct 2026 15:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
-let currentUser=null; // {id, name, role, pin, view_mode}
+let currentUser=null; // {id, name, role, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundAssignees=null;
 let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null,editingJobOriginalDate=null,editingJobSeriesId=null;
@@ -1021,106 +1015,113 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 // ── LOGIN ──────────────────────────────────────────────────────────────────────
 let allUsers=[],selectedUserId=null,pinEntry='';
 
-// Hardcoded fallback so login screen works even before Supabase responds
-const FALLBACK_USERS = [
-  {id:'efaaa644-c709-44da-bc47-63977fe4f64f', name:'Tony Rogers', role:'owner', pin:'1980', view_mode:'full'},
-  {id:'82d5dce0-5c85-499d-b72e-4cd816e2619f', name:'Danny Lovegrove', role:'employee', pin:'1234', view_mode:'round_only'}
-];
+const PIN_LEN=6;
+let pinBusy=false;
+function crSession(){try{return JSON.parse(localStorage.getItem('cr_session')||'null');}catch(e){return null;}}
+function crToken(){const x=crSession();return (x&&x.token)||'';}
 
 async function initLogin(){
   // Always show login screen first — never assume session is valid
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').classList.remove('visible');
+  localStorage.removeItem('cr_user'); // legacy session format (kept the PIN in plain text)
 
-  // Check localStorage for saved session
-  const saved=localStorage.getItem('cr_user');
-  if(saved){
+  const saved=crSession();
+  if(saved&&saved.token&&saved.user&&saved.user.id){
     try{
-      const user=JSON.parse(saved);
-      // Validate the user object has required fields
-      if(user&&user.id&&user.name&&user.pin&&user.view_mode){
-        currentUser=user;
-        launchApp();
-        return;
-      }else{
-        localStorage.removeItem('cr_user');
+      const u=await sb('rpc/validate_session',{method:'POST',body:JSON.stringify({p_token:saved.token})});
+      if(u&&u.id){
+        currentUser=u;
+        localStorage.setItem('cr_session',JSON.stringify({token:saved.token,user:u}));
+        launchApp();return;
       }
+      localStorage.removeItem('cr_session'); // server says invalid/expired
     }catch(e){
-      localStorage.removeItem('cr_user');
+      // Could not reach server (e.g. no signal on a round) — keep working with the cached user
+      currentUser=saved.user;launchApp();return;
     }
   }
+  loadLoginUsers();
+}
 
-  // Try to load fresh users from Supabase (updates fallback if successful)
+async function loadLoginUsers(){
+  const msg=document.getElementById('userPickMsg');
+  if(msg)msg.textContent='Loading…';
   try{
-    const fresh=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`);
-    if(fresh&&fresh.length){
-      allUsers=fresh;
-      // Update button labels if names differ from fallback
-      allUsers.forEach(u=>{
-        const btn=document.getElementById('ubtn-'+u.id);
-        if(btn){
-          btn.querySelector('div:last-child').textContent=u.name.split(' ')[0];
-        }
-      });
-    }
-  }catch(e){} // fallback buttons already visible in HTML
+    const fresh=await sb(`wc_users?business_id=eq.${BUSINESS_ID}&active=eq.true&select=id,name,role,view_mode&order=name.asc`);
+    allUsers=fresh||[];
+    renderUserPick();
+  }catch(e){
+    if(msg)msg.innerHTML='Could not load — <a href="#" style="color:var(--gold)" onclick="loadLoginUsers();return false">tap to retry</a>';
+  }
 }
 
 function renderUserPick(){
-  // Update button selected state
-  allUsers.forEach(u=>{
-    const btn=document.getElementById('ubtn-'+u.id);
-    if(btn){
-      btn.classList.toggle('selected', u.id===selectedUserId);
-    }
-  });
-  // If Supabase returned different users than fallback, rebuild
   const pick=document.getElementById('userPick');
-  if(!pick)return;
-  if(allUsers.length!==pick.querySelectorAll('.user-btn').length){
-    pick.innerHTML=allUsers.map(u=>`
+  if(!pick||!allUsers.length)return;
+  pick.innerHTML=allUsers.map(u=>`
       <button class="user-btn${selectedUserId===u.id?' selected':''}" id="ubtn-${u.id}" onclick="selectUser('${u.id}')">
-        <div style="font-size:22px;margin-bottom:4px">${u.name.charAt(0)}</div>
+        <div style="font-size:22px;margin-bottom:4px">${esc(u.name.charAt(0))}</div>
         <div>${esc(u.name.split(' ')[0])}</div>
       </button>`).join('');
-  }
 }
 
 function selectUser(id){
   selectedUserId=id;pinEntry='';updatePinDisplay();
   document.getElementById('loginError').textContent='';
-  // Update button styles immediately
   document.querySelectorAll('.user-btn').forEach(btn=>{
     btn.classList.toggle('selected', btn.id==='ubtn-'+id);
   });
 }
 
 function pinTap(digit){
+  if(pinBusy)return;
   if(!selectedUserId){document.getElementById('loginError').textContent='Select your name first';return;}
-  if(digit===''||pinEntry.length>=4)return;
+  if(digit===''||pinEntry.length>=PIN_LEN)return;
   pinEntry+=digit;
   updatePinDisplay();
-  if(pinEntry.length===4)setTimeout(checkPin,120);
+  if(pinEntry.length===PIN_LEN)setTimeout(checkPin,120);
 }
 
-function pinDel(){pinEntry=pinEntry.slice(0,-1);updatePinDisplay();}
+function pinDel(){if(pinBusy)return;pinEntry=pinEntry.slice(0,-1);updatePinDisplay();}
 
 function updatePinDisplay(){
-  for(let i=0;i<4;i++){
-    document.getElementById('d'+i).classList.toggle('filled',i<pinEntry.length);
+  for(let i=0;i<PIN_LEN;i++){
+    const d=document.getElementById('d'+i);
+    if(d)d.classList.toggle('filled',i<pinEntry.length);
   }
 }
 
-function checkPin(){
+async function checkPin(){
+  if(pinBusy)return;
   const user=allUsers.find(u=>u.id===selectedUserId);
   if(!user){pinEntry='';updatePinDisplay();return;}
-  if(user.pin===pinEntry){
-    currentUser=user;
-    localStorage.setItem('cr_user',JSON.stringify(user));
+  pinBusy=true;
+  const errEl=document.getElementById('loginError');
+  errEl.textContent='';
+  let r=null;
+  try{
+    r=await sb('rpc/verify_pin',{method:'POST',body:JSON.stringify({p_user_id:user.id,p_pin:pinEntry})});
+  }catch(e){
+    errEl.textContent='Could not reach the server — check your connection';
+  }
+  pinBusy=false;
+  pinEntry='';updatePinDisplay();
+  if(r&&r.ok){
+    currentUser=r.user;
+    localStorage.setItem('cr_session',JSON.stringify({token:r.token,user:r.user}));
     launchApp();
-  }else{
-    document.getElementById('loginError').textContent='Incorrect PIN — try again';
-    pinEntry='';updatePinDisplay();
+    return;
+  }
+  if(r){
+    if(r.error==='locked'){
+      const mins=Math.max(1,Math.ceil((new Date(r.locked_until)-Date.now())/60000));
+      errEl.textContent=`Too many wrong attempts — try again in ${mins} min`;
+    }else if(r.error==='wrong'){
+      errEl.textContent=`Incorrect PIN — ${r.remaining} ${r.remaining===1?'try':'tries'} left`;
+    }else{
+      errEl.textContent='Incorrect PIN';
+    }
     // Shake effect
     document.getElementById('pinDisplay').style.animation='none';
     setTimeout(()=>{document.getElementById('pinDisplay').style.animation='';},10);
@@ -1176,13 +1177,15 @@ navigator.serviceWorker&&navigator.serviceWorker.addEventListener&&navigator.ser
 });
 
 function logout(){
-  localStorage.removeItem('cr_user');
+  const _t=crToken();
+  if(_t){sb('rpc/logout_session',{method:'POST',body:JSON.stringify({p_token:_t})}).catch(()=>{});}
+  localStorage.removeItem('cr_session');localStorage.removeItem('cr_user');
   currentUser=null;selectedUserId=null;pinEntry='';
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').classList.remove('visible');
   document.getElementById('loginError').textContent='';
   updatePinDisplay();
-  renderUserPick();
+  if(allUsers.length)renderUserPick();else loadLoginUsers();
 }
 
 // ── NAV ────────────────────────────────────────────────────────────────────────
@@ -1372,8 +1375,6 @@ async function loadConfig(){
 }
 async function loadUsers(){
   if(wcUsers.length)return;
-  // Seed from fallback immediately so UI never blocks
-  if(!wcUsers.length) wcUsers=FALLBACK_USERS;
   // Refresh from Supabase in background
   try{
     const fresh=await Promise.race([
@@ -4998,7 +4999,7 @@ async function renderTeamConfig(){
         const skills=[u.skill_traditional?'Traditional':null,u.skill_wfp?'WFP':null,u.roof_access_capable?'Roof access':null].filter(Boolean);
         return`<div class="detail-row">
         <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
-          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••</div>
+          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••••</div>
           <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap">
             ${skills.length?skills.map(s=>`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(0,224,207,.14);color:var(--teal)">${s}</span>`).join(''):'<span style="font-size:10px;color:var(--text-muted);font-style:italic">No skills set</span>'}
           </div>
@@ -5040,7 +5041,7 @@ function openTeamModal(id){
   document.getElementById('t-name').value=u?u.name:'';
   document.getElementById('t-role').value=u?u.role:'employee';
   document.getElementById('t-view-mode').value=u?u.view_mode:'round_only';
-  document.getElementById('t-pin').value=u?(u.pin||''):'';
+  document.getElementById('t-pin').value='';document.getElementById('t-pin').placeholder=u?'Leave blank to keep current PIN':'6 digits';
   setSkillBox('t-skill-traditional',u?!!u.skill_traditional:false);
   setSkillBox('t-skill-wfp',u?!!u.skill_wfp:false);
   setSkillBox('t-skill-roof',u?!!u.roof_access_capable:false);
@@ -5054,16 +5055,13 @@ async function saveTeamMember(){
   const pin=document.getElementById('t-pin').value.trim();
   const active=document.getElementById('t-active').checked;
   if(!name){showToast('Enter a name','error');return;}
-  if(!/^\d{4}$/.test(pin)){showToast('PIN must be exactly 4 digits','error');return;}
-  const clash=wcUsers.find(u=>u.pin===pin&&u.id!==editingTeamMemberId);
-  if(clash){showToast(`That PIN is already used by ${clash.name}`,'error');return;}
-  const skill_traditional=getSkillBox('t-skill-traditional');
-  const skill_wfp=getSkillBox('t-skill-wfp');
-  const roof_access_capable=getSkillBox('t-skill-roof');
-  const payload={name,role,view_mode,pin,active,skill_traditional,skill_wfp,roof_access_capable,business_id:BUSINESS_ID};
+  if(pin&&!/^\d{6}$/.test(pin)){showToast('PIN must be exactly 6 digits','error');return;}
+  if(!editingTeamMemberId&&!pin){showToast('Set a 6-digit PIN','error');return;}
+  const body={p_token:crToken(),p_id:editingTeamMemberId||null,p_name:name,p_role:role,p_view_mode:view_mode,p_active:active,
+    p_skill_traditional:getSkillBox('t-skill-traditional'),p_skill_wfp:getSkillBox('t-skill-wfp'),p_roof:getSkillBox('t-skill-roof'),p_pin:pin||null};
   try{
-    if(editingTeamMemberId)await sb(`wc_users?id=eq.${editingTeamMemberId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
-    else await sb('wc_users',{method:'POST',body:JSON.stringify(payload),prefer:'return=minimal'});
+    const r=await sb('rpc/save_team_member',{method:'POST',body:JSON.stringify(body)});
+    if(!r||!r.ok){showToast((r&&r.error)||'Could not save','error');return;}
     closeModal('teamModal');
     showToast('Team member saved','success');
     wcUsers=[];
@@ -5073,7 +5071,8 @@ async function saveTeamMember(){
 async function deleteTeamMember(id,name){
   if(!confirm(`Remove "${name}"? This also deletes their saved availability hours.`))return;
   try{
-    await sb(`wc_users?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});
+    const r=await sb('rpc/delete_team_member',{method:'POST',body:JSON.stringify({p_token:crToken(),p_id:id})});
+    if(!r||!r.ok){showToast((r&&r.error)||'Could not remove','error');return;}
     showToast('Team member removed','success');
     wcUsers=[];
     renderTeamConfig();
