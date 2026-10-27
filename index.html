@@ -823,7 +823,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <button class="modal-close" onclick="closeModal('rescheduleModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
-      <div class="field"><label>New date *</label><input id="reschedule-date" type="date"></div>
+      <div class="field"><label>New date *</label><input id="reschedule-date" type="date" onclick="try{this.showPicker()}catch(e){}"></div>
       <div style="background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
           <input type="radio" name="reschedule-scope" value="single" checked id="rs-single" style="accent-color:var(--gold)">
@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='178';
-const BUILD_DATE='27 Oct 2026 09:00';
+const BUILD_VERSION='179';
+const BUILD_DATE='27 Oct 2026 09:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
