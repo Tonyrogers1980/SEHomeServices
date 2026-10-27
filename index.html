@@ -658,7 +658,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
         </div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Next due *</label><input id="j-date" type="date"></div>
+        <div class="field"><label>Next due *</label><input id="j-date" type="date" onclick="try{this.showPicker()}catch(e){}"></div>
         <div class="field"><label>Day of week</label>
           <select id="j-day"><option value="">Any day</option>
             <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
@@ -953,8 +953,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='180';
-const BUILD_DATE='27 Oct 2026 09:40';
+const BUILD_VERSION='181';
+const BUILD_DATE='27 Oct 2026 10:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, pin, view_mode}
