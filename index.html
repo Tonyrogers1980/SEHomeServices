@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='189';
-const BUILD_DATE='27 Oct 2026 17:05';
+const BUILD_VERSION='190';
+const BUILD_DATE='27 Oct 2026 17:25';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -5191,7 +5191,19 @@ async function deleteTeamMember(id,name){
   }catch(e){showToast(e.message,'error');}
 }
 
+async function runSecurityCheck(){
+  let el=null;
+  for(let i=0;i<40&&!(el=document.getElementById('secCheck'));i++)await new Promise(r=>setTimeout(r,100));
+  if(!el)return;
+  try{
+    const r=await sb('rpc/cr_whoami',{method:'POST',body:'{}'});
+    if(!crSendToken){el.textContent='✗ Browser blocked the security header';el.style.color='var(--danger)';}
+    else if(r&&r.access&&r.access!=='none'){el.textContent='✓ Verified ('+(r.access==='full'?'full access':'round only')+')';el.style.color='var(--done)';}
+    else{el.textContent='✗ Not identified — log out and back in';el.style.color='var(--danger)';}
+  }catch(e){el.textContent='✗ Check failed';el.style.color='var(--danger)';}
+}
 async function renderSettings(){
+  runSecurityCheck();
   document.getElementById('topbarPage').textContent='Settings';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
@@ -5213,6 +5225,7 @@ async function renderSettings(){
       <div class="detail-row"><span class="detail-label">Logged in as</span><span class="detail-value">${esc(currentUser.name)}</span></div>
       <div class="detail-row"><span class="detail-label">Version</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gold)">v1.0.${BUILD_VERSION}</span></div>
       <div class="detail-row"><span class="detail-label">Deployed</span><span class="detail-value" style="font-size:12px;color:var(--text-muted)">${BUILD_DATE}</span></div>
+      <div class="detail-row"><span class="detail-label">Security check</span><span class="detail-value" id="secCheck" style="font-size:12px;color:var(--text-muted)">Checking…</span></div>
       <div class="detail-row" style="padding:12px 16px"><button class="btn btn-ghost btn-full" onclick="logout()">Log out</button></div>
     </div>`;
   loadDataAudit();
