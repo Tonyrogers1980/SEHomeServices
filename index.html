@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='192';
-const BUILD_DATE='27 Oct 2026 18:40';
+const BUILD_VERSION='193';
+const BUILD_DATE='27 Oct 2026 19:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1023,6 +1023,19 @@ function addrLink(address,postcode,cls=''){
 }
 function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
+// Every call to an n8n webhook carries the logged-in user's token so the workflow can verify who is asking.
+(function(){
+  const _fetch=window.fetch.bind(window);
+  window.fetch=function(url,opts){
+    try{
+      if(typeof url==='string'&&url.indexOf('.n8n.cloud/webhook/')>-1&&opts&&typeof opts.body==='string'&&opts.body.charAt(0)==='{'){
+        const b=JSON.parse(opts.body);
+        if(!b.token){const t=crToken();if(t){b.token=t;opts=Object.assign({},opts,{body:JSON.stringify(b)});}}
+      }
+    }catch(e){}
+    return _fetch(url,opts);
+  };
+})();
 let crSendToken=true;
 function crIsEmployee(){return !!(currentUser&&currentUser.view_mode==='round_only');}
 async function empRpc(fn,args){return sb('rpc/'+fn,{method:'POST',body:JSON.stringify(args||{})});}
