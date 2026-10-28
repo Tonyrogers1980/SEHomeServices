@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='190';
-const BUILD_DATE='27 Oct 2026 17:25';
+const BUILD_VERSION='191';
+const BUILD_DATE='27 Oct 2026 18:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1024,7 +1024,51 @@ function addrLink(address,postcode,cls=''){
 function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
 let crSendToken=true;
+function crIsEmployee(){return !!(currentUser&&currentUser.view_mode==='round_only');}
+async function empRpc(fn,args){return sb('rpc/'+fn,{method:'POST',body:JSON.stringify(args||{})});}
+// Employee (round-only) logins never read or write tables directly: every request is mapped onto a
+// restricted database function that only returns that person's own jobs (no prices, no contact details).
+async function empSb(path,opts={}){
+  const method=String(opts.method||'GET').toUpperCase();
+  const [table,qs='']=String(path).split('?');
+  const P=new URLSearchParams(qs);
+  const body=opts.body?JSON.parse(opts.body):{};
+  const val=(k,pre)=>{const v=P.getAll(k).find(x=>x.startsWith(pre));return v?v.slice(pre.length):null;};
+  const idList=v=>v?v.replace(/^\(/,'').replace(/\)$/,'').split(',').filter(Boolean):[];
+  if(method==='GET'){
+    if(table==='wc_jobs'){
+      const eqDue=val('next_due','eq.'),gte=val('next_due','gte.'),lte=val('next_due','lte.'),eqSched=val('scheduled_date','eq.');
+      if(eqDue)return empRpc('emp_jobs',{p_from:eqDue,p_to:eqDue,p_mode:'due'});
+      if(P.get('series_id')&&gte)return empRpc('emp_series_future',{p_series:val('series_id','eq.'),p_from:gte});
+      if(gte&&lte)return empRpc('emp_jobs',{p_from:gte,p_to:lte,p_mode:'due'});
+      if(eqSched&&P.getAll('next_due').includes('is.null'))return empRpc('emp_jobs',{p_from:eqSched,p_to:eqSched,p_mode:'sched'});
+      const inIds=val('id','in.');if(inIds)return empRpc('emp_jobs_by_ids',{p_ids:idList(inIds)});
+      const eqId=val('id','eq.');if(eqId)return empRpc('emp_jobs_by_ids',{p_ids:[eqId]});
+      return [];
+    }
+    if(table==='wc_customers'){const ids=val('id','in.');return ids?empRpc('emp_customers',{p_ids:idList(ids)}):[];}
+    if(table==='wc_invoices'){const ids=val('job_id','in.');return ids?empRpc('emp_paid_jobs',{p_ids:idList(ids)}):[];}
+    if(table==='wc_users')return empRpc('emp_users',{});
+    if(table==='conversation_actions')return empRpc('emp_crew_actions',{});
+    return [];
+  }
+  if(method==='PATCH'){
+    if(table==='wc_jobs'){
+      const id=val('id','eq.');
+      if(id&&body.status!==undefined){await empRpc('emp_set_job_status',{p_job:id,p_status:body.status,p_last_done:body.last_done||null,p_notes:body.notes===undefined?null:body.notes});return null;}
+      if(id&&body.next_due){await empRpc('emp_set_job_date',{p_job:id,p_date:body.next_due});return null;}
+    }
+    if(table==='conversation_actions'){
+      const id=val('id','eq.');
+      if(id&&body.crew_ack_at){await empRpc('emp_ack_action',{p_id:id});return null;}
+      const jid=val('job_id','eq.');
+      if(jid&&body.status==='done'){await empRpc('emp_close_job_actions',{p_job:jid});return null;}
+    }
+  }
+  throw new Error('Not available on your login');
+}
 async function sb(path,opts={}){
+  if(crIsEmployee()&&!String(path).startsWith('rpc/'))return empSb(path,opts);
   const url=`${SUPABASE_URL}/rest/v1/${path}`;
   const headers={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'};
   if(opts.prefer)headers['Prefer']=opts.prefer;
@@ -1179,6 +1223,7 @@ function launchApp(){
   document.getElementById('userMenuRole').textContent=(currentUser.role==='owner'?'Owner':'Employee')+' · '+(currentUser.view_mode==='round_only'?'Round view only':'Full access');
   buildNav();
   loadConfig();
+  setTimeout(sweepUnbilledJobs,4000);
   const deepLinkConvId=consumeDeepLinkConvId();
   if(deepLinkConvId){
     convTab='allActive';
@@ -2655,12 +2700,28 @@ async function markDone(id){
     await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',last_done:currentPageId==='overdue'?todayStr():roundDate}),prefer:'return=minimal'});
     closeJobActions(id);
     showToast('✓ Done','success');
-    // Auto-invoice if customer has it enabled
-    autoInvoiceJob(id);
+    // Auto-invoice if customer has it enabled (employees' completions are billed by the owner app's sweep)
+    if(!crIsEmployee())autoInvoiceJob(id);
     refreshRoundish();
   }catch(e){showToast(e.message,'error');}
 }
 
+let sweepBusy=false,sweepLast=0;
+async function sweepUnbilledJobs(){
+  if(!currentUser||crIsEmployee()||sweepBusy)return;
+  if(Date.now()-sweepLast<10*60*1000)return;
+  sweepBusy=true;sweepLast=Date.now();
+  try{
+    const since=shiftDay(todayStr(),-7);
+    const rows=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${since}&legacy_billed=not.is.true&assigned_to=neq.${currentUser.id}&select=id`)||[];
+    let swept=[];try{swept=JSON.parse(localStorage.getItem('cr_swept')||'[]');}catch(e){}
+    const todo=rows.map(r=>r.id).filter(id=>!swept.includes(id));
+    for(const id of todo){await autoInvoiceJob(id);swept.push(id);}
+    if(todo.length)localStorage.setItem('cr_swept',JSON.stringify(swept.slice(-500)));
+  }catch(e){console.warn('sweep',e);}
+  sweepBusy=false;
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sweepUnbilledJobs();});
 async function autoInvoiceJob(jobId){
   try{
     const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=*,wc_customers(id,name,email,phone,whatsapp_number,stripe_customer_id,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes)`);
