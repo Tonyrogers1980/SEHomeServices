@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='188';
-const BUILD_DATE='27 Oct 2026 16:50';
+const BUILD_VERSION='189';
+const BUILD_DATE='27 Oct 2026 17:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1023,11 +1023,23 @@ function addrLink(address,postcode,cls=''){
 }
 function isOverdue(inv){return inv.status==='sent'&&inv.due_date&&inv.due_date<todayStr();}
 
+let crSendToken=true;
 async function sb(path,opts={}){
   const url=`${SUPABASE_URL}/rest/v1/${path}`;
   const headers={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'};
   if(opts.prefer)headers['Prefer']=opts.prefer;
-  const res=await fetch(url,{...opts,headers});
+  // Identify the logged-in user to the database (it decides what this login may see/change)
+  const _tok=crSendToken?crToken():'';
+  if(_tok)headers['x-cr-token']=_tok;
+  let res;
+  try{res=await fetch(url,{...opts,headers});}
+  catch(err){
+    if(!_tok)throw err;
+    // If the browser refused the extra header, retry without it (and stop sending it this session)
+    delete headers['x-cr-token'];
+    res=await fetch(url,{...opts,headers});
+    crSendToken=false;console.warn('x-cr-token header was blocked; continuing without it');
+  }
   if(!res.ok){let e;try{e=await res.json();}catch{e={message:res.statusText};}throw new Error(e.message||res.statusText);}
   if(res.status===204)return null;
   const text=await res.text();
