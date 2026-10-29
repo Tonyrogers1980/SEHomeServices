@@ -351,7 +351,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .sq-sub a{color:inherit;text-decoration:none;}
 .sq-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
 .svc-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;}
-.svc-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;border:1px solid transparent;}
+.svc-pill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;vertical-align:top;}
 .sq-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .sq-chip.ghost{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-weight:600;}
 .sq-chip.mono{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-family:'DM Mono',monospace;font-weight:500;text-transform:lowercase;}
@@ -481,9 +481,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .sq-job{margin-bottom:10px;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.3);}
 .sq-job.is-done{opacity:.7;}
 .sq-job.is-skip,.sq-job.is-cant{opacity:.75;}
-.sq-job .sq-row{padding-bottom:10px;}
-.sq-jacts{display:flex;gap:8px;padding:0 14px 13px 67px;align-items:flex-start;flex-wrap:wrap;}
-.sq-jbtn{flex:1;min-width:92px;height:42px;border-radius:11px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);background:transparent;color:var(--text-soft);}
+.sq-job .sq-row{padding-bottom:6px;}
+.sq-jacts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0;margin-left:auto;}
+.sq-foot{display:flex;align-items:center;gap:8px;padding:0 14px 11px 14px;}
+.sq-foot .sq-chips{margin-top:0;flex:1;min-width:0;}
+.sq-foot:empty{display:none;}
+.sq-foot:has(.job-actions-more[open]){flex-direction:column;align-items:stretch;}
+.sq-foot:has(.job-actions-more[open]) .sq-jacts{margin-left:0;}
+.sq-jbtn{flex:none;min-width:0;height:34px;padding:0 12px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);background:transparent;color:var(--text-soft);}
 .sq-jbtn:active{filter:brightness(1.2);transform:scale(.98);}
 .sq-jbtn.done{background:var(--done);border-color:var(--done);color:var(--navy-900);}
 .sq-jbtn.nav{border-color:var(--teal);color:var(--teal);}
@@ -981,8 +986,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='197';
-const BUILD_DATE='29 Oct 2026 12:05';
+const BUILD_VERSION='198';
+const BUILD_DATE='29 Oct 2026 12:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2593,7 +2598,7 @@ function jobCard(j,num){
   const avBg=isDone?'#2f9e6e':isSkip?'#d9741a':isCant?'#d6455d':rc;
   const avInner=isDone?ic('check'):(isSkip||isCant)?ic('xcircle'):String(num);
   const accent=isDone?'#2f9e6e':isSkip?'#d9741a':isCant?'#d6455d':rc;
-  const navBtn=`<a class="sq-jbtn nav" href="${mapsUrl(c.address,c.postcode)}" onclick="event.stopPropagation()">Navigate</a>`;
+  const navBtn=isDone?'':`<a class="sq-jbtn nav" href="${mapsUrl(c.address,c.postcode)}" onclick="event.stopPropagation()">Navigate</a>`;
   const doneBtn=`<button type="button" class="sq-jbtn done" onclick="event.stopPropagation();markDone('${j.id}')">Done</button>`;
   const chargeBtn=isAdmin?`<button type="button" class="sq-jbtn" style="background:var(--gold);border-color:var(--gold);color:var(--navy-900)" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${esc(c.name||'')}','${j.price}','${j.service_type||''}','${c.email||''}','${c.whatsapp_number||c.phone||''}','${c.stripe_customer_id||''}')">💳 Charge card</button>`:'';
   const rescheduleBtn=`<button type="button" class="sq-jbtn" style="border-color:var(--violet);color:var(--violet)" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>`;
@@ -2614,6 +2619,8 @@ function jobCard(j,num){
   if(balanceNum>0)banners.push(`<span class="sq-flag owe">${hidePrices()?'⚠ Payment owing':'⚠ Owes £'+balanceNum.toFixed(2)}</span>`);
   if(noteText)banners.push(`<span class="sq-flag note">📝 ${esc(noteText)}</span>`);
   const chg=jobChangeBlock(j.id);
+  const svc=svcInfo(j.service_type);
+  const chipsHtml=`${svc.extra?sqChip(svc.extra,'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqShort(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${flags.join('')}`;
   return`<div class="job-card-wrap${chg?' has-change':''}">
     ${chg}
     <div class="sq-job ${stateClass}" id="jc-${j.id}">
@@ -2621,14 +2628,13 @@ function jobCard(j,num){
       <div class="sq-row" style="--accent:${accent}"${isAdmin?` onclick="openEditJob('${j.id}','${c.id}')"`:''}>
         ${sqAv(null,avBg,avInner)}
         <div class="sq-body">
-          ${svcPills(j.service_type)}
+          ${svc.html}
           <div class="sq-name">${addrLink(c.address,c.postcode,'')}</div>
-          <div class="sq-sub">${custPill(c)}</div>
-          <div class="sq-chips">${j.service_type?sqChip(sqShortSvc(j.service_type),'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqLabel(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${c.stripe_customer_id?sqChip('S','#635bff'):''}${flags.join('')}</div>
+          <div class="sq-sub">${custPill(c)}${c.stripe_customer_id?' '+sqChip('S','#635bff'):''}</div>
         </div>
         <div class="sq-right">${hidePrices()?'':sqMoney(j.price)}${isDone?sqBadge('Done','accepted')+((j.legacy_billed||roundPaid.has(j.id))?sqBadge('Paid','paid'):''):isSkip?sqBadge('Skipped','warn'):isCant?sqBadge("Can't access",'due'):''}</div>
       </div>
-      ${actions}
+      <div class="sq-foot"><div class="sq-chips">${chipsHtml}</div>${actions}</div>
     </div>
   </div>`;
 }
@@ -4279,25 +4285,47 @@ function sqMonthLabel(d){return new Date(String(d).split('T')[0]+'T12:00:00').to
 function sqDaysAgo(d){if(!d)return null;const a=new Date(String(d).split('T')[0]+'T12:00:00'),b=new Date(todayStr()+'T12:00:00');return Math.max(0,Math.round((b-a)/86400000));}
 function sqDaysUntil(d){if(!d)return null;const a=new Date(String(d).split('T')[0]+'T12:00:00'),b=new Date(todayStr()+'T12:00:00');return Math.round((a-b)/86400000);}
 const SVC_FAMILIES=[
-  {label:'Signage',icon:'🏷️',color:'#facc15',test:/\bsign(age)?\b/i},
-  {label:'Gutter repairs',icon:'🔧',color:'#a78bfa',test:/^gutter repair/i},
-  {label:'Gutter cleaning',icon:'💧',color:'#2dd4bf',test:/^gutter clean/i},
-  {label:'Pressure washing',icon:'💦',color:'#fb923c',test:/^pressure/i},
-  {label:'Pool cleaning',icon:'🏊',color:'#38bdf8',test:/^pool/i},
-  {label:'Fascia',icon:'🏠',color:'#f472b6',test:/^(facia|fascia|soffit)/i},
-  {label:'Conservatory',icon:'🏡',color:'#a3e635',test:/^conservatory/i},
-  {label:'Window cleaning',icon:'🪟',color:'#5aa9ff',test:/^(window|multiple house)/i}
+  {label:'Signage',color:'#facc15',test:/\bsign(age)?\b/i},
+  {label:'Gutter repairs',color:'#a78bfa',test:/^gutter repair/i},
+  {label:'Gutters',color:'#2dd4bf',test:/^gutter clean/i},
+  {label:'Pressure washing',color:'#fb923c',test:/^pressure/i},
+  {label:'Pool',color:'#38bdf8',test:/^pool/i},
+  {label:'Fascia',color:'#f472b6',test:/^(facia|fascia|soffit)/i},
+  {label:'Conservatory',color:'#a3e635',test:/^conservatory/i},
+  {label:'Windows',color:'#5aa9ff',test:/^(window|multiple house)/i}
 ];
-function svcPills(serviceType){
-  if(!serviceType)return'';
-  const seen=[];
-  String(serviceType).split(',').map(x=>x.trim()).filter(Boolean).forEach(part=>{
+function freqShort(f){
+  const l=String(freqLabel(f)||'');
+  const m=l.match(/^Every (\d+) weeks?$/i);
+  if(m)return m[1]+'-weekly';
+  if(/^Every week$/i.test(l))return'Weekly';
+  return l;
+}
+function svcShortDetail(d){
+  return String(d||'').replace(/Front and Back( Standard)?/i,'Front & back').replace(/Front Only( Standard)?/i,'Front only').replace(/\s+Standard$/i,'').trim();
+}
+// Returns the coloured service pill(s) (job type + variant) and any leftover detail for a small grey chip.
+function svcInfo(serviceType){
+  if(!serviceType)return{html:'',extra:''};
+  const parts=String(serviceType).split(',').map(x=>x.trim()).filter(Boolean);
+  const hits=[],extras=[];
+  parts.forEach(part=>{
     const f=SVC_FAMILIES.find(f=>f.test.test(part));
-    if(f&&!seen.includes(f))seen.push(f);
+    if(!f){extras.push(part);return;}
+    let d='';
+    if(/:/.test(part))d=part.replace(/^[^:]*:\s*/,'');
+    else if(/add on/i.test(part))d='Add on';
+    else if(/enclosure/i.test(part))d='With enclosure';
+    if(f.label==='Signage')d=d.replace(/\bsignage\b/i,'').trim();
+    d=svcShortDetail(d);
+    if(!hits.find(h=>h.f===f))hits.push({f,d});
   });
-  const pill=(f)=>`<span class="svc-pill" style="color:${f.color};background:${f.color}22;border-color:${f.color}55">${f.icon} ${f.label}</span>`;
-  if(!seen.length)return`<div class="svc-row">${pill({label:esc(sqShortSvc(serviceType)),icon:'🧽',color:'#94a3b8'})}</div>`;
-  return`<div class="svc-row">${seen.map(pill).join('')}</div>`;
+  const pill=(label,color)=>`<span class="svc-pill" style="color:${color};background:${color}22">${esc(label)}</span>`;
+  if(!hits.length)return{html:`<div class="svc-row">${pill(sqShortSvc(serviceType),'#94a3b8')}</div>`,extra:''};
+  return{
+    html:`<div class="svc-row">${hits.map(h=>pill(h.d?h.f.label+' · '+h.d:h.f.label,h.f.color)).join('')}</div>`,
+    extra:extras.join(', ')
+  };
 }
 function sqShortSvc(s){
   let t=String(s||'').replace(/^Window Cleaning:\s*/i,'').replace(/^Window cleaning$/i,'Windows');
