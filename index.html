@@ -350,6 +350,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .sq-sub{font-size:12.5px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sq-sub a{color:inherit;text-decoration:none;}
 .sq-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.svc-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;}
+.svc-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;border:1px solid transparent;}
 .sq-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .sq-chip.ghost{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-weight:600;}
 .sq-chip.mono{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-family:'DM Mono',monospace;font-weight:500;text-transform:lowercase;}
@@ -979,8 +981,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='196';
-const BUILD_DATE='29 Oct 2026 11:40';
+const BUILD_VERSION='197';
+const BUILD_DATE='29 Oct 2026 12:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2619,6 +2621,7 @@ function jobCard(j,num){
       <div class="sq-row" style="--accent:${accent}"${isAdmin?` onclick="openEditJob('${j.id}','${c.id}')"`:''}>
         ${sqAv(null,avBg,avInner)}
         <div class="sq-body">
+          ${svcPills(j.service_type)}
           <div class="sq-name">${addrLink(c.address,c.postcode,'')}</div>
           <div class="sq-sub">${custPill(c)}</div>
           <div class="sq-chips">${j.service_type?sqChip(sqShortSvc(j.service_type),'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqLabel(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${c.stripe_customer_id?sqChip('S','#635bff'):''}${flags.join('')}</div>
@@ -4275,6 +4278,27 @@ function sqDayLabel(d){const x=new Date(String(d).split('T')[0]+'T12:00:00');con
 function sqMonthLabel(d){return new Date(String(d).split('T')[0]+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
 function sqDaysAgo(d){if(!d)return null;const a=new Date(String(d).split('T')[0]+'T12:00:00'),b=new Date(todayStr()+'T12:00:00');return Math.max(0,Math.round((b-a)/86400000));}
 function sqDaysUntil(d){if(!d)return null;const a=new Date(String(d).split('T')[0]+'T12:00:00'),b=new Date(todayStr()+'T12:00:00');return Math.round((a-b)/86400000);}
+const SVC_FAMILIES=[
+  {label:'Signage',icon:'🏷️',color:'#facc15',test:/\bsign(age)?\b/i},
+  {label:'Gutter repairs',icon:'🔧',color:'#a78bfa',test:/^gutter repair/i},
+  {label:'Gutter cleaning',icon:'💧',color:'#2dd4bf',test:/^gutter clean/i},
+  {label:'Pressure washing',icon:'💦',color:'#fb923c',test:/^pressure/i},
+  {label:'Pool cleaning',icon:'🏊',color:'#38bdf8',test:/^pool/i},
+  {label:'Fascia',icon:'🏠',color:'#f472b6',test:/^(facia|fascia|soffit)/i},
+  {label:'Conservatory',icon:'🏡',color:'#a3e635',test:/^conservatory/i},
+  {label:'Window cleaning',icon:'🪟',color:'#5aa9ff',test:/^(window|multiple house)/i}
+];
+function svcPills(serviceType){
+  if(!serviceType)return'';
+  const seen=[];
+  String(serviceType).split(',').map(x=>x.trim()).filter(Boolean).forEach(part=>{
+    const f=SVC_FAMILIES.find(f=>f.test.test(part));
+    if(f&&!seen.includes(f))seen.push(f);
+  });
+  const pill=(f)=>`<span class="svc-pill" style="color:${f.color};background:${f.color}22;border-color:${f.color}55">${f.icon} ${f.label}</span>`;
+  if(!seen.length)return`<div class="svc-row">${pill({label:esc(sqShortSvc(serviceType)),icon:'🧽',color:'#94a3b8'})}</div>`;
+  return`<div class="svc-row">${seen.map(pill).join('')}</div>`;
+}
 function sqShortSvc(s){
   let t=String(s||'').replace(/^Window Cleaning:\s*/i,'').replace(/^Window cleaning$/i,'Windows');
   t=t.replace(/Front and Back Standard/i,'Front & back').replace(/Front Only Standard/i,'Front only').replace(/\s+Standard$/i,'').replace(/Gutter Cleaning:\s*/i,'Gutters · ').replace(/Conservatory Cleaning:\s*/i,'Conservatory · ');
