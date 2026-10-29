@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='194';
-const BUILD_DATE='29 Oct 2026 10:50';
+const BUILD_VERSION='195';
+const BUILD_DATE='29 Oct 2026 11:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2297,7 +2297,8 @@ async function renderDashboard(){
   let ops=null;try{ops=await loadOpsToday(allConvs);}catch(e){console.warn('loadOpsToday',e);}
 
   // Outstanding — done jobs not yet paid (same definition as the Owing tab)
-  const unpaidJobs=doneJobs.filter(j=>invByJob[j.id]?.status!=='paid');
+  await loadOwing();
+  const unpaidJobs=owingJobsCache||[];
   const outstandingTotal=unpaidJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
 
   // Forecast — 7 and 31 days from today, scheduled jobs
@@ -2345,23 +2346,27 @@ async function renderDashboard(){
 }
 
 let roundPaid=new Set();
-// Customer id -> £ owed, using the SAME definition as the Owing page (done, unpaid jobs). null = lookup failed.
-let roundOwingMap=null;
-async function loadRoundOwing(){
-  try{
-    const oj=await fetchOwingJobs();
-    const m=new Map();
-    oj.forEach(j=>{const cid=j.customer_id||j.wc_customers?.id;if(!cid)return;m.set(cid,(m.get(cid)||0)+parseFloat(j.price||0));});
-    roundOwingMap=m;
-  }catch(e){console.warn('roundOwing',e);roundOwingMap=null;}
+// ── SINGLE SOURCE OF TRUTH FOR "OWING" ───────────────────────────────────────
+// Owing = jobs that are done, not legacy_billed, and have no paid invoice (fetchOwingJobs).
+// Every owing figure in the app (dashboard, round banner, Customers, customer page, Owing tab) derives from this.
+// wc_customers.balance is a stale Squeegee import value and must NOT be used for display.
+let owingJobsCache=null,owingByCust=null;
+function setOwingCache(jobs){
+  owingJobsCache=jobs;owingByCust=new Map();
+  jobs.forEach(j=>{const cid=j.customer_id||j.wc_customers?.id;if(!cid)return;owingByCust.set(cid,(owingByCust.get(cid)||0)+parseFloat(j.price||0));});
 }
+async function loadOwing(){
+  try{setOwingCache(await fetchOwingJobs());}
+  catch(e){console.warn('loadOwing',e);owingJobsCache=null;owingByCust=null;showToast('Could not load owing figures','error');}
+}
+function owedBy(cid){return owingByCust?(owingByCust.get(cid)||0):0;}
 async function renderRound(){
   document.getElementById('topbarPage').textContent="Today's Round";
   document.getElementById('topbarAction').innerHTML='';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
   await loadUsers();
-  await loadRoundOwing();
+  await loadOwing();
   const isAdmin=currentUser?.view_mode!=='round_only';
   if(roundAssignees===null)roundAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
   if(roundView==='week'){await renderRoundWeek(el);return;}
@@ -2599,7 +2604,7 @@ function jobCard(j,num){
   if(j.clean_type)flags.push(sqChip(j.clean_type==='wfp'?'WFP':j.clean_type==='both'?'Trad + WFP':'Traditional','#0a8f86'));
   if(j.roof_access_required)flags.push(sqChip('Roof access','#b5882a'));
   if(j.side_rear_access)flags.push(sqChip('Side/rear access','#7a5af8'));
-  const balanceNum=roundOwingMap?(roundOwingMap.get(c.id)||0):parseFloat(c.balance||0);
+  const balanceNum=owedBy(c.id);
   const noteText=[c.notes,j.notes].filter(Boolean).join(' · ');
   const banners=[];
   if(balanceNum>0)banners.push(`<span class="sq-flag owe">${hidePrices()?'⚠ Payment owing':'⚠ Owes £'+balanceNum.toFixed(2)}</span>`);
@@ -2865,7 +2870,7 @@ async function renderCustomers(){
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{
     const [cs,js]=await Promise.all([
-      sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
+      loadOwing().then(()=>sb(`wc_customers?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`)),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=customer_id,round_name`).catch(()=>[])
     ]);
     customers=cs;custRounds={};
@@ -2882,7 +2887,7 @@ function custMatches(c){
   const l=custQuery.toLowerCase();
   if(l&&!(c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l)))return false;
   if(custFilter==='all')return true;
-  if(custFilter==='owing')return parseFloat(c.balance||0)>0;
+  if(custFilter==='owing')return owedBy(c.id)>0;
   if(custFilter==='active')return !!c.has_active_jobs;
   if(custFilter==='inactive')return !c.has_active_jobs;
   if(custFilter==='unset')return !c.payer_type;
@@ -2890,9 +2895,9 @@ function custMatches(c){
 }
 function drawCustomers(){
   const base=customers.filter(c=>{const l=custQuery.toLowerCase();return !l||c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l);});
-  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>parseFloat(c.balance||0)>0).length:k==='active'?base.filter(c=>c.has_active_jobs).length:k==='inactive'?base.filter(c=>!c.has_active_jobs).length:k==='unset'?base.filter(c=>!c.payer_type).length:base.filter(c=>c.payer_type===k).length;
+  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>owedBy(c.id)>0).length:k==='active'?base.filter(c=>c.has_active_jobs).length:k==='inactive'?base.filter(c=>!c.has_active_jobs).length:k==='unset'?base.filter(c=>!c.payer_type).length:base.filter(c=>c.payer_type===k).length;
   const list=customers.filter(custMatches);
-  const owed=list.reduce((s,c)=>s+Math.max(0,parseFloat(c.balance||0)),0);
+  const owed=list.reduce((s,c)=>s+owedBy(c.id),0);
   document.getElementById('custPill').innerHTML=`<b>${list.length}</b><span>customers</span><i class="sq-vr"></i><b style="color:var(--done)">${list.filter(c=>c.has_active_jobs).length}</b><span>active</span>`;
   document.getElementById('custChips').innerHTML=[['all','All'],['active','Active'],['inactive','No active jobs'],['owing','Owing'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set']].map(([k,l])=>`<button class="sq-fchip${custFilter===k?' on':''}${k==='owing'&&cnt('owing')?' danger':''}" onclick="custFilter='${k}';drawCustomers()">${l}<span class="n">${cnt(k)}</span></button>`).join('');
   document.getElementById('customerList').innerHTML=customerCards(list);
@@ -2900,7 +2905,7 @@ function drawCustomers(){
 function customerCards(list){
   if(!list.length)return sqEmpty('No customers found');
   return`<div class="sq-list">${list.map(c=>{
-    const rounds=custRounds[c.id]||[];const bal=parseFloat(c.balance||0);
+    const rounds=custRounds[c.id]||[];const bal=owedBy(c.id);
     return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
       ${sqAv(c.name,c.has_active_jobs&&rounds.length?sqColor(rounds[0]):c.has_active_jobs?'#4a6fa5':'#33475f')}
       <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
@@ -2919,7 +2924,8 @@ async function showCustomer(id,tab){
   try{const [fresh]=await sb(`wc_customers?id=eq.${id}&select=*`);if(fresh){c=fresh;const i=customers.findIndex(x=>x.id===id);if(i>-1)customers[i]=fresh;else customers.push(fresh);}}catch(e){}
   if(!c){el.innerHTML='<div class="empty"><div class="empty-title">Not found</div></div>';return;}
   if(!custRounds[id]){try{const js=await sb(`wc_jobs?customer_id=eq.${id}&status=in.(scheduled,pending_assignment)&select=round_name`);custRounds[id]=[...new Set((js||[]).map(j=>j.round_name).filter(Boolean))];}catch(e){custRounds[id]=[];}}
-  const rounds=custRounds[id]||[];const bal=parseFloat(c.balance||0);
+  await loadOwing();
+  const rounds=custRounds[id]||[];const bal=owedBy(id);
   const waDigits=String(c.whatsapp_number||c.phone||'').replace(/\D/g,'');
   const tabs=[['customer','Customer','user'],['finance','Finance','bank'],['messages','Messages','chat']];
   el.innerHTML=`
@@ -4314,7 +4320,7 @@ async function renderOwing(){
   document.getElementById('topbarPage').textContent='Owing';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  try{owingJobs=await fetchOwingJobs();}
+  try{owingJobs=await fetchOwingJobs();setOwingCache(owingJobs);}
   catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   drawOwing();
 }
