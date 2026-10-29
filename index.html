@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='195';
-const BUILD_DATE='29 Oct 2026 11:05';
+const BUILD_VERSION='196';
+const BUILD_DATE='29 Oct 2026 11:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1324,6 +1324,7 @@ const NAV_SECTIONS=[
   {section:'Customers',items:[
     {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
     {id:'owing',label:'Owing',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>'},
+    {id:'skippers',label:'Skippers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2zm5 9l4 4m0-4l-4 4"/></svg>'},
   ]},
   {section:'Billing & Quotes',items:[
     {id:'quotes',label:'Quotes',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'},
@@ -1429,6 +1430,7 @@ function navigate(page){
   else if(page==='quotes')renderQuotes();
   else if(page==='invoices')renderInvoices();
   else if(page==='owing')renderOwing();
+  else if(page==='skippers')renderSkippers();
   else if(page==='revenue')renderRevenue();
   else if(page==='data')renderDataTab();
   else if(page==='overdue')renderOverdue();
@@ -4367,6 +4369,59 @@ function drawOwing(){
     <div class="sq-top"><span class="sq-pill"><b>${list.length}</b><i class="sq-vr"></i><b>£${total.toFixed(2)}</b><span>owing</span></span></div>
     <div class="sq-filters">${chips.map(([k,l])=>`<button class="sq-fchip${owingFilter===k?' on':''}${k==='unset'&&counts.unset?' danger':''}" onclick="owingFilter='${k}';drawOwing()">${l}<span class="n">${counts[k]||0}</span></button>`).join('')}</div>
     ${list.length?`<div class="sq-list">${list.map(owingRow).join('')}</div>`:sqEmpty('All clear','Nothing owing right now.')}`;
+}
+
+
+// ── Skippers: customers who repeatedly skip visits ───────────────────────────
+// Source: view wc_customer_skip_stats = Squeegee-era skip counts (wc_legacy_skips, counts only, no dates)
+// + live skipped / cant-access jobs since the 14 Sep 2026 export. skip % = skips ÷ (skips + no-access + done).
+let skipFilter='consistent',skipRows=[];
+function isConsistentSkipper(r){return (r.skipped_total||0)>=3&&Number(r.skip_rate||0)>=0.3;}
+async function renderSkippers(){
+  document.getElementById('topbarPage').textContent='Skippers';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{
+    const st=await sb(`wc_customer_skip_stats?business_id=eq.${BUSINESS_ID}&order=skipped_total.desc,skip_rate.desc`)||[];
+    let cs=[],js=[];
+    if(st.length){
+      const inl=st.map(r=>r.customer_id).join(',');
+      [cs,js]=await Promise.all([
+        sb(`wc_customers?id=in.(${inl})&select=id,name,address,postcode,has_active_jobs`),
+        sb(`wc_jobs?customer_id=in.(${inl})&status=eq.scheduled&order=next_due.asc&select=customer_id,price,frequency,next_due`).catch(()=>[])
+      ]);
+    }
+    const cm=new Map((cs||[]).map(c=>[c.id,c]));
+    const nx=new Map();(js||[]).forEach(j=>{if(!nx.has(j.customer_id))nx.set(j.customer_id,j);});
+    skipRows=st.map(r=>({...r,c:cm.get(r.customer_id)||null,next:nx.get(r.customer_id)||null})).filter(r=>r.c);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  drawSkippers();
+}
+function skipperRow(r){
+  const c=r.c,rate=Math.round(Number(r.skip_rate||0)*100),bad=isConsistentSkipper(r);
+  const kind=rate>=50?'owed':rate>=30?'warn':'age';
+  const nxt=r.next?`Next £${parseFloat(r.next.price||0).toFixed(2).replace(/\.00$/,'')}${r.next.frequency?' · '+esc(r.next.frequency):''}`:'';
+  const last=r.last_skip_date?`Last skip ${sqDayLabel(r.last_skip_date)}`:'';
+  return`<div class="sq-block"><div class="sq-row" style="--accent:${bad?'#d6455d':'transparent'}" onclick="showCustomer('${c.id}')">
+    ${sqAv(c.name,sqColor(c.name))}
+    <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
+      <div class="sq-chips">${sqBadge(rate+'% skipped',kind)}${sqChip(r.skipped_total+' skipped','','mono')}${r.skipped_legacy?sqChip('Squeegee '+r.skipped_legacy,'#52667d','ghost'):''}${r.skipped_live?sqChip('ClearRound '+r.skipped_live,'#52667d','ghost'):''}${r.noaccess?sqChip(r.noaccess+' no access','#d9741a'):''}${sqChip(r.done_count+' done','#52667d','ghost')}${c.has_active_jobs?'':sqChip('No active jobs','#52667d','ghost')}</div>
+      ${(nxt||last)?`<div class="sq-sub" style="margin-top:4px">${[nxt,last].filter(Boolean).join(' · ')}</div>`:''}</div>
+    <div class="sq-right">${sqMoney(r.lost_value)}<span class="sq-lbl">lost</span></div>
+  </div></div>`;
+}
+function drawSkippers(){
+  const el=document.getElementById('mainContent');
+  const f={consistent:isConsistentSkipper,recent:r=>(r.skipped_live||0)>0||(r.noaccess||0)>0,all:()=>true};
+  const cnt=k=>skipRows.filter(f[k]).length;
+  const list=skipRows.filter(f[skipFilter]);
+  const lost=list.reduce((t,r)=>t+parseFloat(r.lost_value||0),0);
+  const chips=[['consistent','Consistent'],['recent','Since 14 Sep'],['all','All']];
+  el.innerHTML=`
+    <div class="sq-top"><span class="sq-pill"><b>${list.length}</b><span>customers</span><i class="sq-vr"></i><b>£${lost.toFixed(0)}</b><span>lost</span></span></div>
+    <div class="sq-filters">${chips.map(([k,l])=>`<button class="sq-fchip${skipFilter===k?' on':''}${k==='consistent'&&cnt('consistent')?' danger':''}" onclick="skipFilter='${k}';drawSkippers()">${l}<span class="n">${cnt(k)}</span></button>`).join('')}</div>
+    ${list.length?`<div class="sq-list">${list.map(skipperRow).join('')}</div>`:sqEmpty('No skippers','Nothing matches this filter.')}
+    <div class="owing-q" style="padding:12px 12px 24px">Consistent = 3+ skips and 30%+ of visits skipped. Squeegee-era skips are counts only (no dates or reasons). ClearRound skips since 14 Sep appear on the customer's timeline with the note you entered. "Lost" is skips × the visit price.</div>`;
 }
 
 // ── Billing settings & effective per-customer behaviour ─────────────────────
