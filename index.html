@@ -979,8 +979,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='193';
-const BUILD_DATE='27 Oct 2026 19:10';
+const BUILD_VERSION='194';
+const BUILD_DATE='29 Oct 2026 10:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2345,12 +2345,23 @@ async function renderDashboard(){
 }
 
 let roundPaid=new Set();
+// Customer id -> £ owed, using the SAME definition as the Owing page (done, unpaid jobs). null = lookup failed.
+let roundOwingMap=null;
+async function loadRoundOwing(){
+  try{
+    const oj=await fetchOwingJobs();
+    const m=new Map();
+    oj.forEach(j=>{const cid=j.customer_id||j.wc_customers?.id;if(!cid)return;m.set(cid,(m.get(cid)||0)+parseFloat(j.price||0));});
+    roundOwingMap=m;
+  }catch(e){console.warn('roundOwing',e);roundOwingMap=null;}
+}
 async function renderRound(){
   document.getElementById('topbarPage').textContent="Today's Round";
   document.getElementById('topbarAction').innerHTML='';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading\u2026</div>';
   await loadUsers();
+  await loadRoundOwing();
   const isAdmin=currentUser?.view_mode!=='round_only';
   if(roundAssignees===null)roundAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
   if(roundView==='week'){await renderRoundWeek(el);return;}
@@ -2588,7 +2599,7 @@ function jobCard(j,num){
   if(j.clean_type)flags.push(sqChip(j.clean_type==='wfp'?'WFP':j.clean_type==='both'?'Trad + WFP':'Traditional','#0a8f86'));
   if(j.roof_access_required)flags.push(sqChip('Roof access','#b5882a'));
   if(j.side_rear_access)flags.push(sqChip('Side/rear access','#7a5af8'));
-  const balanceNum=parseFloat(c.balance||0);
+  const balanceNum=roundOwingMap?(roundOwingMap.get(c.id)||0):parseFloat(c.balance||0);
   const noteText=[c.notes,j.notes].filter(Boolean).join(' · ');
   const banners=[];
   if(balanceNum>0)banners.push(`<span class="sq-flag owe">${hidePrices()?'⚠ Payment owing':'⚠ Owes £'+balanceNum.toFixed(2)}</span>`);
