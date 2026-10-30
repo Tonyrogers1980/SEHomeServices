@@ -365,6 +365,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .sq-lbl{font-size:9.5px;font-weight:800;letter-spacing:.9px;color:var(--text-muted);text-transform:uppercase;}
 .sq-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#fff;line-height:1.5;white-space:nowrap;}
 .sb-paid{background:#7b4fc4;}.sb-sent{background:#2f9e6e;}.sb-due,.sb-owed,.sb-declined{background:#d6455d;}.sb-draft{background:#52667d;}.sb-void{background:#3b4a5e;color:#aab8c8;}.sb-accepted{background:#2f9e6e;}.sb-viewed,.sb-follow{background:#8d4fc2;}.sb-age{background:#c58f00;}.sb-info{background:#3f86c5;}.sb-warn{background:#d9741a;}
+.sq-cardico{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:5px;font-size:10.5px;font-weight:800;letter-spacing:.3px;line-height:1.5;white-space:nowrap;border:1px solid currentColor;background:transparent;}
+.sq-cardico svg{width:14px;height:14px;flex:none;}
+.sq-cardico.cs-ok{color:#3ecf8e;}.sq-cardico.cs-soon{color:#f0a030;}.sq-cardico.cs-exp{color:#ff6b81;}.sq-cardico.cs-unk{color:#8aa0b8;}
 .sb-card{background:#a8780a;}.sb-cash{background:#0a8f86;}.sb-bank{background:#7a5af8;}.sb-invoice{background:#3f86c5;}.sb-unset{background:transparent;border:1px dashed #ff7a7a;color:#ff9a9a;}
 .sq-acts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 13px 67px;}
 .sq-act{padding:0 12px;height:34px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-soft);display:inline-flex;align-items:center;gap:5px;}
@@ -986,7 +989,7 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='198';
+const BUILD_VERSION='199';
 const BUILD_DATE='29 Oct 2026 12:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -2920,7 +2923,7 @@ function customerCards(list){
     return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
       ${sqAv(c.name,c.has_active_jobs&&rounds.length?sqColor(rounds[0]):c.has_active_jobs?'#4a6fa5':'#33475f')}
       <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-        <div class="sq-chips">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
+        <div class="sq-chips">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${bal>0?cardIcon(c):''}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
       <div class="sq-right">${sqMoney(bal,bal===0?'zero':'')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
     </div></div>`;}).join('')}</div>`;
 }
@@ -4340,6 +4343,22 @@ function sqEmpty(title,sub){return`<div class="sq-empty"><b>${title}</b>${sub||'
 const PAYER_LABEL={stripe:'Card',cash:'Cash',bank_transfer:'Bank',invoice:'Invoice'};
 const PAYER_KIND={stripe:'card',cash:'cash',bank_transfer:'bank',invoice:'invoice'};
 function payerBadge(c){const t=c&&c.payer_type;return t&&PAYER_LABEL[t]?sqBadge(PAYER_LABEL[t],PAYER_KIND[t]):sqBadge('Set payer','unset');}
+// Card-on-file status for the RAG icon. Expiry = last day of the card's expiry month.
+// green = valid, amber = expires within 60 days, red = expired, grey = card on file but expiry unknown, null = no card.
+function cardStatus(c){
+  if(!c||!c.stripe_card_attached)return null;
+  const m=parseInt(c.stripe_card_exp_month,10),y=parseInt(c.stripe_card_exp_year,10);
+  if(!m||!y)return{k:'unk',label:'Card on file',exp:''};
+  const end=new Date(y,m,0,23,59,59),now=new Date(),soon=new Date(now.getTime()+60*86400000);
+  const exp=String(m).padStart(2,'0')+'/'+String(y).slice(-2);
+  return{k:end<now?'exp':end<=soon?'soon':'ok',exp,label:end<now?'Card expired':end<=soon?'Card expiring':'Card valid'};
+}
+function cardIcon(c){
+  const st=cardStatus(c);if(!st)return'';
+  const tip=`${st.label}${c.stripe_card_brand?' · '+c.stripe_card_brand:''}${c.stripe_card_last4?' ••'+c.stripe_card_last4:''}${st.exp?' · exp '+st.exp:''}`;
+  const svg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg>';
+  return`<span class="sq-cardico cs-${st.k}" title="${esc(tip)}" aria-label="${esc(tip)}">${svg}${st.k==='ok'||st.k==='unk'?'':esc(st.exp)}</span>`;
+}
 function payerSummary(c){
   const e=effectiveBilling(c);
   if(!e.type)return'Not set — tap to choose how they pay';
@@ -4358,7 +4377,7 @@ function sqTriVal(id){const v=sqSegVal(id);return v==='yes'?true:v==='no'?false:
 
 // Done-but-unpaid jobs (optionally for one customer). A job counts as paid if ANY invoice for it is paid.
 async function fetchOwingJobs(customerId){
-  const sel='id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes,balance';
+  const sel='id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,stripe_card_attached,stripe_card_exp_month,stripe_card_exp_year,stripe_card_last4,stripe_card_brand,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes,balance';
   const jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false${customerId?`&customer_id=eq.${customerId}`:''}&select=*,wc_customers(${sel})&order=last_done.asc`)||[];
   const ids=jobs.map(j=>j.id);const byJob={},paid=new Set();
   for(let i=0;i<ids.length;i+=40){
@@ -4405,7 +4424,7 @@ function owingRow(j){
   return`<div class="sq-block"><div class="sq-row" style="--accent:${days>=30?'#d6455d':days>=14?'#d9741a':'transparent'}" onclick="showCustomer('${c.id}')">
     ${sqAv(c.name,color)}
     <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      <div class="sq-chips">${payerBadge(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqBadge('Invoice sent','info'):''}</div></div>
+      <div class="sq-chips">${payerBadge(c)}${cardIcon(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqBadge('Invoice sent','info'):''}</div></div>
     <div class="sq-right">${sqMoney(j.price)}${days!=null?sqBadge(days===0?'Done today':`Owed (${days} day${days!==1?'s':''})`,days===0?'info':ageKind):sqBadge('Owed','age')}</div>
   </div>${acts}</div>`;
 }
