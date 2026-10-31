@@ -1000,8 +1000,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='206';
-const BUILD_DATE='01 Nov 2026 09:30';
+const BUILD_VERSION='207';
+const BUILD_DATE='01 Nov 2026 11:00';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -5042,6 +5042,17 @@ async function renderRevenue(){
     }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   }
 
+  // Gross vs net table: needs the pay plans and whole calendar months of done jobs
+  let tblDone=[],tblPlans=[];
+  if(!noneSelected){
+    try{
+      const t0=new Date();t0.setDate(1);t0.setMonth(t0.getMonth()-5);
+      [tblPlans,tblDone]=await Promise.all([
+        sb(`wc_pay_plans?business_id=eq.${BUSINESS_ID}`),
+        sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${pyMonthStart(t0)}${af}&select=last_done,price,assigned_to`)
+      ]);
+    }catch(e){tblDone=[];tblPlans=[];}
+  }
   const estBuckets=bucketByPeriod(scheduled,'next_due',revenuePeriod);
   const actBuckets=bucketByPeriod(done,'last_done',revenuePeriod);
   const estTotal=scheduled.reduce((s,j)=>s+parseFloat(j.price||0),0);
@@ -5062,12 +5073,63 @@ async function renderRevenue(){
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--navy-400)">£${estTotal.toFixed(0)}</div><div class="round-stat-label">Estimated (scheduled)</div></div>
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--done)">£${actTotal.toFixed(0)}</div><div class="round-stat-label">Actual (done, 6mo)</div></div>
     </div>
+    ${revenueNetTable(tblDone,scheduled,tblPlans)}
     <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">Estimated income — ${revenuePeriod==='week'?'by week':'by month'}</div>
     ${revenueChart(estBuckets,'var(--navy-400)')}
     <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Actual income — ${revenuePeriod==='week'?'by week':'by month'}</div>
     ${revenueChart(actBuckets,'var(--done)')}
     `}
   `;
+}
+
+// Gross vs net by month. Net = gross minus what the team costs under their pay plans (percentage of work,
+// or day rate with full/half day by the plan's value threshold). Cash is a settlement detail, not a cost.
+function revenueNetTable(done,scheduled,plans){
+  const today=localDateStr(new Date()),curKey=today.slice(0,7);
+  const t0=new Date();t0.setDate(1);t0.setMonth(t0.getMonth()-5);
+  const firstKey=pyMonthStart(t0).slice(0,7);
+  const jobs=[];
+  done.forEach(j=>{if(j.last_done)jobs.push({d:j.last_done,price:parseFloat(j.price||0),uid:j.assigned_to});});
+  scheduled.forEach(j=>{if(j.next_due&&j.next_due>=today)jobs.push({d:j.next_due,price:parseFloat(j.price||0),uid:j.assigned_to});});
+  const byMonth={};
+  jobs.forEach(j=>{const k=j.d.slice(0,7);if(k<firstKey)return;(byMonth[k]=byMonth[k]||[]).push(j);});
+  const keys=Object.keys(byMonth).sort();
+  if(!keys.length)return'';
+  const rows=keys.map(k=>{
+    const js=byMonth[k];
+    const gross=js.reduce((t,j)=>t+j.price,0);
+    let cost=0;
+    const uids=[...new Set(js.map(j=>j.uid).filter(Boolean))];
+    uids.forEach(uid=>{
+      const plan=pyPlanFor(plans,uid,k+'-01');if(!plan)return;
+      const mine=js.filter(j=>j.uid===uid);
+      if(plan.pay_type==='percentage'){cost+=mine.reduce((t,j)=>t+j.price,0)*parseFloat(plan.percentage||0)/100;}
+      else if(plan.full_day_rate!=null){
+        const full=parseFloat(plan.full_day_rate),half=plan.half_day_rate==null?full/2:parseFloat(plan.half_day_rate);
+        const thr=plan.full_day_threshold==null?200:parseFloat(plan.full_day_threshold);
+        const perDay={};mine.forEach(j=>{perDay[j.d]=(perDay[j.d]||0)+j.price;});
+        Object.values(perDay).forEach(v=>{cost+=v>=thr?full:half;});
+      }
+    });
+    return{k,gross,cost,net:gross-cost,kind:k<curKey?'Actual':k===curKey?'Done + scheduled':'Estimated'};
+  });
+  const tot=rows.reduce((a,r)=>({g:a.g+r.gross,c:a.c+r.cost,n:a.n+r.net}),{g:0,c:0,n:0});
+  const cell='font-size:13px;text-align:right;';
+  const hdr=t=>`<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);text-align:right">${t}</div>`;
+  return`<div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">Gross and net income by month</div>
+  <div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:6px;padding:0 4px 4px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Month</div>${hdr('Gross')}${hdr('Team pay')}${hdr('Net')}</div>
+    ${rows.map(r=>`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:6px;align-items:center;padding:7px 4px;border-top:1px solid var(--border)">
+      <div><div style="font-size:13px;color:var(--text)">${monthLabel(r.k)}</div><div style="font-size:10.5px;color:var(--text-muted)">${r.kind}</div></div>
+      <div style="${cell}color:var(--text)">${pyMoney(r.gross)}</div>
+      <div style="${cell}color:var(--text-muted)">-${pyMoney(r.cost)}</div>
+      <div style="${cell}font-weight:600;color:${r.kind==='Actual'?'var(--done)':'var(--navy-400)'}">${pyMoney(r.net)}</div>
+    </div>`).join('')}
+    <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:6px;padding:9px 4px 0;border-top:1px solid var(--border);font-weight:600">
+      <div style="font-size:13px;color:var(--text-soft)">Total</div><div style="${cell}color:var(--text)">${pyMoney(tot.g)}</div><div style="${cell}color:var(--text-muted)">-${pyMoney(tot.c)}</div><div style="${cell}color:var(--gold)">${pyMoney(tot.n)}</div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;padding:0 4px">Net is gross less team pay (Danny's percentage, Phil's day rate), before fuel, software and other costs. Past months are completed work; the current month adds jobs still scheduled; later months are scheduled jobs only. Follows the assignee filter above.</div>
+  </div>`;
 }
 
 function toggleRevenueAssignee(id){
