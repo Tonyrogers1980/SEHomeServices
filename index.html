@@ -716,6 +716,16 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   </div>
 </div>
 
+<div class="modal-overlay" id="payrollModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="payrollModalTitle">Payroll</div>
+      <button class="modal-close" onclick="closeModal('payrollModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div id="payrollModalBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="skipModal">
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
@@ -990,8 +1000,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='203';
-const BUILD_DATE='31 Oct 2026 16:30';
+const BUILD_VERSION='204';
+const BUILD_DATE='31 Oct 2026 17:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1345,6 +1355,7 @@ const NAV_SECTIONS=[
   ]},
   {section:'Finance',items:[
     {id:'revenue',label:'Revenue',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18.7 8l-5.1 5.2-3-3L7 14"/></svg>'},
+    {id:'payroll',label:'Payroll',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm9 6a2 2 0 100-4 2 2 0 000 4z"/></svg>'},
     {id:'data',label:'Data',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6m7 13V10m-14 9v-5M3 19h18"/></svg>'},
   ]},
   {section:'Configuration',items:[
@@ -1445,6 +1456,7 @@ function navigate(page){
   else if(page==='owing')renderOwing();
   else if(page==='skippers')renderSkippers();
   else if(page==='revenue')renderRevenue();
+  else if(page==='payroll')renderPayroll();
   else if(page==='data')renderDataTab();
   else if(page==='overdue')renderOverdue();
   else if(page==='optimizer')renderOptimizer();
@@ -4727,6 +4739,245 @@ function jobsOverviewCard(j){
 
 // ── REVENUE ───────────────────────────────────────────────────────────────────
 let revenuePeriod='week',revenueAssignees=null; // Set of user ids; null = not yet initialized (defaults to all)
+
+// ── PAYROLL ────────────────────────────────────────────────────────────────────
+// What to pay out each month: percentage workers (e.g. Danny) get their % of completed work less the cash
+// they collected; day-rate workers (e.g. Phil) get full/half days (a day's jobs totalling ≤4h = half day).
+// A running balance carries unpaid / overpaid amounts forward, so bulk payments sort themselves out.
+let payrollMonth=null;
+function pyMoney(n){n=Number(n)||0;const s='£'+Math.abs(n).toFixed(2);return n<-0.004?'-'+s:s;}
+function pyMonthStart(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+function pyMonthLabel(m){return new Date(m+'T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+function pyShiftMonth(m,delta){const d=new Date(m+'T12:00:00');d.setMonth(d.getMonth()+delta);return pyMonthStart(d);}
+function pyDateLabel(s){return s?new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'date not recorded';}
+function pyPlanFor(plans,uid,m){
+  return plans.filter(p=>p.user_id===uid&&p.effective_from<=m).sort((a,b)=>a.effective_from<b.effective_from?1:-1)[0]||null;
+}
+function pyEarned(plan,row){
+  if(!plan||!row)return{work:0,cash:0,net:0,missing:!plan&&!!row};
+  const gross=parseFloat(row.gross||0),cashG=parseFloat(row.cash_gross||0);
+  let work=0,ok=true;
+  if(plan.pay_type==='percentage'){work=gross*parseFloat(plan.percentage||0)/100;}
+  else{
+    const full=plan.full_day_rate==null?null:parseFloat(plan.full_day_rate);
+    if(full==null){ok=false;}
+    else{const half=plan.half_day_rate==null?full/2:parseFloat(plan.half_day_rate);work=row.full_days*full+row.half_days*half;}
+  }
+  const cash=plan.deduct_cash?cashG:0;
+  return{work,cash,net:work-cash,missing:!ok};
+}
+function pyPlanText(p){
+  if(!p)return'No pay plan set';
+  const cashTxt=p.deduct_cash?', less cash they hold':'';
+  if(p.pay_type==='percentage')return`${parseFloat(p.percentage)}% of completed work${cashTxt}`;
+  if(p.full_day_rate==null)return'Day rate — rate not set';
+  const full=parseFloat(p.full_day_rate),half=p.half_day_rate==null?full/2:parseFloat(p.half_day_rate);
+  return`Day rate ${pyMoney(full)} full / ${pyMoney(half)} half${cashTxt}`;
+}
+function payrollShift(d){payrollMonth=pyShiftMonth(payrollMonth,d);renderPayroll();}
+
+async function renderPayroll(){
+  document.getElementById('topbarPage').textContent='Payroll';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  if(!payrollMonth)payrollMonth=pyMonthStart(new Date());
+  const m=payrollMonth;
+  let rows,plans,recs;
+  try{
+    await loadUsers();
+    [rows,plans,recs]=await Promise.all([
+      sb('rpc/cr_payroll_months',{method:'POST',body:'{}'}),
+      sb(`wc_pay_plans?business_id=eq.${BUSINESS_ID}&order=effective_from.asc`),
+      sb(`wc_pay_records?business_id=eq.${BUSINESS_ID}&order=period.asc,created_at.asc`)
+    ]);
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load payroll</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  rows=rows||[];plans=plans||[];recs=recs||[];
+  window._py={rows,plans,recs,m};
+  const people=wcUsers.filter(u=>u.role!=='owner');
+  const results=people.map(u=>{
+    const uRows=rows.filter(r=>r.user_id===u.id);
+    let cumDue=0,cumPaidBefore=0,missingPlanMonths=[];
+    uRows.forEach(r=>{
+      if(r.month>=m)return;
+      const e=pyEarned(pyPlanFor(plans,u.id,r.month),r);
+      cumDue+=e.net;if(e.missing)missingPlanMonths.push(r.month);
+    });
+    const paidBefore=recs.filter(x=>x.user_id===u.id&&x.period<m).reduce((s,x)=>s+parseFloat(x.amount),0);
+    const broughtFwd=cumDue-paidBefore;
+    const plan=pyPlanFor(plans,u.id,m);
+    const row=uRows.find(r=>r.month===m)||null;
+    const e=pyEarned(plan,row);
+    const paidRecs=recs.filter(x=>x.user_id===u.id&&x.period===m);
+    const paidNow=paidRecs.reduce((s,x)=>s+parseFloat(x.amount),0);
+    const toPay=e.net+broughtFwd-paidNow;
+    return{u,plan,row,e,broughtFwd,paidRecs,paidNow,toPay,missingPlanMonths};
+  });
+  const hasAnything=r=>r.plan||r.row||r.paidRecs.length||Math.abs(r.broughtFwd)>0.004;
+  const shown=results.filter(hasAnything);
+  const totalToPay=shown.reduce((s,r)=>s+Math.max(0,r.toPay),0);
+  const unassigned=rows.find(r=>!r.user_id&&r.month===m);
+  const isFuture=m>pyMonthStart(new Date());
+
+  const card=r=>{
+    const {u,plan,row,e}=r;
+    const settled=Math.abs(r.toPay)<0.005;
+    const credit=r.toPay<-0.004;
+    const line=(l,v,opts={})=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:13px;${opts.top?'border-top:1px solid var(--border);margin-top:4px;padding-top:9px;':''}"><span style="color:var(--text-soft)">${l}</span><span style="color:${opts.color||'var(--text)'};font-weight:${opts.bold?600:400};white-space:nowrap">${v}</span></div>`;
+    let work='';
+    if(!plan){work=`<div style="font-size:13px;color:var(--danger);padding:6px 0">No pay plan set for this month${row?` — ${row.jobs} jobs done (${pyMoney(row.gross)}) aren't being counted.`:'.'}</div>`;}
+    else if(plan.pay_type==='percentage'){
+      work=line(`Work done (${row?row.jobs:0} jobs, ${pyMoney(row?row.gross:0)}) × ${parseFloat(plan.percentage)}%`,pyMoney(e.work));
+    }else{
+      work=e.missing?`<div style="font-size:13px;color:var(--danger);padding:6px 0">Day rate isn't set — tap "Pay plan" below.</div>`
+        :line(`${row?row.full_days:0} full day${row&&row.full_days===1?'':'s'} + ${row?row.half_days:0} half day${row&&row.half_days===1?'':'s'}`,pyMoney(e.work));
+    }
+    const cashLine=(plan&&plan.deduct_cash&&row&&parseFloat(row.cash_gross)>0)?line(`Less cash they collected (${row.cash_jobs} job${row.cash_jobs===1?'':'s'})`,'-'+pyMoney(e.cash),{color:'var(--text-muted)'}):'';
+    const bf=Math.abs(r.broughtFwd)>0.004?line(r.broughtFwd>0?'Brought forward (unpaid)':'Brought forward (overpaid — recovered)',pyMoney(r.broughtFwd)):'';
+    const paid=r.paidRecs.length?line('Paid this month','-'+pyMoney(r.paidNow),{color:'var(--done)'}):'';
+    const recList=r.paidRecs.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-muted);padding:3px 0">
+      <span>${pyMoney(x.amount)} · ${pyDateLabel(x.paid_on)}${x.method?' · '+esc(x.method):''}${x.note?' · '+esc(x.note):''}</span>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);padding:2px 8px" onclick="deletePayRecord('${x.id}')">Remove</button></div>`).join('');
+    const bigColor=settled?'var(--done)':credit?'var(--navy-400)':'var(--gold)';
+    const bigText=settled?'Settled':credit?`${pyMoney(-r.toPay)} overpaid`:pyMoney(r.toPay);
+    return`<div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div><div style="font-size:16px;font-weight:600;color:var(--white)">${esc(u.name)}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${esc(pyPlanText(plan))}</div></div>
+      </div>
+      ${work}${cashLine}
+      ${line('Earned this month',pyMoney(e.net),{top:true,bold:true})}
+      ${bf}${paid}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <span style="font-size:13px;color:var(--text-soft)">To pay out</span>
+        <span style="font-size:22px;font-weight:700;color:${bigColor}">${bigText}</span>
+      </div>
+      ${recList?`<div style="margin-top:8px">${recList}</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="openPayRecordModal('${u.id}')">Record payment</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPayPlanModal('${u.id}')">Pay plan</button>
+      </div>
+    </div>`;
+  };
+
+  const planSection=people.map(u=>{
+    const ps=plans.filter(p=>p.user_id===u.id).sort((a,b)=>a.effective_from<b.effective_from?-1:1);
+    return`<div class="detail-row"><div>
+      <div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
+      ${ps.length?ps.map(p=>`<div style="font-size:12px;color:var(--text-muted)">From ${pyDateLabel(p.effective_from)}: ${esc(pyPlanText(p))}</div>`).join(''):'<div style="font-size:12px;color:var(--text-muted);font-style:italic">No pay plan yet</div>'}
+      </div><button class="btn btn-ghost btn-sm" onclick="openPayPlanModal('${u.id}')">${ps.length?'Change':'Set up'}</button></div>`;
+  }).join('');
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" onclick="payrollShift(-1)">‹</button>
+      <div style="font-size:16px;font-weight:600;color:var(--white)">${pyMonthLabel(m)}</div>
+      <button class="btn btn-ghost btn-sm" onclick="payrollShift(1)">›</button>
+    </div>
+    <div class="round-summary" style="margin-bottom:14px">
+      <div class="round-stat"><div class="round-stat-val" style="font-size:20px;color:var(--gold)">${pyMoney(totalToPay)}</div><div class="round-stat-label">Total to pay out${isFuture?' (future month)':''}</div></div>
+    </div>
+    ${unassigned?`<div style="background:rgba(255,178,0,.12);border:1.5px solid rgba(255,178,0,.4);border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--text);margin-bottom:12px">${unassigned.jobs} done job${unassigned.jobs===1?'':'s'} (${pyMoney(unassigned.gross)}) this month have no assignee, so they aren't in anyone's pay. Assign them in Jobs.</div>`:''}
+    ${shown.length?shown.map(card).join(''):'<div class="empty" style="padding:24px 0"><div class="empty-sub">Nothing to pay this month</div></div>'}
+    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Pay plans</div>
+    <div class="detail-section">${planSection||'<div class="detail-row"><span class="detail-label" style="font-style:italic">No team members</span></div>'}</div>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px;line-height:1.5">Work counts in the month a job was marked done. A day-rate day is half a day if that person's jobs that day total 4 hours or less, otherwise a full day. Cash is cash-payer customers' jobs. Unpaid and overpaid amounts carry forward automatically.</div>`;
+}
+
+function openPayRecordModal(uid){
+  const py=window._py,u=wcUsers.find(x=>x.id===uid);
+  const mth=py.m;
+  // suggested amount = what's still to pay for this person this month
+  openPayModal(`Record payment — ${u?esc(u.name):''}`,`
+    <div class="field"><label>Pay period</label><input value="${pyMonthLabel(mth)}" disabled></div>
+    <div class="field"><label>Amount paid (£) *</label><input id="py-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+    <div class="form-row">
+      <div class="field"><label>Date paid</label><input id="py-date" type="date" value="${localDateStr(new Date())}"></div>
+      <div class="field"><label>Method</label><select id="py-method"><option>Bank transfer</option><option>Cash</option><option>Other</option></select></div>
+    </div>
+    <div class="field"><label>Note</label><input id="py-note" placeholder="Optional"></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('payrollModal')">Cancel</button><button class="btn btn-primary" id="py-save" onclick="savePayRecord('${uid}')">Save payment</button></div>`);
+  // prefill with the outstanding amount
+  setTimeout(()=>{const t=pyOutstanding(uid);const a=document.getElementById('py-amount');if(a&&t>0.004)a.value=t.toFixed(2);},0);
+}
+function pyOutstanding(uid){
+  const py=window._py;if(!py)return 0;
+  const {rows,plans,recs,m}=py;
+  let due=0;
+  rows.filter(r=>r.user_id===uid&&r.month<=m).forEach(r=>{due+=pyEarned(pyPlanFor(plans,uid,r.month),r).net;});
+  const paid=recs.filter(x=>x.user_id===uid&&x.period<=m).reduce((s,x)=>s+parseFloat(x.amount),0);
+  return due-paid;
+}
+function openPayModal(title,body){
+  document.getElementById('payrollModalTitle').innerHTML=title;
+  document.getElementById('payrollModalBody').innerHTML=body;
+  document.getElementById('payrollModal').classList.add('open');
+}
+async function savePayRecord(uid){
+  const amt=parseFloat(document.getElementById('py-amount').value);
+  if(!isFinite(amt)||amt<=0){showToast('Enter the amount paid','error');return;}
+  const btn=document.getElementById('py-save');btn.disabled=true;
+  try{
+    await sb('wc_pay_records',{method:'POST',prefer:'return=representation',body:JSON.stringify({
+      business_id:BUSINESS_ID,user_id:uid,period:window._py.m,amount:amt,
+      paid_on:document.getElementById('py-date').value||null,
+      method:document.getElementById('py-method').value,
+      note:document.getElementById('py-note').value.trim()||null})});
+    closeModal('payrollModal');showToast('Payment recorded');renderPayroll();
+  }catch(e){btn.disabled=false;showToast('Could not save: '+e.message,'error');}
+}
+async function deletePayRecord(id){
+  if(!confirm('Remove this payment record? The amount will show as unpaid again.'))return;
+  try{await sb(`wc_pay_records?id=eq.${id}`,{method:'DELETE'});showToast('Payment removed');renderPayroll();}
+  catch(e){showToast('Could not remove: '+e.message,'error');}
+}
+
+function openPayPlanModal(uid){
+  const py=window._py,u=wcUsers.find(x=>x.id===uid);if(!u)return;
+  const cur=pyPlanFor(py.plans,uid,pyMonthStart(new Date()))||{pay_type:'percentage',percentage:'',full_day_rate:'',half_day_rate:'',deduct_cash:true};
+  openPayModal(`Pay plan — ${esc(u.name)}`,`
+    <div class="field"><label>Pay type</label><select id="pp-type" onchange="pyPlanTypeChanged()"><option value="percentage"${cur.pay_type==='percentage'?' selected':''}>Percentage of work done</option><option value="day_rate"${cur.pay_type==='day_rate'?' selected':''}>Day rate</option></select></div>
+    <div class="field" id="pp-pct-wrap"><label>Percentage (%)</label><input id="pp-pct" type="number" step="0.5" inputmode="decimal" value="${cur.percentage??''}"></div>
+    <div id="pp-day-wrap">
+      <div class="form-row">
+        <div class="field"><label>Full day (£)</label><input id="pp-full" type="number" step="0.01" inputmode="decimal" value="${cur.full_day_rate??''}"></div>
+        <div class="field"><label>Half day (£)</label><input id="pp-half" type="number" step="0.01" inputmode="decimal" value="${cur.half_day_rate??''}" placeholder="Half of full"></div>
+      </div>
+    </div>
+    <div class="field"><label>Takes effect from (first of a month)</label><input id="pp-from" type="date" value="${pyMonthStart(new Date())}"></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text);margin:6px 0 12px"><input type="checkbox" id="pp-cash"${cur.deduct_cash!==false?' checked':''}> Deduct cash they collect from customers</label>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Earlier months keep their old rate — a new plan only applies from the date above.</div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('payrollModal')">Cancel</button><button class="btn btn-primary" id="pp-save" onclick="savePayPlan('${uid}')">Save plan</button></div>`);
+  pyPlanTypeChanged();
+}
+function pyPlanTypeChanged(){
+  const t=document.getElementById('pp-type').value;
+  document.getElementById('pp-pct-wrap').style.display=t==='percentage'?'':'none';
+  document.getElementById('pp-day-wrap').style.display=t==='day_rate'?'':'none';
+}
+async function savePayPlan(uid){
+  const type=document.getElementById('pp-type').value;
+  const from=document.getElementById('pp-from').value;
+  if(!from){showToast('Choose a start date','error');return;}
+  const d=new Date(from+'T12:00:00');if(d.getDate()!==1){showToast('Start date must be the 1st of a month','error');return;}
+  const body={business_id:BUSINESS_ID,user_id:uid,pay_type:type,effective_from:from,deduct_cash:document.getElementById('pp-cash').checked};
+  if(type==='percentage'){
+    const p=parseFloat(document.getElementById('pp-pct').value);
+    if(!isFinite(p)||p<=0||p>100){showToast('Enter a percentage between 0 and 100','error');return;}
+    body.percentage=p;body.full_day_rate=null;body.half_day_rate=null;
+  }else{
+    const f=parseFloat(document.getElementById('pp-full').value);
+    if(!isFinite(f)||f<=0){showToast('Enter the full day rate','error');return;}
+    const hv=document.getElementById('pp-half').value;
+    body.full_day_rate=f;body.half_day_rate=hv===''?null:parseFloat(hv);body.percentage=null;
+  }
+  const btn=document.getElementById('pp-save');btn.disabled=true;
+  try{
+    const existing=window._py.plans.find(p=>p.user_id===uid&&p.effective_from===from);
+    if(existing)await sb(`wc_pay_plans?id=eq.${existing.id}`,{method:'PATCH',body:JSON.stringify(body)});
+    else await sb('wc_pay_plans',{method:'POST',prefer:'return=representation',body:JSON.stringify(body)});
+    closeModal('payrollModal');showToast('Pay plan saved');renderPayroll();
+  }catch(e){btn.disabled=false;showToast('Could not save: '+e.message,'error');}
+}
 
 async function renderRevenue(){
   document.getElementById('topbarPage').textContent='Revenue';
