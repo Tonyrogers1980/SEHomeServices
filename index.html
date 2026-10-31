@@ -1000,8 +1000,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='204';
-const BUILD_DATE='31 Oct 2026 17:05';
+const BUILD_VERSION='205';
+const BUILD_DATE='31 Oct 2026 17:40';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -4818,6 +4818,44 @@ async function renderPayroll(){
   const unassigned=rows.find(r=>!r.user_id&&r.month===m);
   const isFuture=m>pyMonthStart(new Date());
 
+  const history=r=>{
+    const uid=r.u.id;
+    const uPlans=plans.filter(x=>x.user_id===uid).sort((a,b)=>a.effective_from<b.effective_from?-1:1);
+    if(!uPlans.length)return'';
+    const startM=uPlans[0].effective_from.slice(0,7)+'-01';
+    const endM=pyMonthStart(new Date())>m?pyMonthStart(new Date()):m;
+    const list=[];
+    for(let cur=startM;cur<=endM;cur=pyShiftMonth(cur,1))list.push(cur);
+    let cumDue=0,cumPaid=0,totE=0,totP=0;
+    const lines=list.map(mo=>{
+      const row=rows.find(x=>x.user_id===uid&&x.month===mo)||null;
+      const pl=pyPlanFor(plans,uid,mo);
+      const e=pyEarned(pl,row);
+      const paid=recs.filter(x=>x.user_id===uid&&x.period===mo).reduce((t,x)=>t+parseFloat(x.amount),0);
+      cumDue+=e.net;cumPaid+=paid;totE+=e.net;totP+=paid;
+      const bal=cumDue-cumPaid;
+      let work='';
+      if(row){work=pl&&pl.pay_type==='day_rate'?`${row.full_days} full, ${row.half_days} half`:`${row.jobs} jobs · ${pyMoney(row.gross)}`;}
+      const sel=mo===m;
+      const balTxt=Math.abs(bal)<0.005?'£0.00':bal>0?pyMoney(bal):pyMoney(bal);
+      const balCol=Math.abs(bal)<0.005?'var(--done)':bal>0?'var(--gold)':'var(--navy-400)';
+      return`<div onclick="payrollMonth='${mo}';renderPayroll()" style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;align-items:center;padding:7px 6px;cursor:pointer;border-radius:6px;${sel?'background:rgba(255,178,0,.10);':''}border-bottom:1px solid var(--border)">
+        <div><div style="font-size:13px;color:var(--text);font-weight:${sel?600:400}">${new Date(mo+'T12:00:00').toLocaleDateString('en-GB',{month:'short',year:'2-digit'})}</div><div style="font-size:10.5px;color:var(--text-muted)">${work}</div></div>
+        <div style="font-size:13px;text-align:right;color:var(--text)">${pyMoney(e.net)}</div>
+        <div style="font-size:13px;text-align:right;color:${paid?'var(--done)':'var(--text-muted)'}">${paid?pyMoney(paid):'–'}</div>
+        <div style="font-size:13px;text-align:right;font-weight:600;color:${balCol}">${balTxt}</div>
+      </div>`;
+    }).join('');
+    const hdr=t=>`<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);text-align:right">${t}</div>`;
+    return`<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:12.5px;font-weight:600;color:var(--text-soft);margin-bottom:6px">Month by month</div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;padding:0 6px 4px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Month</div>${hdr('Earned')}${hdr('Paid')}${hdr('Owed')}</div>
+      ${lines}
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;padding:8px 6px 0;font-size:13px;font-weight:600"><div style="color:var(--text-soft)">Total</div><div style="text-align:right;color:var(--text)">${pyMoney(totE)}</div><div style="text-align:right;color:var(--done)">${pyMoney(totP)}</div><div style="text-align:right;color:var(--gold)">${pyMoney(totE-totP)}</div></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Tap a month to open it. "Owed" is the running balance (negative = overpaid).</div>
+    </div>`;
+  };
+
   const card=r=>{
     const {u,plan,row,e}=r;
     const settled=Math.abs(r.toPay)<0.005;
@@ -4856,6 +4894,7 @@ async function renderPayroll(){
         <button class="btn btn-primary btn-sm" onclick="openPayRecordModal('${u.id}')">Record payment</button>
         <button class="btn btn-ghost btn-sm" onclick="openPayPlanModal('${u.id}')">Pay plan</button>
       </div>
+      ${history(r)}
     </div>`;
   };
 
