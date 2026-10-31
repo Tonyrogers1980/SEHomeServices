@@ -990,8 +990,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='201';
-const BUILD_DATE='31 Oct 2026 09:10';
+const BUILD_VERSION='202';
+const BUILD_DATE='31 Oct 2026 15:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3075,6 +3075,17 @@ async function loadCustomerJobs(customerId){
 async function loadPaymentMethod(stripeCustomerId){
   const el=document.getElementById('stripePaymentMethod');
   if(!el)return;
+  // Use the card details already stored on the customer row (no n8n execution).
+  // Fall back to the live Stripe lookup only when nothing is stored.
+  const sc=(customers||[]).find(x=>x.stripe_customer_id===stripeCustomerId);
+  if(sc&&sc.stripe_card_attached&&sc.stripe_card_last4&&sc.stripe_card_exp_month&&sc.stripe_card_exp_year){
+    const m=parseInt(sc.stripe_card_exp_month,10),y=parseInt(sc.stripe_card_exp_year,10),now=new Date();
+    const isExpired=y<now.getFullYear()||(y===now.getFullYear()&&m<now.getMonth()+1);
+    const brand=(sc.stripe_card_brand||'card').replace(/^\w/,ch=>ch.toUpperCase());
+    const expStr=`${String(m).padStart(2,'0')}/${String(y).slice(-2)}`;
+    el.innerHTML=`${esc(brand)} •••• ${esc(sc.stripe_card_last4)} · ${isExpired?'Expired':'Exp'} ${expStr} ${isExpired?sqBadge('Expired','due'):sqBadge('Valid','sent')}`;
+    return;
+  }
   try{
     const res=await Promise.race([
       fetch(N8N_PAYMENT_METHOD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_customer_id:stripeCustomerId})}),
