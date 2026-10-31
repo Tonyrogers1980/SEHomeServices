@@ -989,8 +989,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='199';
-const BUILD_DATE='29 Oct 2026 12:40';
+const BUILD_VERSION='200';
+const BUILD_DATE='31 Oct 2026 08:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -4544,6 +4544,11 @@ async function dispatchInvoice(inv,job,c){
   const d=new Date();d.setDate(d.getDate()+terms);
   const due=inv.due_date||localDateStr(d);
   const po=inv.po_reference||c.po_reference||'';
+  let jobDate='';
+  try{
+    const jid=inv.job_id||job?.id;
+    if(jid){const [jr]=await sb(`wc_jobs?id=eq.${jid}&select=last_done,scheduled_date`)||[];const jd=jr&&(jr.last_done||jr.scheduled_date);if(jd)jobDate=fmtShort(String(jd).split('T')[0]);}
+  }catch(e){console.warn('job date lookup',e);}
   const patch={};
   if(!inv.due_date)patch.due_date=due;
   if(!inv.po_reference&&c.po_reference)patch.po_reference=c.po_reference;
@@ -4551,7 +4556,7 @@ async function dispatchInvoice(inv,job,c){
   const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     invoice_id:inv.id,customer_name:c.name||'Customer',
     customer_phone:c.whatsapp_number||c.phone||'',customer_email:c.email||'',
-    amount:job.price,service_type:job.service_type||'Window Cleaning',due_date:due,
+    amount:job.price,service_type:job.service_type||'Window Cleaning',job_date:jobDate,due_date:due,
     po_reference:po,invoice_notes:c.invoice_notes||'',
     bank_details:bs.bank_details||'',invoice_footer:bs.invoice_footer||'',notes:''
   })});
