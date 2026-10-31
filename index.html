@@ -889,6 +889,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
         <div class="field"><label>App access</label><select id="t-view-mode"><option value="full">Full access</option><option value="round_only">Round view only</option></select></div>
       </div>
       <div class="field"><label>PIN (6 digits, used to log in)</label><input id="t-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6 digits" autocomplete="off"></div>
+      <div class="field"><label>Home postcode (round start &amp; finish point)</label><input id="t-home-postcode" placeholder="e.g. SE9 1NR" autocomplete="off" autocapitalize="characters" maxlength="10"></div>
       <div class="field">
         <label>Skills (window cleaning)</label>
         <div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm)">
@@ -989,8 +990,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='200';
-const BUILD_DATE='31 Oct 2026 08:30';
+const BUILD_VERSION='201';
+const BUILD_DATE='31 Oct 2026 09:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -5333,7 +5334,7 @@ async function renderTeamConfig(){
         const skills=[u.skill_traditional?'Traditional':null,u.skill_wfp?'WFP':null,u.roof_access_capable?'Roof access':null].filter(Boolean);
         return`<div class="detail-row">
         <div><div style="font-size:14px;font-weight:500;color:var(--white)">${esc(u.name)}</div>
-          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••••</div>
+          <div style="font-size:12px;color:var(--text-muted)">${esc(u.role)} · ${u.view_mode==='round_only'?'Round view only':'Full access'} · PIN ••••••${u.home_postcode?` · Home ${esc(u.home_postcode)}`:' · No home postcode'}</div>
           <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap">
             ${skills.length?skills.map(s=>`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(0,224,207,.14);color:var(--teal)">${s}</span>`).join(''):'<span style="font-size:10px;color:var(--text-muted);font-style:italic">No skills set</span>'}
           </div>
@@ -5376,6 +5377,7 @@ function openTeamModal(id){
   document.getElementById('t-role').value=u?u.role:'employee';
   document.getElementById('t-view-mode').value=u?u.view_mode:'round_only';
   document.getElementById('t-pin').value='';document.getElementById('t-pin').placeholder=u?'Leave blank to keep current PIN':'6 digits';
+  document.getElementById('t-home-postcode').value=u?(u.home_postcode||''):'';
   setSkillBox('t-skill-traditional',u?!!u.skill_traditional:false);
   setSkillBox('t-skill-wfp',u?!!u.skill_wfp:false);
   setSkillBox('t-skill-roof',u?!!u.roof_access_capable:false);
@@ -5388,11 +5390,13 @@ async function saveTeamMember(){
   const view_mode=document.getElementById('t-view-mode').value;
   const pin=document.getElementById('t-pin').value.trim();
   const active=document.getElementById('t-active').checked;
+  const homePc=document.getElementById('t-home-postcode').value.trim();
+  if(homePc&&!/^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/.test(homePc)){showToast('Enter a valid UK postcode','error');return;}
   if(!name){showToast('Enter a name','error');return;}
   if(pin&&!/^\d{6}$/.test(pin)){showToast('PIN must be exactly 6 digits','error');return;}
   if(!editingTeamMemberId&&!pin){showToast('Set a 6-digit PIN','error');return;}
   const body={p_token:crToken(),p_id:editingTeamMemberId||null,p_name:name,p_role:role,p_view_mode:view_mode,p_active:active,
-    p_skill_traditional:getSkillBox('t-skill-traditional'),p_skill_wfp:getSkillBox('t-skill-wfp'),p_roof:getSkillBox('t-skill-roof'),p_pin:pin||null};
+    p_skill_traditional:getSkillBox('t-skill-traditional'),p_skill_wfp:getSkillBox('t-skill-wfp'),p_roof:getSkillBox('t-skill-roof'),p_pin:pin||null,p_home_postcode:homePc||null};
   try{
     const r=await sb('rpc/save_team_member',{method:'POST',body:JSON.stringify(body)});
     if(!r||!r.ok){showToast((r&&r.error)||'Could not save','error');return;}
