@@ -2406,6 +2406,7 @@ async function renderRound(){
     const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
     const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
     jobs=[...byDue,...byDate];
+    roundJobsCache=jobs;
     roundPaid=new Set();
     try{
       const doneIds=jobs.filter(j=>j.status==='done').map(j=>j.id);
@@ -2441,7 +2442,10 @@ async function renderRound(){
       });
       jobsHtml=[...groups.entries()].filter(([,g])=>g.jobs.length).map(([key,g])=>{
         const badge=key!=='unassigned'?`<div style="width:26px;height:26px;border-radius:50%;background:${userColor(key)};display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:#0a1420;flex-shrink:0;">${initialsFor(g.label)}</div>`:`<div style="width:26px;height:26px;border-radius:50%;background:var(--navy-700);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0;font-size:13px;">?</div>`;
-        return `<div class="sq-sec"><span>${esc(g.label)}<span class="n">${g.jobs.length}</span></span></div>` + g.jobs.map((j,i)=>jobCard(j,i+1)).join('');
+        g.jobs.sort(roundCmp);
+        const reord=roundReorderUser===key;
+        const tools=`<span style="margin-left:auto;display:flex;gap:6px">${key!=='unassigned'&&!reord?`<button type="button" class="btn btn-ghost btn-sm" onclick="optimiseRoundGroup('${key}')">⚡ Optimise</button>`:''}<button type="button" class="btn btn-ghost btn-sm" onclick="toggleRoundReorder('${key}')">${reord?'Done':'↕ Reorder'}</button></span>`;
+        return `<div class="sq-sec" style="display:flex;align-items:center"><span>${esc(g.label)}<span class="n">${g.jobs.length}</span></span>${tools}</div>` + (reord?g.jobs.map((j,i)=>reorderRow(j,i,g.jobs.length,key)).join(''):g.jobs.map((j,i)=>jobCard(j,i+1)).join(''));
       }).join('');
     }else{
       jobsHtml=filtered.map((j,i)=>jobCard(j,i+1)).join('');
@@ -2481,6 +2485,101 @@ async function renderRound(){
 }
 
 function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
+// ── ROUND ORDER / ROUTE OPTIMISER (v1.0.202) ─────────────────────────────────
+// Each worker's round starts and finishes at their home postcode. Postcodes are turned into
+// coordinates on the fly with the free postcodes.io service (nothing extra is stored).
+const _PC_RE=/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/;
+const _pcNorm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function _pcFromAddress(a){const m=String(a||'').toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/);return m?m[1]+m[2]:'';}
+const roundCmp=(a,b)=>((a.round_order||0)-(b.round_order||0))||String(a.created_at||'').localeCompare(String(b.created_at||''));
+const _geoCache=new Map();
+async function geocodePostcodes(list){
+  const out=new Map();
+  const need=[...new Set(list.filter(Boolean))].filter(pc=>{if(_geoCache.has(pc)){out.set(pc,_geoCache.get(pc));return false;}return true;});
+  for(let i=0;i<need.length;i+=100){
+    const chunk=need.slice(i,i+100);
+    const r=await fetch('https://api.postcodes.io/postcodes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postcodes:chunk})});
+    const j=await r.json();
+    (j.result||[]).forEach(x=>{if(x&&x.result&&x.result.latitude!=null){const v={lat:x.result.latitude,lng:x.result.longitude};const k=_pcNorm(x.query);out.set(k,v);_geoCache.set(k,v);}});
+  }
+  // Anything not found falls back to the middle of its postcode district (approximate)
+  for(const pc of need){
+    if(out.has(pc)||!_PC_RE.test(pc))continue;
+    try{const oc=pc.slice(0,-3);const r=await fetch('https://api.postcodes.io/outcodes/'+oc);const j=await r.json();
+      if(j.result&&j.result.latitude!=null){const v={lat:j.result.latitude,lng:j.result.longitude};out.set(pc,v);_geoCache.set(pc,v);}}catch(e){}
+  }
+  return out;
+}
+function _hav(a,b){const t=Math.PI/180,dLa=(b.lat-a.lat)*t,dLo=(b.lng-a.lng)*t;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLo/2)**2;return 12742*Math.asin(Math.sqrt(x));}
+// Closed tour home -> stops -> home. Nearest-neighbour, then 2-opt until no improvement.
+function optimiseTour(home,pts){
+  const n=pts.length;
+  if(n===0)return{order:[],km:0};
+  const N=[home,...pts];
+  const D=N.map(a=>N.map(b=>_hav(a,b)));
+  const left=new Set(pts.map((_,i)=>i+1));
+  let cur=0;const seq=[0];
+  while(left.size){let best=-1,bd=Infinity;left.forEach(i=>{if(D[cur][i]<bd){bd=D[cur][i];best=i;}});seq.push(best);left.delete(best);cur=best;}
+  seq.push(0);
+  let improved=true,guard=0;
+  while(improved&&guard++<200){
+    improved=false;
+    for(let i=1;i<seq.length-2;i++){
+      for(let k=i+1;k<seq.length-1;k++){
+        const d=D[seq[i-1]][seq[k]]+D[seq[i]][seq[k+1]]-D[seq[i-1]][seq[i]]-D[seq[k]][seq[k+1]];
+        if(d<-1e-9){let a=i,b=k;while(a<b){[seq[a],seq[b]]=[seq[b],seq[a]];a++;b--;}improved=true;}
+      }
+    }
+  }
+  let km=0;for(let i=0;i<seq.length-1;i++)km+=D[seq[i]][seq[i+1]];
+  let mid=seq.slice(1,-1);
+  if(mid.length>1&&D[0][mid[mid.length-1]]<D[0][mid[0]])mid=mid.reverse(); // start with the nearer end
+  return{order:mid.map(i=>pts[i-1]),km};
+}
+async function saveRoundOrder(list){
+  const changes=[];
+  list.forEach((j,i)=>{if(j.round_order!==i+1)changes.push([j,i+1]);});
+  for(let i=0;i<changes.length;i+=8){
+    await Promise.all(changes.slice(i,i+8).map(([j,n])=>sb(`wc_jobs?id=eq.${j.id}`,{method:'PATCH',body:JSON.stringify({round_order:n})}).then(()=>{j.round_order=n;})));
+  }
+}
+async function optimiseRoundGroup(uid){
+  const group=roundJobsCache.filter(j=>j.assigned_to===uid).sort(roundCmp);
+  const todo=group.filter(j=>j.status==='scheduled');
+  if(todo.length<2){showToast('Need at least 2 jobs still to do','error');return;}
+  showToast('Optimising round…','success');
+  try{
+    const [u]=await sb(`wc_users?id=eq.${uid}&select=name,home_postcode`)||[];
+    if(!u||!u.home_postcode){showToast(`Add a home postcode for ${u?u.name:'this person'} in Team first`,'error');return;}
+    const pcOf=j=>{const c=j.wc_customers||{};const p=_pcNorm(c.postcode);return _PC_RE.test(p)?p:_pcFromAddress(c.address);};
+    const hp=_pcNorm(u.home_postcode);
+    const geo=await geocodePostcodes([hp,...todo.map(pcOf)]);
+    const home=geo.get(hp);
+    if(!home){showToast(`Couldn't find ${u.name}'s home postcode — check it in Team`,'error');return;}
+    const pts=[],unknown=[];
+    todo.forEach(j=>{const g=geo.get(pcOf(j));g?pts.push({id:j.id,lat:g.lat,lng:g.lng}):unknown.push(j);});
+    const {order,km}=optimiseTour(home,pts);
+    const final=[...group.filter(j=>j.status!=='scheduled'),...order.map(p=>todo.find(j=>j.id===p.id)),...unknown];
+    await saveRoundOrder(final);
+    const miles=(km*1.3*0.621371).toFixed(1); // straight-line x1.3 as a rough road estimate
+    showToast(`Optimised ${order.length} stops · ~${miles} mi round trip${unknown.length?` · ${unknown.length} couldn't be placed (put last)`:''}`,'success');
+    renderRound();
+  }catch(e){showToast('Could not optimise: '+e.message,'error');}
+}
+function toggleRoundReorder(uid){roundReorderUser=roundReorderUser===uid?null:uid;renderRound();}
+async function moveRoundJob(uid,id,dir){
+  const g=roundJobsCache.filter(j=>j.assigned_to===(uid==='unassigned'?null:uid)).sort(roundCmp);
+  const i=g.findIndex(j=>j.id===id),k=i+dir;
+  if(i<0||k<0||k>=g.length)return;
+  [g[i],g[k]]=[g[k],g[i]];
+  try{await saveRoundOrder(g);renderRound();}catch(e){showToast('Could not reorder: '+e.message,'error');}
+}
+function reorderRow(j,i,n,uid){
+  const c=j.wc_customers||{};
+  const st=j.status==='done'?'✓ ':(j.status==='skipped'||j.status==='cant-access')?'⤼ ':'';
+  return `<div class="detail-row" style="align-items:center;gap:10px"><div style="width:22px;font-family:'DM Mono',monospace;color:var(--gold);flex-shrink:0">${i+1}</div><div style="flex:1;min-width:0"><div style="font-size:14px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st}${esc(c.name||'')}</div><div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.address||'')}</div></div><button type="button" class="btn btn-ghost btn-sm" ${i===0?'disabled':''} onclick="moveRoundJob('${uid}','${j.id}',-1)">▲</button><button type="button" class="btn btn-ghost btn-sm" ${i===n-1?'disabled':''} onclick="moveRoundJob('${uid}','${j.id}',1)">▼</button></div>`;
+}
+
 
 const AVATAR_COLORS=['#5ec8ff','#ff8a5c','#ff6fae','#8de971','#c792ea','#ffd166'];
 function userColor(id){
@@ -2660,6 +2759,7 @@ function jobCard(j,num){
 
 // ── WEEK VIEW ─────────────────────────────────────────────────────────────────
 let roundView='day';
+let roundJobsCache=[],roundReorderUser=null;
 
 async function renderRoundWeek(el){
   const d=new Date(roundDate+'T12:00:00');
