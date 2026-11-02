@@ -626,6 +626,18 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .rv-main .round-summary{grid-template-columns:repeat(2,minmax(0,1fr));}
   .rv-side>div:first-child{margin-top:0!important;}
 }
+
+/* ── Payroll: desktop ── */
+.pr-top,.pr-cards,.pr-plans{display:block;}
+@media(min-width:768px){
+  .pr-top{display:flex;align-items:center;flex-wrap:wrap;gap:12px 28px;margin-bottom:14px;}
+  .pr-top>*{margin-bottom:0!important;}
+  .pr-nav{width:340px;flex:0 0 auto;}
+  .pr-top .round-summary{grid-template-columns:minmax(0,240px);}
+  .pr-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:16px;align-items:start;max-width:1500px;}
+  .pr-cards>div{margin-bottom:0!important;}
+  .pr-plans{max-width:760px;}
+}
 </style>
 </head>
 <body>
@@ -1098,8 +1110,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='213';
-const BUILD_DATE='02 Nov 2026 09:01';
+const BUILD_VERSION='214';
+const BUILD_DATE='02 Nov 2026 09:07';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1536,7 +1548,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue'];
+const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue','payroll'];
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
@@ -5154,7 +5166,8 @@ async function renderPayroll(){
   }).join('');
 
   el.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div class="pr-top">
+    <div class="pr-nav" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <button class="btn btn-ghost btn-sm" onclick="payrollShift(-1)">‹</button>
       <div style="font-size:16px;font-weight:600;color:var(--white)">${pyMonthLabel(m)}</div>
       <button class="btn btn-ghost btn-sm" onclick="payrollShift(1)">›</button>
@@ -5162,11 +5175,14 @@ async function renderPayroll(){
     <div class="round-summary" style="margin-bottom:14px">
       <div class="round-stat"><div class="round-stat-val" style="font-size:20px;color:var(--gold)">${pyMoney(totalToPay)}</div><div class="round-stat-label">Total to pay out${isFuture?' (future month)':''}</div></div>
     </div>
+    </div>
     ${unassigned?`<div style="background:rgba(255,178,0,.12);border:1.5px solid rgba(255,178,0,.4);border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--text);margin-bottom:12px">${unassigned.jobs} done job${unassigned.jobs===1?'':'s'} (${pyMoney(unassigned.gross)}) this month have no assignee, so they aren't in anyone's pay. Assign them in Jobs.</div>`:''}
-    ${shown.length?shown.map(card).join(''):'<div class="empty" style="padding:24px 0"><div class="empty-sub">Nothing to pay this month</div></div>'}
+    ${shown.length?`<div class="pr-cards">${shown.map(card).join('')}</div>`:'<div class="empty" style="padding:24px 0"><div class="empty-sub">Nothing to pay this month</div></div>'}
+    <div class="pr-plans">
     <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Pay plans</div>
     <div class="detail-section">${planSection||'<div class="detail-row"><span class="detail-label" style="font-style:italic">No team members</span></div>'}</div>
-    <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px;line-height:1.5">Work counts in the month a job was marked done. A day-rate day is a full day if that person's done jobs that day total at least the plan's full-day threshold (£200 by default), otherwise a half day. Cash is cash-payer customers' jobs. Unpaid and overpaid amounts carry forward automatically.</div>`;
+    <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px;line-height:1.5">Work counts in the month a job was marked done. A day-rate day is a full day if that person's done jobs that day total at least the plan's full-day threshold (£200 by default), otherwise a half day. Cash is cash-payer customers' jobs. Unpaid and overpaid amounts carry forward automatically.</div>
+    </div>`;
 }
 
 function openPayRecordModal(uid){
