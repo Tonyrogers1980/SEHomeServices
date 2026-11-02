@@ -589,6 +589,18 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .wk-job.st-done .wk-name{color:var(--done);text-decoration:line-through;text-decoration-color:rgba(141,233,113,.5);}
   .wk-job.st-skipped .wk-name,.wk-job.st-cant-access .wk-name{color:var(--warn);}
 }
+
+/* ── Conversations: desktop card grid ── */
+.cv-grid{display:block;}
+@media(min-width:1180px){
+  .cv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;align-items:start;}
+  .cv-grid>*{min-width:0;}
+  .cv-grid>.cv-gh{grid-column:1/-1;margin:14px 2px 0!important;}
+  .cv-grid>:not(.cv-gh){margin-bottom:0!important;}
+}
+@media(min-width:1800px){
+  .cv-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
 </style>
 </head>
 <body>
@@ -1061,8 +1073,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='210';
-const BUILD_DATE='02 Nov 2026 08:50';
+const BUILD_VERSION='211';
+const BUILD_DATE='02 Nov 2026 08:55';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1499,7 +1511,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round'];
+const DESKTOP_WIDE_PAGES=['dashboard','round','messaging'];
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
@@ -2084,7 +2096,7 @@ function archiveFilterBar(counts){
   return `<div class="sq-filters">${opts.map(([id,label,count])=>`<button class="sq-fchip${archiveFilter===id?' on':''}" onclick="setArchiveFilter('${id}')">${label}<span class="n">${count}</span></button>`).join('')}</div>`;
 }
 function convGroupHeader(label,n){
-  return `<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin:16px 0 8px">${label} · ${n}</div>`;
+  return `<div class="cv-gh" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin:16px 0 8px">${label} · ${n}</div>`;
 }
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
@@ -2129,7 +2141,7 @@ function renderMessagingFromCache(){
     <div class="sq-top"><span class="sq-pill">${counts.needsReply} need a reply · ${counts.service} customer service · ${counts.sales} sales · ${counts.archive} archived</span></div>
     ${convTabBar(counts)}
     ${subText}${barHtml}
-    ${!shown?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:bodyHtml}`;
+    ${!shown?`<div class="empty"><div class="empty-title">${emptyTitle}</div></div>`:`<div class="cv-grid">${bodyHtml}</div>`}`;
 }
 async function renderMessaging(){
   document.getElementById('topbarPage').textContent='Conversations';
