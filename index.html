@@ -601,6 +601,19 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 @media(min-width:1800px){
   .cv-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
 }
+
+/* ── Customers: desktop split view ── */
+.cu-split{display:block;}
+@media(min-width:1180px){
+  .cu-split{display:grid;grid-template-columns:minmax(380px,430px) minmax(0,1fr);gap:28px;align-items:start;}
+  .cu-list{position:sticky;top:0;max-height:calc(100vh - 52px - 72px);overflow-y:auto;padding-right:6px;}
+  .cu-detail{min-width:0;}
+  .cu-list .sq-filters{flex-wrap:wrap;overflow:visible;}
+  .cu-detail .back-btn{display:none;}
+  .cu-sel>.sq-row{background:rgba(255,178,0,.10);box-shadow:inset 3px 0 0 var(--gold);}
+  .cu-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:120px 20px;color:var(--text-muted);font-size:14px;border:1px dashed var(--border);border-radius:16px;}
+  .cu-none svg{width:34px;height:34px;color:var(--gold);}
+}
 </style>
 </head>
 <body>
@@ -1073,8 +1086,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='211';
-const BUILD_DATE='02 Nov 2026 08:55';
+const BUILD_VERSION='212';
+const BUILD_DATE='02 Nov 2026 08:58';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1511,7 +1524,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round','messaging'];
+const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers'];
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
@@ -3099,6 +3112,9 @@ async function confirmReschedule(){
 // ── CUSTOMERS ─────────────────────────────────────────────────────────────────
 // ── CUSTOMERS (v1.0.166 redesign) ────────────────────────────────────────────
 let custFilter='all',custQuery='',custRounds={},custTab='customer';
+let custSelectedId=null;
+// Desktop (>=1180px): Customers is a split view - list on the left, selected customer on the right
+function custSplit(){return window.matchMedia('(min-width:1180px)').matches&&!hidePrices();}
 async function renderCustomers(){
   document.getElementById('topbarPage').textContent='Customers';
   document.getElementById('topbarAction').innerHTML='';
@@ -3112,12 +3128,17 @@ async function renderCustomers(){
     customers=cs;custRounds={};
     (js||[]).forEach(j=>{if(!j.round_name)return;(custRounds[j.customer_id]=custRounds[j.customer_id]||[]);if(!custRounds[j.customer_id].includes(j.round_name))custRounds[j.customer_id].push(j.round_name);});
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-  el.innerHTML=`
+  const split=custSplit();
+  const listShell=`
     <div class="sq-top"><span class="sq-pill" id="custPill"></span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openAddCustomer()" aria-label="Add customer">${ic('plus')}</button></div>
     <div class="sq-search">${ic('search')}<input placeholder="Search name, address, postcode…" value="${esc(custQuery)}" oninput="filterCustomers(this.value)"></div>
     <div class="sq-filters" id="custChips"></div>
     <div id="customerList"></div>`;
+  el.innerHTML=split
+    ?`<div class="cu-split"><div class="cu-list">${listShell}</div><div class="cu-detail" id="custDetailPane"><div class="cu-none">${ic('user')}<div>Select a customer to see their details</div></div></div></div>`
+    :listShell;
   drawCustomers();
+  if(split&&custSelectedId)showCustomer(custSelectedId,custTab);
 }
 function custMatches(c){
   const l=custQuery.toLowerCase();
@@ -3142,7 +3163,7 @@ function customerCards(list){
   if(!list.length)return sqEmpty('No customers found');
   return`<div class="sq-list">${list.map(c=>{
     const rounds=custRounds[c.id]||[];const bal=owedBy(c.id);
-    return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
+    return`<div class="sq-block${c.id===custSelectedId&&custSplit()?' cu-sel':''}" data-cid="${c.id}"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
       ${sqAv(c.name,c.has_active_jobs&&rounds.length?sqColor(rounds[0]):c.has_active_jobs?'#4a6fa5':'#33475f')}
       <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
         <div class="sq-chips">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${bal>0?cardIcon(c):''}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
@@ -3154,7 +3175,14 @@ function filterCustomers(q){custQuery=q;drawCustomers();}
 async function showCustomer(id,tab){
   if(hidePrices())return;
   if(tab)custTab=tab;else if(!document.getElementById('custHeroId')||document.getElementById('custHeroId').dataset.id!==id)custTab='customer';
-  const el=document.getElementById('mainContent');
+  let el=document.getElementById('mainContent');
+  if(custSplit()){
+    // Split view lives on the Customers page - from anywhere else, go there with this customer selected
+    if(!document.getElementById('custDetailPane')){custSelectedId=id;if(tab)custTab=tab;navigate('customers');return;}
+    el=document.getElementById('custDetailPane');
+    custSelectedId=id;
+    document.querySelectorAll('#customerList .sq-block').forEach(b=>b.classList.toggle('cu-sel',b.dataset.cid===id));
+  }
   if(!document.getElementById('custHeroId')||document.getElementById('custHeroId').dataset.id!==id)el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
   let c=customers.find(x=>x.id===id);
   try{const [fresh]=await sb(`wc_customers?id=eq.${id}&select=*`);if(fresh){c=fresh;const i=customers.findIndex(x=>x.id===id);if(i>-1)customers[i]=fresh;else customers.push(fresh);}}catch(e){}
@@ -3538,7 +3566,7 @@ async function archiveCustomer(id){
   if(!confirm('Archive this customer?'))return;
   try{
     await sb(`wc_customers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({active:false}),prefer:'return=minimal'});
-    showToast('Archived','success');renderCustomers();
+    showToast('Archived','success');custSelectedId=null;renderCustomers();
   }catch(e){showToast(e.message,'error');}
 }
 
