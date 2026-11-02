@@ -670,6 +670,12 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .rc-legend span{display:flex;align-items:center;gap:5px;}
 }
 @media(min-width:1560px){.rc-s{display:block!important;}.rc-cell{min-height:68px;}}
+
+/* ═══ v1.0.216 — drag a Round job card onto the calendar to reschedule (desktop + mouse) ═══ */
+.job-card-wrap[draggable="true"]{cursor:grab;}
+.job-card-wrap.rd-dragging{opacity:.4;}
+.rc-cell.over{background:rgba(255,178,0,.22)!important;border-color:var(--gold)!important;box-shadow:0 0 0 2px rgba(255,178,0,.35);}
+.rc-hint{margin-top:10px;font-size:11px;color:var(--text-muted);text-align:center;}
 </style>
 </head>
 <body>
@@ -1142,8 +1148,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='215';
-const BUILD_DATE='02 Nov 2026 09:12';
+const BUILD_VERSION='216';
+const BUILD_DATE='02 Nov 2026 10:26';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2651,10 +2657,44 @@ async function renderRound(){
         </div></div>`
     }
     </div>${calHtml}</div>`;
+  if(ROUND_DRAG_MQ.matches)el.querySelectorAll('.job-card-wrap[draggable] a').forEach(a=>{a.draggable=false;});
 }
 
 // ── ROUND: desktop month calendar beside the day view (v1.0.215) ─────────────
 let roundCalAnchor=null,roundCalForDate=null;
+const ROUND_DRAG_MQ=window.matchMedia('(min-width:1280px) and (pointer:fine)');
+let rdDragJob=null;
+function rdClearDrag(){rdDragJob=null;document.querySelectorAll('.rd-dragging').forEach(x=>x.classList.remove('rd-dragging'));document.querySelectorAll('.rc-cell.over').forEach(x=>x.classList.remove('over'));}
+document.addEventListener('dragstart',e=>{
+  const w=e.target.closest&&e.target.closest('.job-card-wrap[data-jid]');
+  if(!w||!ROUND_DRAG_MQ.matches)return;
+  rdDragJob={id:w.dataset.jid,series:w.dataset.series||''};
+  e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',rdDragJob.id);
+  w.classList.add('rd-dragging');
+});
+document.addEventListener('dragover',e=>{
+  if(!rdDragJob)return;
+  const c=e.target.closest&&e.target.closest('.rc-cell[data-date]');
+  document.querySelectorAll('.rc-cell.over').forEach(x=>{if(x!==c)x.classList.remove('over');});
+  if(!c)return;
+  e.preventDefault();e.dataTransfer.dropEffect='move';c.classList.add('over');
+});
+document.addEventListener('drop',e=>{
+  if(!rdDragJob)return;
+  const c=e.target.closest&&e.target.closest('.rc-cell[data-date]');
+  if(!c)return;
+  e.preventDefault();
+  const job=rdDragJob,d=c.dataset.date;
+  rdClearDrag();
+  roundDropReschedule(job,d);
+});
+document.addEventListener('dragend',rdClearDrag);
+function roundDropReschedule(job,d){
+  if(d===roundDate)return;
+  if(isDateTooSoon(d)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
+  openReschedule(job.id,job.series);            // same dialog as the Reschedule button: pick this job / whole series, and whether to notify
+  document.getElementById('reschedule-date').value=d;
+}
 const ROUND_CAL_MQ=window.matchMedia('(min-width:1280px)');
 if(ROUND_CAL_MQ.addEventListener)ROUND_CAL_MQ.addEventListener('change',()=>{if(currentUser&&currentPageId==='round'&&roundView==='day')renderRound();});
 async function roundCalPanelHtml(){
@@ -2677,7 +2717,7 @@ async function roundCalPanelHtml(){
     const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
     const dj=byDate[ds]||[];
     const done=dj.some(j=>j.status==='done'),sched=dj.some(j=>j.status==='scheduled'),skip=dj.some(j=>j.status==='skipped'||j.status==='cant-access');
-    cells+=`<button type="button" class="rc-cell${ds===roundDate?' sel':''}${ds===today?' today':''}${dj.length?' has':''}" onclick="roundCalPick('${ds}')"><span class="rc-n">${n}</span>${dj.length?`<span class="rc-c">${dj.length}</span>${hidePrices()?'':`<span class="rc-s">£${dj.reduce((a,j)=>a+parseFloat(j.price||0),0).toFixed(0)}</span>`}<span class="rc-dots">${done?'<i style="background:var(--done)"></i>':''}${sched?'<i style="background:var(--navy-400)"></i>':''}${skip?'<i style="background:var(--warn)"></i>':''}</span>`:''}</button>`;
+    cells+=`<button type="button" data-date="${ds}" class="rc-cell${ds===roundDate?' sel':''}${ds===today?' today':''}${dj.length?' has':''}" onclick="roundCalPick('${ds}')"><span class="rc-n">${n}</span>${dj.length?`<span class="rc-c">${dj.length}</span>${hidePrices()?'':`<span class="rc-s">£${dj.reduce((a,j)=>a+parseFloat(j.price||0),0).toFixed(0)}</span>`}<span class="rc-dots">${done?'<i style="background:var(--done)"></i>':''}${sched?'<i style="background:var(--danger)"></i>':''}${skip?'<i style="background:var(--warn)"></i>':''}</span>`:''}</button>`;
   }
   const chev=d=>`<path stroke-linecap="round" stroke-linejoin="round" d="${d}"/>`;
   return `<aside class="rd-cal" id="rdCal">
@@ -2689,7 +2729,8 @@ async function roundCalPanelHtml(){
     <div class="rd-cal-sum"><b>${jobs.length}</b> jobs${hidePrices()?'':` · <b>£${total.toFixed(0)}</b>`}</div>
     <div class="rc-grid rc-dow">${['M','T','W','T','F','S','S'].map(x=>`<span>${x}</span>`).join('')}</div>
     <div class="rc-grid">${cells}</div>
-    <div class="rc-legend"><span><i style="background:var(--done)"></i>Done</span><span><i style="background:var(--navy-400)"></i>To do</span><span><i style="background:var(--warn)"></i>Skipped</span></div>
+    <div class="rc-legend"><span><i style="background:var(--done)"></i>Done</span><span><i style="background:var(--danger)"></i>To do</span><span><i style="background:var(--warn)"></i>Skipped</span></div>
+    ${ROUND_DRAG_MQ.matches?'<div class="rc-hint">Drag a job card onto a day to reschedule it</div>':''}
   </aside>`;
 }
 function roundCalPick(d){roundDate=d;roundCalAnchor=null;renderRound();}
@@ -2954,7 +2995,8 @@ function jobCard(j,num){
   const chg=jobChangeBlock(j.id);
   const svc=svcInfo(j.service_type);
   const chipsHtml=`${svc.extra?sqChip(svc.extra,'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqShort(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${flags.join('')}`;
-  return`<div class="job-card-wrap${chg?' has-change':''}">
+  const dragAttr=(isSched&&currentPageId==='round'&&ROUND_DRAG_MQ.matches)?` draggable="true" data-jid="${j.id}" data-series="${j.series_id||''}"`:'';
+  return`<div class="job-card-wrap${chg?' has-change':''}"${dragAttr}>
     ${chg}
     <div class="sq-job ${stateClass}" id="jc-${j.id}">
       ${banners.join('')}
