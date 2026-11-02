@@ -676,6 +676,64 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 .job-card-wrap.rd-dragging{opacity:.4;}
 .rc-cell.over{background:rgba(255,178,0,.22)!important;border-color:var(--gold)!important;box-shadow:0 0 0 2px rgba(255,178,0,.35);}
 .rc-hint{margin-top:10px;font-size:11px;color:var(--text-muted);text-align:center;}
+
+/* ═══ v1.0.218 — Conversations: desktop inbox (list + conversation) ═══ */
+@media(min-width:1180px){
+  .ib-split{display:grid;grid-template-columns:minmax(360px,420px) minmax(0,1fr);gap:24px;align-items:start;}
+  .ib-list{position:sticky;top:0;max-height:calc(100vh - 52px - 120px);overflow-y:auto;padding-right:6px;}
+  .ib-list .sq-filters{flex-wrap:wrap;overflow:visible;}
+  .ib-search{width:100%;box-sizing:border-box;margin:0 0 10px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--navy-800);color:var(--text);font-family:inherit;font-size:13px;}
+  .ib-search:focus{outline:none;border-color:var(--gold);}
+  .ib-sh{display:flex;align-items:center;gap:8px;margin:18px 4px 6px;font-size:11px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--text-muted);}
+  .ib-sh i{width:9px;height:9px;border-radius:50%;background:var(--bc);}
+  .ib-sh b{margin-left:2px;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--bc) 18%,transparent);color:var(--text);font-size:11px;letter-spacing:0;}
+  .ib-row{display:flex;gap:11px;padding:11px 12px;margin-bottom:4px;border-radius:12px;cursor:pointer;border:1px solid transparent;border-left:3px solid var(--bc);background:var(--navy-800);}
+  .ib-row:hover{border-color:var(--navy-400);border-left-color:var(--bc);}
+  .ib-row.sel{background:rgba(255,178,0,.10);border-color:rgba(255,178,0,.45);border-left-color:var(--gold);}
+  .ib-rb{min-width:0;flex:1;}
+  .ib-r1{display:flex;align-items:baseline;gap:8px;}
+  .ib-nm{flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ib-tm{font-size:11px;color:var(--text-muted);flex-shrink:0;}
+  .ib-sn{font-size:12.5px;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .ib-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+  .ib-chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--text-soft);}
+  .ib-chip.hot{background:rgba(255,92,114,.16);color:var(--danger);}
+  .ib-chip.warn{background:rgba(255,207,77,.15);color:var(--warn);}
+  .ib-empty{padding:40px 16px;text-align:center;color:var(--text-muted);font-size:13px;}
+  .ib-detail{min-width:0;height:calc(100vh - 52px - 120px);display:flex;flex-direction:column;background:var(--navy-800);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+  .ib-in{display:flex;flex-direction:column;height:100%;min-height:0;}
+  .ib-dh{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border);}
+  .ib-dn{flex:1;min-width:0;}
+  .ib-dname{font-size:18px;font-weight:700;color:var(--white);}
+  .ib-dsub{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+  .ib-more{position:relative;}
+  .ib-more summary{list-style:none;cursor:pointer;padding:7px 12px;border-radius:10px;border:1px solid var(--border);font-size:13px;color:var(--text-soft);}
+  .ib-more summary::-webkit-details-marker{display:none;}
+  .ib-more[open] summary{border-color:var(--gold);color:var(--gold);}
+  .ib-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:20;display:flex;flex-direction:column;gap:6px;min-width:230px;padding:10px;background:var(--navy-900);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+  .ib-menu .btn{justify-content:flex-start;text-align:left;}
+  .ib-banner{display:flex;align-items:center;gap:12px;padding:12px 20px;background:color-mix(in srgb,var(--bc) 12%,transparent);border-bottom:1px solid color-mix(in srgb,var(--bc) 35%,transparent);}
+  .ib-banner i{width:10px;height:10px;border-radius:50%;background:var(--bc);flex-shrink:0;}
+  .ib-banner b{display:block;font-size:14px;color:var(--white);}
+  .ib-banner span{display:block;font-size:12.5px;color:var(--text-soft);margin-top:1px;}
+  .ib-extra{display:flex;flex-direction:column;gap:8px;padding:12px 20px 0;}
+  .ib-chat{flex:1;min-height:0;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:10px;background:var(--navy-900);margin-top:12px;}
+  .ib-b{max-width:72%;}
+  .ib-b.in{align-self:flex-start;}
+  .ib-b.out{align-self:flex-end;}
+  .ib-bm{font-size:10.5px;color:var(--text-muted);margin-bottom:3px;}
+  .ib-b.out .ib-bm{text-align:right;}
+  .ib-bt{padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;}
+  .ib-b.in .ib-bt{background:var(--border);color:var(--text);border-bottom-left-radius:4px;}
+  .ib-b.out .ib-bt{background:var(--gold);color:var(--navy-900);border-bottom-right-radius:4px;}
+  .ib-win{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;background:rgba(255,178,0,.14);border-top:1px solid rgba(255,178,0,.4);font-size:12.5px;font-weight:600;color:var(--text);}
+  .ib-compose{padding:14px 20px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px;}
+  .ib-cr{display:flex;gap:10px;}
+  .ib-cr textarea{flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--navy-900);color:var(--text);font-size:13.5px;font-family:inherit;resize:vertical;min-height:52px;box-sizing:border-box;}
+  .ib-cr textarea:focus{outline:none;border-color:var(--gold);}
+  .ib-cr .btn{align-self:flex-end;min-width:72px;}
+  .ib-acts{display:flex;gap:8px;flex-wrap:wrap;}
+}
 </style>
 </head>
 <body>
@@ -1150,8 +1208,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='217';
-const BUILD_DATE='02 Nov 2026 10:39';
+const BUILD_VERSION='219';
+const BUILD_DATE='02 Nov 2026 10:55';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1773,7 +1831,7 @@ function escalationCardHtml(r,msgs,lead){
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div class="conv-tag">${esc(escReasonLabel(r.reason_code))}</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${esc(STAGE_LABELS[conv.stage]||conv.stage||'New')}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${esc(convStageLabel(messagingConvById[r.conversation_id]||conv))}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escTimeAgo(r.created_at)}</div>
       </div>
     </div>
@@ -1845,7 +1903,7 @@ function renderConvCard(conv,msgs,badge){
   const staleMs=lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity;
   const windowClosed=staleMs>24*60*60*1000;
   const toneClass=badge?.tone?`conv-tone-${badge.tone}`:'';
-  const stageLabel=STAGE_LABELS[conv.stage]||conv.stage||'New';
+  const stageLabel=convStageLabel(conv);
   const showStageLine=!badge||badge.label!==stageLabel;
   const showHoldMarker=conv.on_hold&&badge?.tone!=='hold';
   const badgeStyle=badge?TONE_STYLE[badge.tone]:null;
@@ -2087,10 +2145,11 @@ const TONE_STYLE={
 function getConvBadge(c){
   if(TERMINAL_STAGE_LABELS[c.stage]) return {label:TERMINAL_STAGE_LABELS[c.stage],tone:'archived'};
   if(c.controlled_by==='human'&&c.last_message_direction==='inbound') return {label:'Awaiting your reply',tone:'urgent'};
-  if(c.stage==='QUOTED') return {label:'Quote sent',tone:'quoted'};
+  if(convQuoteSent(c)) return {label:'Quote sent',tone:'quoted'};
   if(c.controlled_by==='ai') return {label:'AI',tone:'ai'};
   if(c.controlled_by==='human'&&c.last_message_direction==='outbound') return {label:'You replied',tone:'replied'};
   if(c.on_hold) return {label:'On hold',tone:'hold'};
+  if(c.stage==='QUOTED') return {label:'Price given',tone:'neutral'};
   return {label:c.stage||'Active',tone:'neutral'};
 }
 const CONV_TABS=['needsReply','service','sales','archive','allActive'];
@@ -2147,7 +2206,7 @@ function applyConvSub(list,sub){
   if(sub==='waiting')return list.filter(convNeedsReply);
   if(sub==='ai')return list.filter(c=>c.controlled_by==='ai');
   if(sub==='hold')return list.filter(c=>c.on_hold);
-  if(sub==='quoted')return list.filter(c=>c.stage==='QUOTED');
+  if(sub==='quoted')return list.filter(convQuoteSent);
   return list;
 }
 // Escalated conversations render with the escalation card (suggested reply, resolve, send quote); everything else with the normal card.
@@ -2159,6 +2218,158 @@ function convCardFor(c,messagesByConv,opts){
   const html=e?escalationCardHtml(e,msgs,messagingLeadsByConv[c.id]):renderConvCard(c,msgs,getConvBadge(c));
   return opts.dim?`<div style="opacity:.55">${html}</div>`:html;
 }
+// ── CONVERSATIONS: truthful quote state + desktop inbox (v1.0.218) ───────────
+// "Quote sent" now means a real quote record exists (wc_quotes sent/accepted since the chat began).
+// A price mentioned in the chat (stage QUOTED with no quote record) shows as "Price given" instead.
+function convCustomerId(c){return c.wc_customer_id||customerIdByPhone[phoneKey(c.customer_phone)]||null;}
+function convQuoteInfo(c){
+  const st=quoteStateByCustomer[convCustomerId(c)]||{};
+  const since=Date.parse(c.created_at)||0;
+  const ok=t=>!!t&&(Date.parse(t)||0)>=since;
+  return {sent:ok(st.sent)?st.sent:null,accepted:ok(st.accepted)?st.accepted:null,price:st._price};
+}
+function convQuoteSent(c){const q=convQuoteInfo(c);return !!(q.sent||q.accepted);}
+function convPriceGivenOnly(c){return c.stage==='QUOTED'&&!convQuoteSent(c);}
+function convStageLabel(c){if(!c)return'New';if(c.stage==='QUOTED')return convQuoteSent(c)?'Quote sent':'Price given';return STAGE_LABELS[c.stage]||c.stage||'New';}
+// One status per live conversation, in the order you should look at them.
+const CONV_BUCKETS=[['action','Needs you','var(--danger)'],['quoted','Quote sent','var(--teal)'],['waiting','Waiting on customer','var(--gold)'],['ai','With Jarvis','var(--violet)'],['hold','On hold','var(--text-muted)']];
+function convBucket(c){
+  if(isTerminalConv(c))return'archive';
+  const acts=actionsByConv[c.id]||[];
+  if(convNeedsReply(c)||acts.some(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at)))return'action';
+  if(convQuoteSent(c))return'quoted';
+  if(c.on_hold)return'hold';
+  if(c.controlled_by==='ai')return'ai';
+  return'waiting';
+}
+const CONV_INBOX_MQ=window.matchMedia('(min-width:1180px)');
+if(CONV_INBOX_MQ.addEventListener)CONV_INBOX_MQ.addEventListener('change',()=>{if(currentUser&&currentPageId==='messaging'&&convSectionCache)renderMessagingFromCache();});
+let convSelId=null,convInboxView='active',convKindFilter='all',convSearch='';
+const KIND_LABEL={sales:'Sales',service:'Customer service',other:'Other'};
+function convInboxData(){
+  const {convs,messagesByConv}=convSectionCache;
+  const active=convs.filter(c=>!isTerminalConv(c)),arch=convs.filter(isTerminalConv);
+  const bk=new Map(convs.map(c=>[c.id,convBucket(c)]));
+  let pool=convInboxView==='archive'?arch.filter(c=>archiveFilter==='ALL'||c.stage===archiveFilter):convInboxView==='all'?convs:active;
+  if(convKindFilter!=='all')pool=pool.filter(c=>convKind(c)===convKindFilter);
+  const q=convSearch.trim().toLowerCase();
+  if(q)pool=pool.filter(c=>{const last=(messagesByConv[c.id]||[]).slice(-1)[0];return [c.customer_name,c.customer_phone,last&&last.message_text].join(' ').toLowerCase().includes(q);});
+  const groups=[];
+  if(convInboxView==='archive'){groups.push({key:'archive',label:'Archive',col:'var(--text-muted)',list:pool});}
+  else{
+    CONV_BUCKETS.forEach(([k,label,col])=>{
+      let list=pool.filter(c=>bk.get(c.id)===k);
+      if(k==='action')list=[...list].sort((a,b)=>String(a.last_message_at||'').localeCompare(String(b.last_message_at||''))); // longest waiting first
+      if(list.length)groups.push({key:k,label,col,list});
+    });
+    if(convInboxView==='all'){const l=pool.filter(isTerminalConv);if(l.length)groups.push({key:'archive',label:'Archive',col:'var(--text-muted)',list:l});}
+  }
+  const ordered=groups.flatMap(g=>g.list);
+  const counts={active:active.length,archive:arch.length,all:convs.length};
+  CONV_BUCKETS.forEach(([k])=>counts[k]=active.filter(c=>bk.get(c.id)===k).length);
+  return {convs,messagesByConv,groups,ordered,counts,bk};
+}
+function ibRow(c,msgs,bucket,col){
+  const last=(msgs||[]).slice(-1)[0];
+  const snip=last?((last.direction==='outbound'?'You: ':'')+String(last.message_text||(last.media_urls&&last.media_urls.length?'📷 Photo':'')).replace(/\s+/g,' ')):'';
+  const e=openEscalationByConv[c.id];
+  const initial=esc((c.customer_name||'?').trim().charAt(0).toUpperCase()||'?');
+  const chips=[`<span class="ib-chip">${esc(KIND_LABEL[convKind(c)])}</span>`];
+  if(e)chips.push(`<span class="ib-chip hot">${esc(escalationReasonLabel(e.reason_code))}</span>`);
+  if(convPriceGivenOnly(c))chips.push('<span class="ib-chip warn">Price given · no quote sent</span>');
+  if(bucket==='archive')chips.push(`<span class="ib-chip">${esc(convStageLabel(c))}</span>`);
+  return `<div class="ib-row${c.id===convSelId?' sel':''}" onclick="convSelect('${c.id}')" style="--bc:${col}">
+    <div class="card-avatar${convCustomerId(c)?' card-avatar-customer':''}" style="width:36px;height:36px;font-size:14px;flex-shrink:0">${initial}</div>
+    <div class="ib-rb">
+      <div class="ib-r1"><span class="ib-nm">${esc(c.customer_name||c.customer_phone||'Unknown')}</span><span class="ib-tm">${escTimeAgo(c.last_message_at)}</span></div>
+      <div class="ib-sn">${esc(snip)}</div>
+      <div class="ib-chips">${chips.join('')}</div>
+    </div>
+  </div>`;
+}
+function convListInner(d){
+  const views=[['active','Active',d.counts.active],['archive','Archive',d.counts.archive],['all','All',d.counts.all]];
+  const kinds=[['all','Everything'],['sales','Sales'],['service','Customer service']];
+  const arch=d.convs.filter(isTerminalConv);
+  const ac={ALL:arch.length};arch.forEach(c=>{ac[c.stage]=(ac[c.stage]||0)+1;});
+  const archBar=convInboxView==='archive'?`<div class="sq-filters">${[['ALL','All'],['BOOKED','Booked'],['FAILED_TO_CONVERT','Failed to convert'],['TIME_WASTER','Time waster'],['CLOSED','Closed']].map(([id,l])=>`<button class="sq-fchip${archiveFilter===id?' on':''}" onclick="setArchiveFilter('${id}')">${l}<span class="n">${ac[id]||0}</span></button>`).join('')}</div>`:'';
+  const body=d.groups.length?d.groups.map(g=>`<div class="ib-sh" style="--bc:${g.col}"><i></i><span>${esc(g.label)}</span><b>${g.list.length}</b></div>`+g.list.map(c=>ibRow(c,d.messagesByConv[c.id],g.key,g.col)).join('')).join(''):`<div class="ib-empty">${convSearch?'No conversations match your search':convInboxView==='archive'?'Nothing archived yet':'Nothing here right now'}</div>`;
+  return `<div class="sq-filters">${views.map(([id,l,n])=>`<button class="sq-fchip${convInboxView===id?' on':''}" onclick="convSetView('${id}')">${l}<span class="n">${n}</span></button>`).join('')}</div>
+    <div class="sq-filters">${kinds.map(([id,l])=>`<button class="sq-fchip${convKindFilter===id?' on':''}" onclick="convSetKind('${id}')">${l}</button>`).join('')}</div>
+    ${archBar}${body}`;
+}
+function convDetailHtml(c,msgs,e){
+  msgs=msgs||[];
+  const bucket=convBucket(c);
+  const col=(CONV_BUCKETS.find(b=>b[0]===bucket)||[0,0,'var(--text-muted)'])[2];
+  const acts=actionsByConv[c.id]||[];
+  const lastInbound=[...msgs].reverse().find(m=>m.direction==='inbound');
+  const windowClosed=(lastInbound?(Date.now()-new Date(lastInbound.created_at).getTime()):Infinity)>24*3600*1000;
+  const cid=convCustomerId(c),q=convQuoteInfo(c);
+  const initial=esc((c.customer_name||'?').trim().charAt(0).toUpperCase()||'?');
+  const priceTxt=q.price!=null&&q.price!==''?`£${Number(q.price).toFixed(2)} `:'';
+  let title='',sub='';
+  if(bucket==='action'){title='Needs you';sub=e?`Escalated · ${escalationReasonLabel(e.reason_code)} · ${escTimeAgo(e.created_at)}`:acts.length?'There is an open task on this conversation':`They messaged ${escTimeAgo(c.last_message_at)} and are waiting for your reply`;}
+  else if(bucket==='quoted'){title=q.accepted?'Quote accepted':'Quote sent';sub=q.accepted?`Accepted ${escTimeAgo(q.accepted)}`:`${priceTxt}quote sent ${escTimeAgo(q.sent)} · waiting for their answer`;}
+  else if(bucket==='waiting'){title='Waiting on customer';sub=convPriceGivenOnly(c)?'A price was given in the chat, but no quote has been sent from ClearRound':'You replied last. Nothing needed from you yet';}
+  else if(bucket==='ai'){title='With Jarvis';sub=convPriceGivenOnly(c)?'Jarvis gave a price in the chat. No formal quote has been sent':'Jarvis is handling this and will reply to their next message';}
+  else if(bucket==='hold'){title='On hold';sub='Parked. It will not appear under Needs you unless they reply';}
+  else{title=convStageLabel(c);sub='Finished conversation';}
+  const bubbles=msgs.map(m=>`<div class="ib-b ${m.direction==='inbound'?'in':'out'}"><div class="ib-bm">${m.direction==='inbound'?'Customer':(m.message_type==='email'?'✉ Emailed':(m.source==='ai'?'Jarvis':'You'))} · ${escTimeAgo(m.created_at)}</div><div class="ib-bt">${esc(m.message_text||'')}${renderMessageMedia(m)}</div></div>`).join('');
+  const more=[['QUOTED','Mark quote sent (sent it myself)'],['BOOKED','Booked'],['TIME_WASTER','Time waster'],['FAILED_TO_CONVERT','Failed to convert'],['CLOSED','Mark closed']].map(([st,l])=>`<button class="btn btn-neutral btn-sm" onclick="openMarkStageModal('${c.id}','${st}')">${l}</button>`).join('');
+  return `<div class="ib-in" id="conv-card-${c.id}">
+    <div class="ib-dh">
+      <div class="card-avatar${cid?' card-avatar-customer':''}" style="width:44px;height:44px;font-size:17px;flex-shrink:0;${cid?'cursor:pointer':''}" ${cid?`title="Open customer record" onclick="showCustomer('${cid}')"`:''}>${initial}</div>
+      <div class="ib-dn"><div class="ib-dname">${esc(c.customer_name||'Unknown customer')}</div><div class="ib-dsub">${esc(c.customer_phone||'')} · ${esc(KIND_LABEL[convKind(c)])} · ${esc(convStageLabel(c))}</div></div>
+      <details class="ib-more"><summary>More ▾</summary><div class="ib-menu">${more}
+        <button class="btn btn-outline-danger btn-sm" onclick="convBlock('${c.id}')">🚫 Block sender</button>
+        <button class="btn btn-outline-danger btn-sm" onclick="convDelete('${c.id}')">Delete</button></div></details>
+    </div>
+    <div class="ib-banner" style="--bc:${col}"><i></i><div><b>${esc(title)}</b><span>${esc(sub)}</span></div></div>
+    ${acts.length||(c.follow_up_stage&&c.follow_up_stage!=='none')?`<div class="ib-extra">${acts.length?convOutcomeStrip(c.id,msgs,c.controlled_by):''}${followupStatusPills(c,msgs)}</div>`:''}
+    <div class="ib-chat" id="ib-chat">${bubbles||'<div class="ib-empty">No messages yet</div>'}</div>
+    ${windowClosed?`<div class="ib-win"><span>24h window closed. Send a follow-up to reopen free text</span><button class="btn btn-primary btn-sm" id="followup-btn-${c.id}" onclick="sendFollowupTemplate('${c.id}')">Send follow-up</button></div>`:''}
+    <div class="ib-compose">
+      ${suggestedReplyHtml(c.id)}
+      <div class="ib-cr"><textarea id="reply-${c.id}" rows="2" ${windowClosed?'disabled':''} placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}"></textarea><button class="btn btn-primary btn-sm" id="send-btn-${c.id}" ${windowClosed?'disabled':''} onclick="sendManualReply('${c.id}')">Send</button></div>
+      <div class="ib-acts">
+        ${cqHidden(c)?'':`<button class="btn btn-primary btn-sm" data-cq="${c.id}" style="background:var(--gold);color:var(--navy-900);font-weight:700" onclick="createQuoteFromConversation('${c.id}')">Create quote</button>`}
+        ${isTerminalConv(c)?'':`<button class="btn btn-neutral btn-sm" onclick="convResolve('${c.id}')">${e?'Resolve & hand to Jarvis':'Close & hand to Jarvis'}</button>`}
+        ${isTerminalConv(c)?'':(c.on_hold?`<button class="btn btn-neutral btn-sm" onclick="setConvHold('${c.id}',false)">Take off hold</button>`:`<button class="btn btn-neutral btn-sm" onclick="setConvHold('${c.id}',true)">Hold</button>`)}
+      </div>
+    </div>
+  </div>`;
+}
+function renderConvInbox(opts){
+  opts=opts||{};
+  const d=convInboxData();
+  let sel=convSelId;
+  const known=d.convs.some(c=>c.id===sel);
+  if(!known||(!opts.listOnly&&!d.ordered.some(c=>c.id===sel)))sel=d.ordered[0]?d.ordered[0].id:(known?sel:null);
+  const selChanged=sel!==convSelId;
+  convSelId=sel;
+  const detail=()=>{const c=d.convs.find(x=>x.id===convSelId);return c?convDetailHtml(c,d.messagesByConv[c.id],openEscalationByConv[c.id]):`<div class="cu-none"><span>Select a conversation</span></div>`;};
+  const toBottom=()=>{const ch=document.getElementById('ib-chat');if(ch)ch.scrollTop=ch.scrollHeight;};
+  if(opts.listOnly&&document.getElementById('ib-shell')){
+    document.getElementById('ib-list-inner').innerHTML=convListInner(d);
+    if(opts.detail||selChanged){document.getElementById('ib-detail').innerHTML=detail();toBottom();}
+    return;
+  }
+  document.getElementById('mainContent').innerHTML=`
+    <div class="sq-top"><span class="sq-pill">${d.counts.action} need you · ${d.counts.quoted} quote sent · ${d.counts.waiting} waiting on customer · ${d.counts.ai} with Jarvis</span></div>
+    <div class="ib-split" id="ib-shell">
+      <div class="ib-list"><input id="ib-search" class="ib-search" type="search" placeholder="Search name, number or message" value="${esc(convSearch)}" oninput="convSetSearch(this.value)"><div id="ib-list-inner">${convListInner(d)}</div></div>
+      <div class="ib-detail" id="ib-detail">${detail()}</div>
+    </div>`;
+  toBottom();
+}
+function convSelect(id){convSelId=id;renderConvInbox({listOnly:true,detail:true});}
+function convSetView(v){convInboxView=v;renderConvInbox({listOnly:true});}
+function convSetKind(k){convKindFilter=k;renderConvInbox({listOnly:true});}
+function convSetSearch(v){convSearch=v;renderConvInbox({listOnly:true});}
+function convResolve(id){const e=openEscalationByConv[id];e?resolveEscalation(e.id,id):closeConversationBau(id);}
+function convBlock(id){const c=messagingConvById[id]||{};const e=openEscalationByConv[id];blockSender(c.customer_phone||'',e?e.id:'',id,c.customer_name||'this sender');}
+function convDelete(id){const c=messagingConvById[id]||{};openDeleteConversationModal(id,c.customer_name||'');}
 function convTabBar(counts){
   const tabs=[['needsReply','Needs reply',counts.needsReply,'urgent'],['service','Customer service',counts.service,'neutral'],['sales','Sales',counts.sales,'neutral'],['archive','Archive',counts.archive,'archived'],['allActive','All',counts.all,'neutral']];
   return `<div class="sq-filters">${tabs.map(([id,label,count,tone])=>`<button class="sq-fchip${convTab===id?' on':''}${tone==='urgent'&&count?' danger':''}" onclick="setConvTab('${id}')">${label}<span class="n">${count}</span></button>`).join('')}</div>`;
@@ -2177,6 +2388,7 @@ function convGroupHeader(label,n){
 }
 function renderMessagingFromCache(){
   if(!convSectionCache)return;
+  if(CONV_INBOX_MQ.matches){renderConvInbox();return;}
   const {messagesByConv}=convSectionCache;
   const g=convGroups();
   const el=document.getElementById('mainContent');
@@ -2291,7 +2503,7 @@ function escalationReasonLabel(code){
   return'Review';
 }
 function openConversationFromDashboard(convId){
-  convTab='allActive';
+  convTab='allActive';convSelId=convId;convInboxView='all';convKindFilter='all';convSearch='';
   navigate('messaging');
   scrollToConvCardWhenReady(convId);
 }
@@ -2299,6 +2511,9 @@ function openConvTabFromDashboard(tab){
   convTab=tab;
   convSubFilter='live';
   localStorage.setItem('convTab',tab);
+  convInboxView=tab==='archive'?'archive':tab==='allActive'?'all':'active';
+  convKindFilter=(tab==='service'||tab==='sales')?tab:'all';
+  if(tab==='needsReply')convSelId=null;
   navigate('messaging');
 }
 
@@ -4271,10 +4486,11 @@ let quoteStateByCustomer={};
 async function loadQuoteStateByCustomer(){
   quoteStateByCustomer={};
   try{
-    const rows=await sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=in.(sent,accepted)&select=customer_id,status,sent_at,created_at`);
+    const rows=await sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=in.(sent,accepted)&select=customer_id,status,sent_at,created_at,price`);
     (rows||[]).forEach(q=>{
       const st=quoteStateByCustomer[q.customer_id]=quoteStateByCustomer[q.customer_id]||{};
       const t=q.sent_at||q.created_at||'';
+      if(q.status==='sent'&&(!st.sent||t>st.sent))st._price=q.price;
       if(!st[q.status]||t>st[q.status])st[q.status]=t;
     });
   }catch(e){/* button just stays visible if this fails */}
@@ -4288,7 +4504,7 @@ function cqHidden(conv){
   const since=conv.created_at||'';
   const sentForThis=!!st.sent&&st.sent>=since;
   const acceptedForThis=!!st.accepted&&st.accepted>=since;
-  return sentForThis||(conv.stage==='QUOTED'&&!acceptedForThis);
+  return sentForThis||acceptedForThis; // v1.0.218: a chat price / manual mark no longer hides the button
 }
 let convQuoteCtx=null;
 function cqServiceName(ex){
@@ -5464,9 +5680,11 @@ async function renderRevenue(){
       ]);
     }catch(e){tblDone=[];tblPlans=[];}
   }
-  const estBuckets=bucketByPeriod(scheduled,'next_due',revenuePeriod);
+  const estStart=revenuePeriod==='week'?weekKey(localDateStr(new Date())):localDateStr(new Date()).slice(0,8)+'01'; // this week's Monday / the 1st of this month
+  const estJobs=scheduled.filter(j=>j.next_due&&j.next_due>=estStart);                                  // v1.0.219: no past-dated leftovers
+  const estBuckets=estimateBuckets(scheduled,revenuePeriod);
   const actBuckets=bucketByPeriod(done,'last_done',revenuePeriod);
-  const estTotal=scheduled.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  const estTotal=estJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
   const actTotal=done.reduce((s,j)=>s+parseFloat(j.price||0),0);
 
   el.innerHTML=`
@@ -5484,12 +5702,12 @@ async function renderRevenue(){
     ${noneSelected?`<div class="empty" style="padding:24px 0"><div class="empty-sub">Select at least one assignee to see revenue</div></div>`:`
     <div class="rv-grid"><div class="rv-main">
     <div class="round-summary" style="margin-bottom:20px">
-      <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--navy-400)">£${estTotal.toFixed(0)}</div><div class="round-stat-label">Estimated (scheduled)</div></div>
+      <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--navy-400)">£${estTotal.toFixed(0)}</div><div class="round-stat-label">Estimated (from ${revenuePeriod==='week'?'this week':'this month'})</div></div>
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--done)">£${actTotal.toFixed(0)}</div><div class="round-stat-label">Actual (done, 6mo)</div></div>
     </div>
     ${revenueNetTable(tblDone,scheduled,tblPlans)}
     </div><div class="rv-side">
-    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">Estimated income — ${revenuePeriod==='week'?'by week':'by month'}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">Estimated income — ${revenuePeriod==='week'?'by week, from this week':'by month, from this month'}</div>
     ${revenueChart(estBuckets,'var(--navy-400)')}
     <div style="font-size:13px;font-weight:600;color:var(--text-soft);margin:20px 0 8px">Actual income — ${revenuePeriod==='week'?'by week':'by month'}</div>
     ${revenueChart(actBuckets,'var(--done)')}
@@ -5552,6 +5770,23 @@ function toggleRevenueAssignee(id){
   if(revenueAssignees.has(id))revenueAssignees.delete(id);
   else revenueAssignees.add(id);
   renderRevenue();
+}
+
+// Estimated income: consecutive periods starting THIS week (or month), empty ones shown as £0, never past-dated jobs.
+function estimateBuckets(jobs,period){
+  const today=localDateStr(new Date());
+  const startKey=period==='week'?weekKey(today):today.slice(0,7);
+  const keyOf=d=>period==='week'?weekKey(d):d.slice(0,7);
+  const nextKey=k=>{
+    if(period==='week'){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+7);return localDateStr(d);}
+    const [y,m]=k.split('-').map(Number);return localDateStr(new Date(y,m,1)).slice(0,7);
+  };
+  const map={};
+  jobs.forEach(j=>{const d=j.next_due;if(!d)return;const k=keyOf(d);if(k<startKey)return;map[k]=(map[k]||0)+parseFloat(j.price||0);});
+  const lastKey=Object.keys(map).sort().pop()||startKey;
+  const out=[];let k=startKey;
+  while(out.length<4||(k<=lastKey&&out.length<12)){out.push([k,map[k]||0]);k=nextKey(k);}
+  return out;
 }
 
 function bucketByPeriod(jobs,dateField,period){
