@@ -545,6 +545,50 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .dash-grid .dash-card{order:0;}
   .dash-grid .sq-grid2.kpi4{grid-template-columns:repeat(4,minmax(0,1fr));}
 }
+
+/* ── Round: desktop ── */
+.rd-top,.rd-cols,.rd-col,.rd-single{display:block;}
+.wk-board,.wk-legend{display:none;}
+.mo-sum{display:none;}
+@media(min-width:768px){
+  .rd-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0 24px;align-items:start;}
+  .rd-col{min-width:0;}
+  .rd-col .sq-sec{flex-wrap:nowrap;min-height:44px;gap:8px;}
+  .rd-col .sq-sec>span:first-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rd-col .sq-sec .btn{white-space:nowrap;padding:6px 10px!important;min-height:0!important;font-size:12px!important;}
+  .main.wide>.date-nav{max-width:520px;}
+  .rd-single{max-width:720px;margin:0 auto;}
+  .rd-top{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;margin-bottom:6px;}
+  .rd-top .date-nav{margin-bottom:0;flex:0 0 auto;}
+  .rd-top .date-display{min-width:200px;flex:0 0 auto;}
+  .rd-top .assignee-filter-bar{padding:0!important;flex:1 1 auto;}
+  .rd-top .round-summary{margin-bottom:0;grid-template-columns:repeat(4,80px);}
+  .mo-cell{min-height:104px!important;padding:8px 10px!important;}
+  .mo-cell>div:first-child{font-size:15px!important;}
+  .mo-cell>div:nth-child(2){font-size:12px!important;}
+  .mo-sum{display:inline;color:var(--text-soft);font-weight:600;}
+}
+@media(min-width:1180px){
+  .wk-list{display:none;}
+  .wk-legend{display:flex;gap:16px;flex-wrap:wrap;margin:10px 2px 8px;font-size:12px;color:var(--text-muted);}
+  .wk-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .wk-board{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;align-items:start;margin-top:4px;}
+  .wk-day{background:var(--navy-800);border:1px solid var(--border);border-radius:14px;overflow:hidden;min-height:140px;}
+  .wk-day.today{border-color:var(--gold);}
+  .wk-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;background:rgba(5,13,23,.35);}
+  .wk-dow{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);}
+  .wk-day.today .wk-dow,.wk-day.today .wk-num{color:var(--gold);}
+  .wk-num{font-size:22px;font-weight:600;color:var(--white);}
+  .wk-meta{flex-basis:100%;font-size:11.5px;color:var(--text-muted);}
+  .wk-jobs{padding:6px;display:flex;flex-direction:column;gap:4px;}
+  .wk-job{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:8px;background:rgba(5,13,23,.5);font-size:12.5px;color:var(--text);cursor:pointer;min-width:0;}
+  .wk-job:hover{background:var(--navy-700);}
+  .wk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .wk-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wk-price{font-size:11.5px;color:var(--text-muted);flex-shrink:0;}
+  .wk-job.st-done .wk-name{color:var(--done);text-decoration:line-through;text-decoration-color:rgba(141,233,113,.5);}
+  .wk-job.st-skipped .wk-name,.wk-job.st-cant-access .wk-name{color:var(--warn);}
+}
 </style>
 </head>
 <body>
@@ -1017,8 +1061,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='209';
-const BUILD_DATE='02 Nov 2026 08:44';
+const BUILD_VERSION='210';
+const BUILD_DATE='02 Nov 2026 08:50';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1455,7 +1499,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard'];
+const DESKTOP_WIDE_PAGES=['dashboard','round'];
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
@@ -2483,7 +2527,7 @@ async function renderRound(){
         g.jobs.sort(roundCmp);
         const reord=roundReorderUser===key;
         const tools=`<span style="margin-left:auto;display:flex;gap:6px">${key!=='unassigned'&&!reord?`<button type="button" class="btn btn-ghost btn-sm" onclick="optimiseRoundGroup('${key}')">⚡ Optimise</button>`:''}<button type="button" class="btn btn-ghost btn-sm" onclick="toggleRoundReorder('${key}')">${reord?'Done':'↕ Reorder'}</button></span>`;
-        return `<div class="sq-sec" style="display:flex;align-items:center"><span>${esc(g.label)}<span class="n">${g.jobs.length}</span></span>${tools}</div>` + (reord?g.jobs.map((j,i)=>reorderRow(j,i,g.jobs.length,key)).join(''):g.jobs.map((j,i)=>jobCard(j,i+1)).join(''));
+        return '<div class="rd-col">'+`<div class="sq-sec" style="display:flex;align-items:center"><span>${esc(g.label)}<span class="n">${g.jobs.length}</span></span>${tools}</div>` + (reord?g.jobs.map((j,i)=>reorderRow(j,i,g.jobs.length,key)).join(''):g.jobs.map((j,i)=>jobCard(j,i+1)).join(''))+'</div>';
       }).join('');
     }else{
       jobsHtml=filtered.map((j,i)=>jobCard(j,i+1)).join('');
@@ -2494,6 +2538,7 @@ async function renderRound(){
     ${roundViewBar()}
     ${crewAlertBar(jobs)}
     ${unassignedJobs.length?`<button type="button" class="sq-banner" onclick="navigate('jobs')"><span class="n">${unassignedJobs.length}</span><span style="flex:1;min-width:0"><b>${unassignedJobs.length===1?'job needs':'jobs need'} someone assigned</b><span class="s">Tap to review in Jobs</span></span>${ic('go')}</button>`:''}
+    <div class="rd-top">
     <div class="date-nav">
       <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
       <div class="date-display">${fmtDate(roundDate)}</div>
@@ -2510,8 +2555,9 @@ async function renderRound(){
       <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${skipped}</div><div class="round-stat-label">Skipped</div></div>
       ${hidePrices()?'':`<div class="round-stat"><div class="round-stat-val" style="font-size:14px">£${earned.toFixed(2)}</div><div class="round-stat-label">Earned</div></div>`}
     </div>
+    </div>
     ${filtered.length
-      ? jobsHtml
+      ? `<div class="${isAdmin?'rd-cols':'rd-single'}">${jobsHtml}</div>`
       : `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         <div class="empty-title">No jobs on this date</div>
         <div class="empty-sub">Jobs are scheduled from a customer profile.</div>
@@ -2824,7 +2870,7 @@ async function renderRoundWeek(el){
       <button class="date-nav-btn" onclick="roundDate='${nextWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
     <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this week</span>${hidePrices()?'':`<i class="sq-vr"></i><b style="color:var(--done)">£${weekDone.toFixed(0)}</b><span>done</span><i class="sq-vr"></i><b>£${weekTotal.toFixed(0)}</b><span>total</span>`}</span></div>
-    <div class="sq-list">${days.map((date,i)=>{
+    <div class="sq-list wk-list">${days.map((date,i)=>{
         const dayJobs=jobs.filter(j=>j.next_due===date);
         const dayDone=dayJobs.filter(j=>j.status==='done').length;
         const dayTotal=dayJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
@@ -2835,6 +2881,17 @@ async function renderRoundWeek(el){
           <div class="sq-body">${dayJobs.length===0?`<div class="sq-sub" style="margin-top:10px">No jobs</div>`:`<div class="sq-name">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div><div class="sq-chips">${rounds.map(sqRoundChip).join('')}</div>`}</div>
           <div class="sq-right">${dayJobs.length?`${hidePrices()?'':sqMoney(dayTotal)}<span class="sq-lbl">${dayDone}/${dayJobs.length} done</span>`:''}</div>
         </div></div>`;
+      }).join('')}</div>
+    <div class="wk-legend">${wcUsers.map(u=>`<span><i class="wk-dot" style="background:${userColor(String(u.id))}"></i>${esc(u.name)}</span>`).join('')}<span><i class="wk-dot" style="background:#d6455d"></i>Unassigned</span></div>
+    <div class="wk-board">${days.map((date,i)=>{
+        const dj=jobs.filter(j=>j.next_due===date).sort(roundCmp);
+        const tot=dj.reduce((a,j)=>a+parseFloat(j.price||0),0);
+        const dn=dj.filter(j=>j.status==='done').length;
+        const isT=date===today;
+        return`<div class="wk-day${isT?' today':''}">
+          <div class="wk-head" onclick="roundDate='${date}';roundView='day';renderRound()"><span class="wk-dow">${DAYS[i]}</span><span class="wk-num">${new Date(date+'T12:00:00').getDate()}</span><span class="wk-meta">${dj.length?`${dn}/${dj.length} done${hidePrices()?'':' · £'+tot.toFixed(0)}`:'No jobs'}</span></div>
+          <div class="wk-jobs">${dj.map(j=>{const cu=j.wc_customers||{};const col=j.assigned_to?userColor(String(j.assigned_to)):'#d6455d';const un=(wcUsers.find(u=>u.id===j.assigned_to)||{}).name||'Unassigned';return`<div class="wk-job st-${esc(j.status||'')}" title="${esc(un)}" onclick="roundDate='${date}';roundView='day';renderRound()"><span class="wk-dot" style="background:${col}"></span><span class="wk-name">${esc(cu.name||'Customer')}</span>${hidePrices()?'':`<span class="wk-price">£${parseFloat(j.price||0).toFixed(0)}</span>`}</div>`;}).join('')}</div>
+        </div>`;
       }).join('')}</div>`;
 }
 
@@ -2867,9 +2924,9 @@ async function renderRoundMonth(el){
     const hasDone=dayJobs.some(j=>j.status==='done');
     const hasScheduled=dayJobs.some(j=>j.status==='scheduled');
     const hasSkipped=dayJobs.some(j=>j.status==='skipped'||j.status==='cant-access');
-    cells+=`<div onclick="roundDate='${dateStr}';roundView='day';renderRound()" style="min-height:48px;background:${isSelected?'rgba(255,178,0,.15)':isToday?'rgba(255,178,0,.08)':'var(--navy-800)'};border:1px solid ${isSelected?'var(--gold)':isToday?'rgba(255,178,0,.4)':'var(--border)'};border-radius:var(--radius-sm);padding:4px;cursor:pointer">
+    cells+=`<div class="mo-cell" onclick="roundDate='${dateStr}';roundView='day';renderRound()" style="min-height:48px;background:${isSelected?'rgba(255,178,0,.15)':isToday?'rgba(255,178,0,.08)':'var(--navy-800)'};border:1px solid ${isSelected?'var(--gold)':isToday?'rgba(255,178,0,.4)':'var(--border)'};border-radius:var(--radius-sm);padding:4px;cursor:pointer">
       <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday||isSelected?'var(--gold)':'var(--text-soft)'}">${dayNum}</div>
-      ${dayJobs.length?`<div style="font-size:10px;color:var(--gold);font-weight:600">${dayJobs.length}</div>
+      ${dayJobs.length?`<div style="font-size:10px;color:var(--gold);font-weight:600">${dayJobs.length}${hidePrices()?'':`<span class="mo-sum"> · £${dayJobs.reduce((a,j)=>a+parseFloat(j.price||0),0).toFixed(0)}</span>`}</div>
       <div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:1px">
         ${hasDone?`<div style="width:5px;height:5px;border-radius:50%;background:var(--done)"></div>`:''}
         ${hasScheduled?`<div style="width:5px;height:5px;border-radius:50%;background:var(--navy-400)"></div>`:''}
