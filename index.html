@@ -999,6 +999,8 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
     </div>
     <div class="form-grid">
       <div class="field"><label>New date *</label><input id="reschedule-date" type="date" onclick="try{this.showPicker()}catch(e){}"></div>
+      <div class="field"><label>Assign to</label><select id="reschedule-assignee"></select></div>
+      <div class="field"><label>Round</label><select id="reschedule-round"></select></div>
       <div style="background:var(--navy-900);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
           <input type="radio" name="reschedule-scope" value="single" checked id="rs-single" style="accent-color:var(--gold)">
@@ -1148,8 +1150,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='216';
-const BUILD_DATE='02 Nov 2026 10:26';
+const BUILD_VERSION='217';
+const BUILD_DATE='02 Nov 2026 10:39';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2689,10 +2691,10 @@ document.addEventListener('drop',e=>{
   roundDropReschedule(job,d);
 });
 document.addEventListener('dragend',rdClearDrag);
-function roundDropReschedule(job,d){
+async function roundDropReschedule(job,d){
   if(d===roundDate)return;
   if(isDateTooSoon(d)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
-  openReschedule(job.id,job.series);            // same dialog as the Reschedule button: pick this job / whole series, and whether to notify
+  await openReschedule(job.id,job.series);      // same dialog as the Reschedule button: pick this job / whole series, and whether to notify
   document.getElementById('reschedule-date').value=d;
 }
 const ROUND_CAL_MQ=window.matchMedia('(min-width:1280px)');
@@ -3199,7 +3201,8 @@ async function undoStatus(id){
 // ── RESCHEDULE ────────────────────────────────────────────────────────────────
 let rescheduleJobId=null,rescheduleSeriesId=null;
 
-function openReschedule(jobId, seriesId){
+let rescheduleCur={assigned_to:null,round_name:null,status:null};
+async function openReschedule(jobId, seriesId){
   rescheduleJobId=jobId;
   rescheduleSeriesId=seriesId;
   const dateEl=document.getElementById('reschedule-date');
@@ -3210,6 +3213,19 @@ function openReschedule(jobId, seriesId){
   document.getElementById('rs-reason').value='';
   // Only show "all series" option if job belongs to a series
   document.getElementById('rs-all-label').style.display=seriesId?'flex':'none';
+  // Assignee + round: default to "Keep current" so nothing changes unless picked (v1.0.217)
+  rescheduleCur={assigned_to:null,round_name:null,status:null};
+  try{
+    const [,,cur]=await Promise.all([loadConfig(),loadUsers(),sb(`wc_jobs?id=eq.${jobId}&select=assigned_to,round_name,status`)]);
+    if(cur&&cur[0])rescheduleCur=cur[0];
+  }catch(e){console.warn('reschedule load',e);}
+  const curUser=wcUsers.find(u=>u.id===rescheduleCur.assigned_to);
+  document.getElementById('reschedule-assignee').innerHTML=
+    `<option value="__keep">Keep current (${esc(curUser?curUser.name:'Unassigned')})</option><option value="">Unassigned</option>`+
+    wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  document.getElementById('reschedule-round').innerHTML=
+    `<option value="__keep">Keep current (${esc(rescheduleCur.round_name||'No round')})</option><option value="">No round</option>`+
+    wcRounds.map(r=>`<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
   document.getElementById('rescheduleModal').classList.add('open');
 }
 
@@ -3220,6 +3236,13 @@ async function confirmReschedule(){
   const scope=document.querySelector('input[name="reschedule-scope"]:checked').value;
   const notify=document.getElementById('rs-notify').checked;
   const reason=document.getElementById('rs-reason').value.trim();
+  const asg=document.getElementById('reschedule-assignee').value,rnd=document.getElementById('reschedule-round').value;
+  const extra={};                                   // applied to every job being moved
+  if(asg!=='__keep')extra.assigned_to=asg||null;
+  if(rnd!=='__keep')extra.round_name=rnd||null;
+  const extraMain={...extra};                       // this job only: picking a round also clears "Needs round"
+  if(rnd&&rnd!=='__keep'&&rescheduleCur.status==='pending_assignment')extraMain.status='scheduled';
+  const reassigned=Object.keys(extra).length>0;
   try{
     let oldDate=null;
     try{const [cur]=await sb(`wc_jobs?id=eq.${rescheduleJobId}&select=next_due`);oldDate=cur?.next_due||null;}catch(_){}
@@ -3227,10 +3250,10 @@ async function confirmReschedule(){
       // Move just this job
       await sb(`wc_jobs?id=eq.${rescheduleJobId}`,{
         method:'PATCH',
-        body:JSON.stringify({next_due:newDate,scheduled_date:newDate}),
+        body:JSON.stringify({next_due:newDate,scheduled_date:newDate,...extraMain}),
         prefer:'return=minimal'
       });
-      showToast('Job rescheduled','success');
+      showToast(reassigned?'Job rescheduled and reassigned':'Job rescheduled','success');
     }else{
       // Move this job AND all future scheduled jobs in the series
       // First get current job's date to know what "future" means
@@ -3245,9 +3268,9 @@ async function confirmReschedule(){
         const shifted=new Date(fj.next_due+'T12:00:00');
         shifted.setDate(shifted.getDate()+offsetDays);
         const d=shifted.toISOString().split('T')[0];
-        return sb(`wc_jobs?id=eq.${fj.id}`,{method:'PATCH',body:JSON.stringify({next_due:d,scheduled_date:d}),prefer:'return=minimal'});
+        return sb(`wc_jobs?id=eq.${fj.id}`,{method:'PATCH',body:JSON.stringify({next_due:d,scheduled_date:d,...extra}),prefer:'return=minimal'});
       }));
-      showToast(`${futureJobs.length} jobs rescheduled`,'success');
+      showToast(`${futureJobs.length} jobs rescheduled${reassigned?' and reassigned':''}`,'success');
     }
     if(notify){
       fetch(N8N_JOB_RESCHEDULED_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:rescheduleJobId,old_date:oldDate,new_date:newDate,reason,scope:(scope==='all'&&rescheduleSeriesId)?'all':'single'})})
