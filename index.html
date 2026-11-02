@@ -528,6 +528,23 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 .sq-chart .lbl{font-size:9.5px;color:var(--text-muted);margin-top:5px;white-space:nowrap;text-align:center;line-height:1.25;min-height:24px;}
 .sq-legend{display:flex;gap:16px;margin:8px 2px 0;font-size:12px;color:var(--text-soft);}
 .sq-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
+
+/* ═══ v1.0.209 — desktop layout (phones unchanged) ═══ */
+@media(min-width:768px){
+  .main{max-width:960px;}
+  .main.wide{max-width:none;padding:24px 32px 48px;}
+}
+.dash-grid{display:flex;flex-direction:column;}
+.dash-col{display:contents;}
+.dash-card{min-width:0;}
+.dash-card>:last-child{margin-bottom:0!important;}
+.dash-o1{order:1}.dash-o2{order:2}.dash-o3{order:3}.dash-o4{order:4}.dash-o5{order:5}.dash-o6{order:6}.dash-o7{order:7}.dash-o8{order:8}.dash-o9{order:9}
+@media(min-width:1180px){
+  .dash-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:0 32px;align-items:start;max-width:1800px;}
+  .dash-col{display:flex;flex-direction:column;min-width:0;}
+  .dash-grid .dash-card{order:0;}
+  .dash-grid .sq-grid2.kpi4{grid-template-columns:repeat(4,minmax(0,1fr));}
+}
 </style>
 </head>
 <body>
@@ -1000,8 +1017,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='208';
-const BUILD_DATE='01 Nov 2026 11:30';
+const BUILD_VERSION='209';
+const BUILD_DATE='02 Nov 2026 08:44';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1437,6 +1454,8 @@ function openMoreMenu(){
 }
 
 let currentPageId='dashboard';
+// Pages that have a full-width desktop layout (others stay in a centred column on desktop)
+const DESKTOP_WIDE_PAGES=['dashboard'];
 function navigate(page){
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
@@ -1446,6 +1465,7 @@ function navigate(page){
   });
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
+  document.getElementById('mainContent').classList.toggle('wide',DESKTOP_WIDE_PAGES.includes(page));
   if(page==='dashboard')renderDashboard();
   else if(page==='round')renderRound();
   else if(page==='messaging')renderMessaging();
@@ -2220,7 +2240,7 @@ function dTile(label,val,sub,o){o=o||{};return`<button type="button" class="sq-t
 function dSec(title,link){return`<div class="sq-dash-sec"><span>${title}</span>${link||''}</div>`;}
 function dRow(inner,onclick,extra){return`<div class="sq-block"><div class="sq-item" style="${onclick?'':'cursor:default;'}align-items:flex-start;${extra||''}" ${onclick?`onclick="${onclick}"`:''}>${inner}</div></div>`;}
 function opsTodayHtml(o){
-  if(!o)return'';
+  if(!o)return {today:'',needs:'',quotes:''};
   const ans=o.answered.service+o.answered.sales+o.answered.other;
   const rows=[];
   o.mine.forEach(a=>{
@@ -2239,16 +2259,17 @@ function opsTodayHtml(o){
   });
   const needsCount=o.mine.length+o.needSlot.length;
   const pend=o.pending.slice(0,4).map(q=>{const d=ageDays(q.sent_at||q.created_at);return dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[q.customer_id]||'Customer')}</div></div>${sqMoney(q.price)}${sqBadge(d===0?'today':d+'d',d>=7?'due':'age')}`,"navigate('quotes')",'align-items:center;');}).join('');
-  return`
+  return {today:`<div class="dash-card dash-o1">
     ${dSec('Today')}
     <div class="sq-tiles" style="margin-bottom:6px">
       ${dTile('Jarvis answered',ans,`${o.answered.service} service · ${o.answered.sales} sales${o.passed?` · ${o.passed} passed to you`:''}`,{color:'var(--violet)'})}
       ${dTile('Quotes sent',o.sentToday.length,`${o.acceptedToday.length} booked · ${o.pending.length} pending`,{color:'var(--gold)',onclick:"navigate('quotes')"})}
       ${dTile('Need a slot',o.needSlot.length,o.needSlot.length?'accepted, no date':'all placed',{color:o.needSlot.length?'var(--danger)':'var(--done)',cls:o.needSlot.length?'alert':'',onclick:"navigate('jobs')"})}
-    </div>
+    </div></div>`,
+  needs:`<div class="dash-card dash-o2">
     ${dSec(`Needs you${needsCount?` <span class="sq-badge sb-due" style="margin-left:6px">${needsCount}</span>`:''}`)}
-    <div class="sq-list" style="${needsCount||o.crewUnacked.length?'border-color:var(--danger)':''}">${rows.length?rows.join(''):`<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Nothing waiting. Every handoff has been dealt with.</div></div></div>`}</div>
-    ${o.pending.length?`${dSec('Quotes waiting on a reply',`<button type="button" onclick="navigate('quotes')">${o.pending.length} total →</button>`)}<div class="sq-list">${pend}</div>`:''}`;
+    <div class="sq-list" style="${needsCount||o.crewUnacked.length?'border-color:var(--danger)':''}">${rows.length?rows.join(''):`<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Nothing waiting. Every handoff has been dealt with.</div></div></div>`}</div></div>`,
+  quotes:`${o.pending.length?`<div class="dash-card dash-o3">${dSec('Quotes waiting on a reply',`<button type="button" onclick="navigate('quotes')">${o.pending.length} total →</button>`)}<div class="sq-list">${pend}</div></div>`:''}`};
 }
 
 
@@ -2339,35 +2360,52 @@ async function renderDashboard(){
   // Quotes awaiting reply
   const quotesPendingTotal=quotesPending.reduce((s,q)=>s+parseFloat(q.price||0),0);
 
+  const opsH=opsTodayHtml(ops);
   el.innerHTML=`
     <div style="font-size:22px;font-weight:700;color:var(--white)">Good ${new Date().getHours()<12?'morning':new Date().getHours()<17?'afternoon':'evening'}, ${esc((currentUser?.name||'').split(' ')[0]||'')}</div>
     <div class="sq-note" style="margin:2px 0 0">${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
-    ${opsTodayHtml(ops)}
+    <div class="dash-grid">
+    <div class="dash-col dash-main">
+    <div class="dash-card dash-o4">
     ${dSec('Overview')}
-    <div class="sq-grid2">
+    <div class="sq-grid2 kpi4">
       ${dTile("Today's jobs",todayJobs.length,`£${todayTotal.toFixed(2)} · ${todayDone} done`,{onclick:"navigate('round')"})}
       ${dTile('Needs attention',attentionList.length,'open conversations',{color:attentionList.length?'var(--danger)':'',cls:attentionList.length?'alert':'',onclick:"navigate('messaging')"})}
       ${dTile('Outstanding','£'+outstandingTotal.toFixed(0),`${unpaidJobs.length} unpaid job${unpaidJobs.length!==1?'s':''}`,{onclick:"navigate('owing')"})}
       ${dTile('Next 7 days','£'+forecast7Total.toFixed(0),`${forecast7.length} jobs booked`,{color:'var(--done)',onclick:"navigate('revenue')"})}
     </div>
+    </div>
+    ${opsH.needs}
+    ${[['Customer service','service',svcSec,'this week'],['Sales','sales',salesSec,'new this week']].map(([title,tab,sec,weekLabel])=>`<div class="dash-card dash-o${tab==='service'?6:7}">
+      ${dSec(title,`<button type="button" onclick="openConvTabFromDashboard('${tab}')">${sec.live} live · ${sec.weekCount} ${weekLabel} →</button>`)}
+      ${sec.waiting.length?`<div class="sq-list">${sec.waiting.slice(0,3).map(a=>dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(a.name)}</div></div>${sqBadge(esc(a.reasonLabel),a.reasonLabel==='Billing'?'due':'warn')}`,`openConversationFromDashboard('${a.id}')`,'align-items:center;')).join('')}</div>${sec.waiting.length>3?`<button type="button" class="sq-act" style="margin-top:8px" onclick="openConvTabFromDashboard('${tab}')">+${sec.waiting.length-3} more waiting →</button>`:''}`
+      :`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v" style="color:var(--done)">✓ All caught up</div></div></div></div>`}</div>`).join('')}
+    </div>
+    <div class="dash-col dash-side">
+    ${opsH.today}
+    <div class="dash-card dash-o5">
     ${dSec('Today, by assignee',`<button type="button" onclick="navigate('round')">View round →</button>`)}
     ${assigneeGroups.length?`<div class="sq-list">${assigneeGroups.map(([key,g])=>{
       const un=key==='unassigned';
       return`<div class="sq-block"><div class="sq-row" style="cursor:default;align-items:center">${sqAv(g.name,un?'#d6455d':sqColor(g.name),un?'?':esc(initialsFor(g.name)))}<div class="sq-body"><div class="sq-name">${esc(g.name)}</div><div class="sq-sub">${g.jobs.length} job${g.jobs.length!==1?'s':''} · ${g.done} done</div></div><div class="sq-right">${sqMoney(g.total)}</div></div></div>`;}).join('')}</div>`
       :`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No jobs scheduled today</div></div></div></div>`}
-    ${[['Customer service','service',svcSec,'this week'],['Sales','sales',salesSec,'new this week']].map(([title,tab,sec,weekLabel])=>`
-      ${dSec(title,`<button type="button" onclick="openConvTabFromDashboard('${tab}')">${sec.live} live · ${sec.weekCount} ${weekLabel} →</button>`)}
-      ${sec.waiting.length?`<div class="sq-list">${sec.waiting.slice(0,3).map(a=>dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(a.name)}</div></div>${sqBadge(esc(a.reasonLabel),a.reasonLabel==='Billing'?'due':'warn')}`,`openConversationFromDashboard('${a.id}')`,'align-items:center;')).join('')}</div>${sec.waiting.length>3?`<button type="button" class="sq-act" style="margin-top:8px" onclick="openConvTabFromDashboard('${tab}')">+${sec.waiting.length-3} more waiting →</button>`:''}`
-      :`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v" style="color:var(--done)">✓ All caught up</div></div></div></div>`}`).join('')}
+    </div>
+    ${opsH.quotes}
+    <div class="dash-card dash-o8">
     ${dSec('Forecast')}
     <div class="sq-grid2">
       ${dTile('Next 31 days','£'+forecast31Total.toFixed(0),`${forecast31.length} jobs`,{color:'var(--done)',onclick:"navigate('revenue')"})}
       ${dTile('Quotes awaiting reply',quotesPending.length,'£'+quotesPendingTotal.toFixed(0),{color:'var(--violet)',onclick:"navigate('quotes')"})}
     </div>
+    </div>
+    <div class="dash-card dash-o9">
     <div class="sq-qa" style="margin-top:18px">
       <button type="button" onclick="navigate('quotes');setTimeout(openNewQuote,100)">${ic('doc')}New quote</button>
       <button type="button" onclick="navigate('customers');setTimeout(openAddCustomer,100)">${ic('plus')}Customer</button>
       <button type="button" onclick="navigate('owing')">${ic('card')}Owing</button>
+    </div>
+    </div>
+    </div>
     </div>
   `;
 }
