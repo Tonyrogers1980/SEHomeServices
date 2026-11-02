@@ -638,6 +638,38 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .pr-cards>div{margin-bottom:0!important;}
   .pr-plans{max-width:760px;}
 }
+
+/* ═══ v1.0.215 — Round desktop: day cards (70%) + month calendar (30%) ═══ */
+.rd-split,.rd-left{display:block;}
+.rd-cal{display:none;}
+@media(min-width:1280px){
+  .rd-split{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,3fr);gap:24px;align-items:start;}
+  .rd-left{min-width:0;}
+  .rd-split .rd-cols{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+  .rd-cal{display:block;position:sticky;top:0;background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,.35);}
+  .rd-cal-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .rd-cal-title{flex:1;font-size:16px;font-weight:700;color:var(--white);}
+  .rd-cal-btn{width:30px;height:30px;border-radius:8px;background:var(--navy-900);border:1px solid var(--border);color:var(--text-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+  .rd-cal-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .rd-cal-sum{font-size:12px;color:var(--text-muted);margin-bottom:12px;}
+  .rd-cal-sum b{color:var(--text);font-weight:700;}
+  .rc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}
+  .rc-dow{margin-bottom:4px;}
+  .rc-dow span{text-align:center;font-size:10px;font-weight:700;color:var(--text-muted);padding:2px 0;}
+  .rc-cell{font-family:inherit;display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:60px;min-width:0;padding:5px 6px;border-radius:8px;background:var(--navy-900);border:1px solid var(--border);color:var(--text-soft);cursor:pointer;text-align:left;}
+  .rc-cell:hover{border-color:var(--navy-400);}
+  .rc-cell.today{background:rgba(255,178,0,.08);border-color:rgba(255,178,0,.4);}
+  .rc-cell.sel{background:rgba(255,178,0,.16);border-color:var(--gold);}
+  .rc-n{font-size:12px;font-weight:600;}
+  .rc-cell.today .rc-n,.rc-cell.sel .rc-n{color:var(--gold);font-weight:700;}
+  .rc-c{font-size:11px;font-weight:700;color:var(--gold);line-height:1.1;}
+  .rc-s{display:none;font-size:10px;color:var(--text-muted);line-height:1.1;}
+  .rc-dots{display:flex;gap:3px;margin-top:auto;}
+  .rc-dots i,.rc-legend i{display:inline-block;width:6px;height:6px;border-radius:50%;}
+  .rc-legend{display:flex;gap:12px;margin-top:12px;font-size:11px;color:var(--text-muted);}
+  .rc-legend span{display:flex;align-items:center;gap:5px;}
+}
+@media(min-width:1560px){.rc-s{display:block!important;}.rc-cell{min-height:68px;}}
 </style>
 </head>
 <body>
@@ -1110,8 +1142,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='214';
-const BUILD_DATE='02 Nov 2026 09:07';
+const BUILD_VERSION='215';
+const BUILD_DATE='02 Nov 2026 09:12';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2552,6 +2584,8 @@ async function renderRound(){
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div><button class="btn btn-primary" style="margin-top:16px" onclick="renderRound()">Retry</button></div>`;return;}
 
   await loadCrewActions();
+  let calHtml='';
+  if(ROUND_CAL_MQ.matches){try{calHtml=await roundCalPanelHtml();}catch(e){console.warn('roundCal',e);}}
 
   const filtered=isAdmin?jobs.filter(j=>roundAssignees.has(j.assigned_to||'unassigned')):jobs;
   const done=filtered.filter(j=>j.status==='done').length;
@@ -2587,6 +2621,7 @@ async function renderRound(){
     ${roundViewBar()}
     ${crewAlertBar(jobs)}
     ${unassignedJobs.length?`<button type="button" class="sq-banner" onclick="navigate('jobs')"><span class="n">${unassignedJobs.length}</span><span style="flex:1;min-width:0"><b>${unassignedJobs.length===1?'job needs':'jobs need'} someone assigned</b><span class="s">Tap to review in Jobs</span></span>${ic('go')}</button>`:''}
+    <div class="rd-split"><div class="rd-left">
     <div class="rd-top">
     <div class="date-nav">
       <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
@@ -2614,9 +2649,57 @@ async function renderRound(){
           <button class="btn btn-primary" onclick="navigate('customers')">Go to Customers</button>
           <button class="btn btn-ghost btn-sm" onclick="navigate('customers');setTimeout(openAddCustomer,100)">+ Add new customer</button>
         </div></div>`
-    }`;
+    }
+    </div>${calHtml}</div>`;
 }
 
+// ── ROUND: desktop month calendar beside the day view (v1.0.215) ─────────────
+let roundCalAnchor=null,roundCalForDate=null;
+const ROUND_CAL_MQ=window.matchMedia('(min-width:1280px)');
+if(ROUND_CAL_MQ.addEventListener)ROUND_CAL_MQ.addEventListener('change',()=>{if(currentUser&&currentPageId==='round'&&roundView==='day')renderRound();});
+async function roundCalPanelHtml(){
+  if(roundCalForDate!==roundDate)roundCalAnchor=null;
+  const base=new Date((roundCalAnchor||roundDate)+'T12:00:00');
+  const year=base.getFullYear(),month=base.getMonth();
+  const first=new Date(year,month,1),last=new Date(year,month+1,0);
+  const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
+  const jobs=await sb(`wc_jobs?next_due=gte.${localDateStr(first)}&next_due=lte.${localDateStr(last)}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price`)||[];
+  const byDate={};
+  jobs.forEach(j=>{if(j.next_due)(byDate[j.next_due]=byDate[j.next_due]||[]).push(j);});
+  const today=todayStr();
+  const total=jobs.reduce((a,j)=>a+parseFloat(j.price||0),0);
+  const startDow=first.getDay()===0?6:first.getDay()-1;
+  const totalCells=Math.ceil((startDow+last.getDate())/7)*7;
+  let cells='';
+  for(let i=0;i<totalCells;i++){
+    const n=i-startDow+1;
+    if(n<1||n>last.getDate()){cells+='<div></div>';continue;}
+    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
+    const dj=byDate[ds]||[];
+    const done=dj.some(j=>j.status==='done'),sched=dj.some(j=>j.status==='scheduled'),skip=dj.some(j=>j.status==='skipped'||j.status==='cant-access');
+    cells+=`<button type="button" class="rc-cell${ds===roundDate?' sel':''}${ds===today?' today':''}${dj.length?' has':''}" onclick="roundCalPick('${ds}')"><span class="rc-n">${n}</span>${dj.length?`<span class="rc-c">${dj.length}</span>${hidePrices()?'':`<span class="rc-s">£${dj.reduce((a,j)=>a+parseFloat(j.price||0),0).toFixed(0)}</span>`}<span class="rc-dots">${done?'<i style="background:var(--done)"></i>':''}${sched?'<i style="background:var(--navy-400)"></i>':''}${skip?'<i style="background:var(--warn)"></i>':''}</span>`:''}</button>`;
+  }
+  const chev=d=>`<path stroke-linecap="round" stroke-linejoin="round" d="${d}"/>`;
+  return `<aside class="rd-cal" id="rdCal">
+    <div class="rd-cal-head">
+      <div class="rd-cal-title">${first.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</div>
+      <button type="button" class="rd-cal-btn" onclick="roundCalShift(-1)" aria-label="Previous month"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px">${chev('M15 19l-7-7 7-7')}</svg></button>
+      <button type="button" class="rd-cal-btn" onclick="roundCalShift(1)" aria-label="Next month"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px">${chev('M9 5l7 7-7 7')}</svg></button>
+    </div>
+    <div class="rd-cal-sum"><b>${jobs.length}</b> jobs${hidePrices()?'':` · <b>£${total.toFixed(0)}</b>`}</div>
+    <div class="rc-grid rc-dow">${['M','T','W','T','F','S','S'].map(x=>`<span>${x}</span>`).join('')}</div>
+    <div class="rc-grid">${cells}</div>
+    <div class="rc-legend"><span><i style="background:var(--done)"></i>Done</span><span><i style="background:var(--navy-400)"></i>To do</span><span><i style="background:var(--warn)"></i>Skipped</span></div>
+  </aside>`;
+}
+function roundCalPick(d){roundDate=d;roundCalAnchor=null;renderRound();}
+async function roundCalShift(n){
+  const base=new Date((roundCalAnchor||roundDate)+'T12:00:00');
+  roundCalAnchor=localDateStr(new Date(base.getFullYear(),base.getMonth()+n,1));
+  roundCalForDate=roundDate;
+  const box=document.getElementById('rdCal');if(!box)return;
+  try{box.outerHTML=await roundCalPanelHtml();}catch(e){showToast('Could not load month: '+e.message,'error');}
+}
 function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
 // ── ROUND ORDER / ROUTE OPTIMISER (v1.0.202) ─────────────────────────────────
 // Each worker's round starts and finishes at their home postcode. Postcodes are turned into
