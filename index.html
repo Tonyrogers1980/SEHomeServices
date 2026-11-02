@@ -734,6 +734,58 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .ib-cr .btn{align-self:flex-end;min-width:72px;}
   .ib-acts{display:flex;gap:8px;flex-wrap:wrap;}
 }
+
+/* ═══ v1.0.220 — Danielle, the desktop AI assistant ═══ */
+.dan-top,.dan-panel{display:none;}
+@media(min-width:1180px){
+  body.dan-ok .dan-top{display:flex;align-items:center;gap:6px;padding:6px 14px;margin-right:6px;border-radius:999px;border:1px solid rgba(177,139,255,.5);background:rgba(177,139,255,.12);color:var(--violet);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  body.dan-ok .dan-top:hover,body.dan-open .dan-top{background:rgba(177,139,255,.25);color:var(--white);}
+  .dan-panel.open{display:flex;flex-direction:column;position:fixed;right:16px;top:64px;bottom:16px;width:380px;z-index:70;background:var(--navy-800);border:1px solid var(--border);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden;}
+  .dan-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+  .dan-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--teal));color:var(--navy-900);font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .dan-av.big{width:40px;height:40px;font-size:17px;}
+  .dan-ht{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .dan-ht b{font-size:15px;color:var(--white);}
+  .dan-ht span{font-size:11.5px;color:var(--text-muted);}
+  .dan-ib{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--navy-900);color:var(--text-soft);cursor:pointer;font-size:14px;padding:0;}
+  .dan-ib:hover{border-color:var(--gold);color:var(--gold);}
+  .dan-ctx{padding:8px 14px;border-bottom:1px solid var(--border);}
+  .dan-chip{display:block;font-size:11.5px;color:var(--text-muted);line-height:1.35;}
+  .dan-chip.on{color:var(--text-soft);}
+  .dan-chip.on b{color:var(--violet);}
+  .dan-msgs{flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--navy-900);}
+  .dan-hello{display:flex;gap:12px;padding:12px;border:1px dashed var(--border);border-radius:12px;font-size:13px;line-height:1.45;color:var(--text-soft);}
+  .dan-hello b{color:var(--white);}
+  .dan-m{display:flex;}
+  .dan-m.u{justify-content:flex-end;}
+  .dan-b{max-width:92%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;}
+  .dan-m.u .dan-b{background:var(--gold);color:var(--navy-900);border-bottom-right-radius:4px;}
+  .dan-m.a .dan-b{background:var(--navy-800);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px;}
+  .dan-m.a .dan-b.err{border-color:rgba(255,92,114,.5);color:var(--danger);}
+  .dan-b b{color:var(--white);}
+  .dan-note{align-self:center;font-size:11px;color:var(--text-muted);padding:2px 10px;border-radius:999px;background:rgba(255,255,255,.05);}
+  .dan-draft{margin:8px 0 4px;padding:10px;border-radius:10px;border:1.5px solid var(--violet);background:rgba(177,139,255,.08);white-space:normal;}
+  .dan-dl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--violet);margin-bottom:6px;}
+  .dan-dt{white-space:pre-wrap;color:var(--white);font-size:13.5px;}
+  .dan-da{display:flex;gap:8px;margin-top:10px;}
+  .typing{display:flex;gap:4px;padding:12px 14px!important;}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--text-muted);animation:danDot 1.2s infinite ease-in-out;}
+  .typing i:nth-child(2){animation-delay:.15s;}
+  .typing i:nth-child(3){animation-delay:.3s;}
+  @keyframes danDot{0%,80%,100%{opacity:.25;transform:translateY(0);}40%{opacity:1;transform:translateY(-3px);}}
+  .dan-sugg{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px;background:var(--navy-900);}
+  .dan-sugg:not(:empty){padding:0 14px 10px;}
+  .dan-sq{font-family:inherit;font-size:12px;padding:6px 11px;border-radius:999px;border:1px solid var(--border);background:var(--navy-800);color:var(--text-soft);cursor:pointer;text-align:left;}
+  .dan-sq:hover{border-color:var(--violet);color:var(--white);}
+  .dan-in{display:flex;gap:8px;padding:12px 14px 8px;border-top:1px solid var(--border);}
+  .dan-in textarea{flex:1;padding:9px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--navy-900);color:var(--text);font-size:13.5px;font-family:inherit;resize:none;box-sizing:border-box;}
+  .dan-in textarea:focus{outline:none;border-color:var(--violet);}
+  .dan-in .btn{align-self:flex-end;min-width:64px;}
+  .dan-foot{padding:0 14px 10px;font-size:10.5px;color:var(--text-muted);text-align:center;}
+}
+/* With the panel open the page makes room for it (instead of hiding the right edge, e.g. the Send button) */
+@media(min-width:1500px){body.dan-open .main.wide{padding-right:412px;}}
+@media(min-width:1400px){body.dan-open.pg-messaging .main.wide{padding-right:412px;}body.dan-open.pg-messaging .ib-split{grid-template-columns:minmax(290px,330px) minmax(0,1fr);gap:18px;}}
 </style>
 </head>
 <body>
@@ -790,6 +842,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <div class="topbar-logo" id="topbarLogo"><img src="logo.png" alt="SE" style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-right:6px">clear<span>round</span></div>
       <div class="topbar-page" id="topbarPage"></div>
       <div class="topbar-action" id="topbarAction"></div>
+      <button type="button" class="dan-top" id="danTop" onclick="danToggle()" title="Ask Danielle about prices, quotes and jobs"><span>✦</span> Danielle</button>
       <button onclick="refreshCurrentPage()" title="Refresh" style="width:34px;height:34px;border-radius:8px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0" id="refreshBtn">
         <svg id="refreshIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
@@ -807,6 +860,21 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
     <nav class="bottom-nav" id="bottomNav"></nav>
   </div>
 </div>
+
+<!-- DANIELLE (desktop assistant) -->
+<aside id="danPanel" class="dan-panel" aria-label="Danielle assistant">
+  <div class="dan-head">
+    <div class="dan-av">D</div>
+    <div class="dan-ht"><b>Danielle</b><span>Quotes, prices and jobs</span></div>
+    <button type="button" class="dan-ib" title="New chat" onclick="danNew()">↺</button>
+    <button type="button" class="dan-ib" title="Close" onclick="danToggle(false)">✕</button>
+  </div>
+  <div class="dan-ctx" id="danCtx"></div>
+  <div class="dan-msgs" id="danMsgs"></div>
+  <div class="dan-sugg" id="danSugg"></div>
+  <div class="dan-in"><textarea id="danInput" rows="2" placeholder="Ask Danielle…" onkeydown="danKey(event)"></textarea><button type="button" id="danSend" class="btn btn-primary btn-sm" onclick="danSend()">Send</button></div>
+  <div class="dan-foot">Read only. She can look things up and draft messages, but never sends or changes anything.</div>
+</aside>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="customerModal">
@@ -1208,8 +1276,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='219';
-const BUILD_DATE='02 Nov 2026 10:55';
+const BUILD_VERSION='220';
+const BUILD_DATE='02 Nov 2026 11:04';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1459,6 +1527,92 @@ async function checkPin(){
   }
 }
 
+
+// ── DANIELLE: desktop AI assistant (v1.0.220) ────────────────────────────────
+// Talks to the "ClearRound: Danielle" n8n workflow, which checks the login token, loads the live price list,
+// bookings and (optionally) the selected conversation, and answers with GPT. She is read only.
+const DAN_URL='https://sehomeservices.app.n8n.cloud/webhook/clearround-danielle';
+let danMsgs=[];try{danMsgs=JSON.parse(localStorage.getItem('cr_danielle')||'[]');}catch(e){danMsgs=[];}
+let danBusy=false,danLastCtx=null;
+function danSave(){try{localStorage.setItem('cr_danielle',JSON.stringify(danMsgs.slice(-40)));}catch(e){}}
+function danCtxId(){return (currentPageId==='messaging'&&CONV_INBOX_MQ.matches&&convSelId&&messagingConvById[convSelId])?convSelId:null;}
+function danCtxName(id){const c=messagingConvById[id];return c?(c.customer_name||c.customer_phone||'this conversation'):'';}
+function danFmt(t){return esc(t).replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');}
+function danBody(t){
+  t=String(t||'');
+  const re=/<draft>([\s\S]*?)<\/draft>/gi;let m,last=0;const out=[];
+  while((m=re.exec(t))){
+    if(m.index>last)out.push(danFmt(t.slice(last,m.index)));
+    out.push('<div class="dan-draft"><div class="dan-dl">Suggested message</div><div class="dan-dt">'+esc(m[1].trim())+'</div><div class="dan-da"><button type="button" class="btn btn-primary btn-sm" onclick="danUseDraft(this)">Use in reply</button><button type="button" class="btn btn-neutral btn-sm" onclick="danCopyDraft(this)">Copy</button></div></div>');
+    last=re.lastIndex;
+  }
+  if(last<t.length)out.push(danFmt(t.slice(last)));
+  return out.join('');
+}
+function danDraftText(btn){return btn.closest('.dan-draft').querySelector('.dan-dt').textContent;}
+function danUseDraft(btn){
+  const ta=convSelId&&document.getElementById('reply-'+convSelId);
+  if(!ta){showToast('Open a conversation first, then use the message','error');return;}
+  if(ta.disabled){showToast('24h window closed. Send a follow-up first','error');return;}
+  ta.value=danDraftText(btn);ta.focus();
+  showToast('Added to the reply box. Check it, then press Send','success');
+}
+function danCopyDraft(btn){
+  const t=danDraftText(btn);
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>showToast('Copied','success')).catch(()=>showToast('Could not copy','error'));
+}
+function danCtxRefresh(){
+  const el=document.getElementById('danCtx');if(!el)return;
+  const id=danCtxId();
+  el.innerHTML=id?`<span class="dan-chip on">Looking at: <b>${esc(danCtxName(id))}</b></span>`:'<span class="dan-chip">Not looking at a conversation. Open one in Conversations and I will read it.</span>';
+  const sg=document.getElementById('danSugg');
+  if(sg&&!danMsgs.length)danRender();
+}
+function danRender(scroll){
+  const box=document.getElementById('danMsgs'),sg=document.getElementById('danSugg');if(!box)return;
+  const id=danCtxId();
+  box.innerHTML=(danMsgs.length?danMsgs.map(m=>m.role==='note'?`<div class="dan-note">${esc(m.content)}</div>`:m.role==='user'?`<div class="dan-m u"><div class="dan-b">${esc(m.content)}</div></div>`:`<div class="dan-m a"><div class="dan-b${m.err?' err':''}">${danBody(m.content)}</div></div>`).join(''):`<div class="dan-hello"><div class="dan-av big">D</div><div><b>Hi Tony, I am Danielle.</b><br>Ask me what to quote, what is booked, or what a customer pays. I can also draft a reply.</div></div>`)
+    +(danBusy?'<div class="dan-m a"><div class="dan-b typing"><i></i><i></i><i></i></div></div>':'');
+  if(sg){
+    const list=id?['What should I quote for this?','Summarise this chat','Write a reply for me','What does this customer pay now?']:['What is booked this week?','Quote: 3 bed, front and back, every 6 weeks','How much is gutter cleaning?','Which jobs are unassigned?'];
+    sg.innerHTML=(!danMsgs.length&&!danBusy)?list.map(q=>`<button type="button" class="dan-sq" onclick="danSend(this.textContent)">${esc(q)}</button>`).join(''):'';
+  }
+  document.getElementById('danSend').disabled=danBusy;
+  if(scroll!==false)box.scrollTop=box.scrollHeight;
+}
+function danToggle(force){
+  const p=document.getElementById('danPanel');if(!p)return;
+  const open=force===undefined?!p.classList.contains('open'):!!force;
+  p.classList.toggle('open',open);document.body.classList.toggle('dan-open',open);
+  try{localStorage.setItem('cr_dan_open',open?'1':'');}catch(e){}
+  if(open){danCtxRefresh();danRender();setTimeout(()=>{const i=document.getElementById('danInput');if(i)i.focus();},50);}
+}
+function danNew(){danMsgs=[];danLastCtx=null;danSave();danCtxRefresh();danRender();}
+function danKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();danSend();}}
+async function danSend(textOverride){
+  if(danBusy)return;
+  const ta=document.getElementById('danInput');
+  const text=String(textOverride||ta.value||'').trim();if(!text)return;
+  ta.value='';
+  const ctxId=danCtxId();
+  if(danMsgs.length&&ctxId!==danLastCtx)danMsgs.push({role:'note',content:ctxId?'Now looking at '+danCtxName(ctxId):'No longer looking at a conversation'});
+  danLastCtx=ctxId;
+  const hist=danMsgs.filter(m=>(m.role==='user'||m.role==='assistant')&&!m.err).slice(-12).map(m=>({role:m.role,content:m.content}));
+  danMsgs.push({role:'user',content:text});danBusy=true;danSave();danRender();
+  let reply=null;
+  try{
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),100000);
+    const res=await fetch(DAN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,history:hist,conversation_id:ctxId}),signal:ctrl.signal});
+    clearTimeout(to);
+    const data=await res.json().catch(()=>({}));
+    if(res.status===401)reply={content:'Your login has expired. Please log out and back in, then ask me again.',err:true};
+    else if(data&&data.ok&&data.reply)reply={content:data.reply};
+    else reply={content:(data&&data.reply)||'Sorry, something went wrong. Please try again.',err:true};
+  }catch(e){
+    reply={content:e&&e.name==='AbortError'?'That took too long. Please try again.':'I could not reach the server. Check your connection and try again.',err:true};
+  }
+  danMsgs.push(Object.assign({role:'assistant'},reply));danBusy=false;danSave();danRender();
+}
 function launchApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').classList.add('visible');
@@ -1467,6 +1621,8 @@ function launchApp(){
   document.getElementById('userMenuRole').textContent=(currentUser.role==='owner'?'Owner':'Employee')+' · '+(currentUser.view_mode==='round_only'?'Round view only':'Full access');
   buildNav();
   loadConfig();
+  document.body.classList.toggle('dan-ok',!crIsEmployee());
+  try{if(!crIsEmployee()&&localStorage.getItem('cr_dan_open')==='1')danToggle(true);}catch(e){}
   setTimeout(sweepUnbilledJobs,4000);
   const deepLinkConvId=consumeDeepLinkConvId();
   if(deepLinkConvId){
@@ -1529,6 +1685,8 @@ function logout(){
   if(_t){sb('rpc/logout_session',{method:'POST',body:JSON.stringify({p_token:_t})}).catch(()=>{});}
   localStorage.removeItem('cr_session');localStorage.removeItem('cr_user');
   currentUser=null;selectedUserId=null;pinEntry='';
+  document.body.classList.remove('dan-ok','dan-open');const _dp=document.getElementById('danPanel');if(_dp)_dp.classList.remove('open');
+  danMsgs=[];danLastCtx=null;try{localStorage.removeItem('cr_danielle');localStorage.removeItem('cr_dan_open');}catch(e){}
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').classList.remove('visible');
   document.getElementById('loginError').textContent='';
@@ -1657,6 +1815,8 @@ function navigate(page){
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
   document.getElementById('mainContent').classList.toggle('wide',DESKTOP_WIDE_PAGES.includes(page));
+  document.body.classList.toggle('pg-messaging',page==='messaging');
+  if(typeof danCtxRefresh==='function')danCtxRefresh();
   if(page==='dashboard')renderDashboard();
   else if(page==='round')renderRound();
   else if(page==='messaging')renderMessaging();
@@ -2331,7 +2491,7 @@ function convDetailHtml(c,msgs,e){
     ${windowClosed?`<div class="ib-win"><span>24h window closed. Send a follow-up to reopen free text</span><button class="btn btn-primary btn-sm" id="followup-btn-${c.id}" onclick="sendFollowupTemplate('${c.id}')">Send follow-up</button></div>`:''}
     <div class="ib-compose">
       ${suggestedReplyHtml(c.id)}
-      <div class="ib-cr"><textarea id="reply-${c.id}" rows="2" ${windowClosed?'disabled':''} placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}"></textarea><button class="btn btn-primary btn-sm" id="send-btn-${c.id}" ${windowClosed?'disabled':''} onclick="sendManualReply('${c.id}')">Send</button></div>
+      <div class="ib-cr"><textarea id="reply-${c.id}" rows="2" ${windowClosed?'disabled':''} onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();sendManualReply('${c.id}');}" placeholder="${windowClosed?'Send a follow-up above to reopen free text':'Type a reply…'}"></textarea><button class="btn btn-primary btn-sm" id="send-btn-${c.id}" ${windowClosed?'disabled':''} onclick="sendManualReply('${c.id}')">Send</button></div>
       <div class="ib-acts">
         ${cqHidden(c)?'':`<button class="btn btn-primary btn-sm" data-cq="${c.id}" style="background:var(--gold);color:var(--navy-900);font-weight:700" onclick="createQuoteFromConversation('${c.id}')">Create quote</button>`}
         ${isTerminalConv(c)?'':`<button class="btn btn-neutral btn-sm" onclick="convResolve('${c.id}')">${e?'Resolve & hand to Jarvis':'Close & hand to Jarvis'}</button>`}
@@ -2362,8 +2522,9 @@ function renderConvInbox(opts){
       <div class="ib-detail" id="ib-detail">${detail()}</div>
     </div>`;
   toBottom();
+  danCtxRefresh();
 }
-function convSelect(id){convSelId=id;renderConvInbox({listOnly:true,detail:true});}
+function convSelect(id){convSelId=id;renderConvInbox({listOnly:true,detail:true});danCtxRefresh();}
 function convSetView(v){convInboxView=v;renderConvInbox({listOnly:true});}
 function convSetKind(k){convKindFilter=k;renderConvInbox({listOnly:true});}
 function convSetSearch(v){convSearch=v;renderConvInbox({listOnly:true});}
