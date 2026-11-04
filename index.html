@@ -1276,8 +1276,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='222';
-const BUILD_DATE='04 Nov 2026 09:20';
+const BUILD_VERSION='223';
+const BUILD_DATE='04 Nov 2026 10:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3124,6 +3124,7 @@ function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
 // Each worker's round starts and finishes at their home postcode. Postcodes are turned into
 // coordinates on the fly with the free postcodes.io service (nothing extra is stored).
 const _PC_RE=/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/;
+const _OC_RE=/^[A-Z]{1,2}\d[A-Z\d]?$/;
 const _pcNorm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 function _pcFromAddress(a){const m=String(a||'').toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/);return m?m[1]+m[2]:'';}
 const roundCmp=(a,b)=>((a.round_order||0)-(b.round_order||0))||String(a.created_at||'').localeCompare(String(b.created_at||''));
@@ -3139,8 +3140,10 @@ async function geocodePostcodes(list){
   }
   // Anything not found falls back to the middle of its postcode district (approximate)
   for(const pc of need){
-    if(out.has(pc)||!_PC_RE.test(pc))continue;
-    try{const oc=pc.slice(0,-3);const r=await fetch('https://api.postcodes.io/outcodes/'+oc);const j=await r.json();
+    if(out.has(pc))continue;
+    const isFull=_PC_RE.test(pc),isOc=_OC_RE.test(pc);
+    if(!isFull&&!isOc)continue;
+    try{const oc=isFull?pc.slice(0,-3):pc;const r=await fetch('https://api.postcodes.io/outcodes/'+oc);const j=await r.json();
       if(j.result&&j.result.latitude!=null){const v={lat:j.result.latitude,lng:j.result.longitude};out.set(pc,v);_geoCache.set(pc,v);}}catch(e){}
   }
   return out;
@@ -3186,7 +3189,9 @@ async function optimiseRoundGroup(uid){
   try{
     const [u]=await sb(`wc_users?id=eq.${uid}&select=name,home_postcode`)||[];
     if(!u||!u.home_postcode){showToast(`Add a home postcode for ${u?u.name:'this person'} in Team first`,'error');return;}
-    const pcOf=j=>{const c=j.wc_customers||{};const p=_pcNorm(c.postcode);return _PC_RE.test(p)?p:_pcFromAddress(c.address);};
+    const pcOf=j=>{const c=j.wc_customers||{};const p=_pcNorm(c.postcode);if(_PC_RE.test(p))return p;const a=_pcFromAddress(c.address);if(a)return a;
+      if(_OC_RE.test(p))return p; // district only (e.g. SE9) - placed at the district centre
+      const m=String(c.address||'').toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?)\s*$/);return m?m[1]:'';};
     const hp=_pcNorm(u.home_postcode);
     const geo=await geocodePostcodes([hp,...todo.map(pcOf)]);
     const home=geo.get(hp);
