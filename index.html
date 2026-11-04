@@ -1276,8 +1276,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='220';
-const BUILD_DATE='02 Nov 2026 11:04';
+const BUILD_VERSION='221';
+const BUILD_DATE='04 Nov 2026 08:45';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3910,6 +3910,7 @@ function renderPaymentFields(c){
     <div class="sq-form-sec">Payment</div>
     <div class="field"><label>How they pay</label>${sqSeg('f-payer-type',[['stripe','💳 Card'],['cash','💵 Cash'],['bank_transfer','🏦 Bank'],['invoice','✉️ Invoice']],t)}<div class="sq-hint" id="f-payer-hint"></div></div>
     <div class="field"><label>PO / reference on invoices</label><input id="f-po" placeholder="e.g. PO14994" value="${esc(c.po_reference||'')}"></div>
+    <div class="field"><label>Invoice format</label>${sqSeg('f-invoice-format',[['email','✉️ In the email'],['pdf','📎 PDF attached']],c.invoice_format||'email')}<div class="sq-hint">PDF attached is best for commercial customers who want a file to save. The email still includes the pay link.</div></div>
     <div class="sq-setting"><div class="sq-setting-t">Send invoice when a job is done</div>${sqTri('f-send-invoice',c.send_invoice_on_completion,'No')}</div>
     <div class="sq-setting" id="f-autocharge-wrap"><div class="sq-setting-t">Charge saved card automatically</div>${sqTri('f-auto-charge',c.auto_charge_on_completion,'No')}</div>
     <div class="sq-setting"><div class="sq-setting-t">Overdue reminders</div>${sqTri('f-reminders',c.overdue_reminders,'No')}</div>
@@ -4087,6 +4088,7 @@ async function saveCustomer(){
     payer_type:payer,
     cash_payer:payer==='cash',
     po_reference:document.getElementById('f-po').value.trim()||null,
+    invoice_format:sqSegVal('f-invoice-format')||'email',
     send_invoice_on_completion:sqTriVal('f-send-invoice'),
     auto_charge_on_completion:payer==='stripe'?sqTriVal('f-auto-charge'):null,
     overdue_reminders:sqTriVal('f-reminders'),
@@ -5363,7 +5365,12 @@ async function dispatchInvoice(inv,job,c){
   if(!inv.due_date)patch.due_date=due;
   if(!inv.po_reference&&c.po_reference)patch.po_reference=c.po_reference;
   if(Object.keys(patch).length)await sb(`wc_invoices?id=eq.${inv.id}`,{method:'PATCH',body:JSON.stringify(patch),prefer:'return=minimal'});
+  let invoiceFormat=c.invoice_format;
+  if(!invoiceFormat){
+    try{const cid=c.id||inv.customer_id;if(cid){const [fr]=await sb(`wc_customers?id=eq.${cid}&select=invoice_format`)||[];invoiceFormat=fr&&fr.invoice_format;}}catch(e){console.warn('invoice format lookup',e);}
+  }
   const res=await fetch(N8N_INVOICE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    invoice_format:invoiceFormat==='pdf'?'pdf':'email',
     invoice_id:inv.id,customer_name:c.name||'Customer',
     customer_phone:c.whatsapp_number||c.phone||'',customer_email:c.email||'',
     amount:job.price,service_type:job.service_type||'Window Cleaning',job_date:jobDate,due_date:due,
