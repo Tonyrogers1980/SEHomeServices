@@ -1276,8 +1276,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='221';
-const BUILD_DATE='04 Nov 2026 08:45';
+const BUILD_VERSION='222';
+const BUILD_DATE='04 Nov 2026 09:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -4985,7 +4985,7 @@ async function showInvoice(id){
       ${inv.paid_at?sqTl('check','#7b4fc4','Paid'+(method?' · '+method:''),sqDt(inv.paid_at)):''}
     </div></div>
     <div class="sq-sec"><span>Details</span></div>
-    <div class="sq-list">${item('Service',esc(inv.notes||''))}${item('PO / reference',esc(inv.po_reference||''),true)}${inv.stripe_payment_link?`<div class="sq-block"><div class="sq-item" onclick="navigator.clipboard&&navigator.clipboard.writeText('${jsq(inv.stripe_payment_link)}');showToast('Payment link copied','success')"><div class="sq-item-body"><div class="sq-item-t">Payment link</div><div class="sq-item-v" style="word-break:break-all">${esc(inv.stripe_payment_link)}</div></div>${ic('doc','sq-go')}</div></div>`:''}</div>
+    <div class="sq-list">${item('Service',esc(inv.notes||''))}${item('Booking date',inv.job_date?esc(fmtShort(inv.job_date)):'')}${item('PO / reference',esc(inv.po_reference||''),true)}${inv.stripe_payment_link?`<div class="sq-block"><div class="sq-item" onclick="navigator.clipboard&&navigator.clipboard.writeText('${jsq(inv.stripe_payment_link)}');showToast('Payment link copied','success')"><div class="sq-item-body"><div class="sq-item-t">Payment link</div><div class="sq-item-v" style="word-break:break-all">${esc(inv.stripe_payment_link)}</div></div>${ic('doc','sq-go')}</div></div>`:''}</div>
     <div class="sq-stack">${actionBtns}</div>
     <div style="margin-top:26px"><button class="sq-btn danger sm" onclick="deleteInvoice('${inv.id}')">Delete invoice</button></div>`;
 }
@@ -5339,9 +5339,10 @@ async function setPayerType(customerId,type){
 async function ensureInvoice(jobId,amount,serviceType){
   const [existing]=await sb(`wc_invoices?job_id=eq.${jobId}&status=in.(draft,sent)&order=created_at.desc&limit=1`);
   if(existing)return existing;
-  const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,wc_customers(po_reference)`);
+  const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id,last_done,scheduled_date,wc_customers(po_reference)`);
+  const bookingDate=String(job?.last_done||job?.scheduled_date||'').split('T')[0]||null;
   const [inv]=await sb('wc_invoices?select=*',{method:'POST',body:JSON.stringify({
-    business_id:BUSINESS_ID,customer_id:job?.customer_id,job_id:jobId,amount:parseFloat(amount),
+    business_id:BUSINESS_ID,customer_id:job?.customer_id,job_id:jobId,job_date:bookingDate,amount:parseFloat(amount),
     notes:serviceType||'Window Cleaning',status:'sent',sent_at:new Date().toISOString(),
     po_reference:job?.wc_customers?.po_reference||null
   }),prefer:'return=representation'});
@@ -5356,14 +5357,16 @@ async function dispatchInvoice(inv,job,c){
   const d=new Date();d.setDate(d.getDate()+terms);
   const due=inv.due_date||localDateStr(d);
   const po=inv.po_reference||c.po_reference||'';
-  let jobDate='';
+  let jobDate='',rawJobDate='';
   try{
     const jid=inv.job_id||job?.id;
-    if(jid){const [jr]=await sb(`wc_jobs?id=eq.${jid}&select=last_done,scheduled_date`)||[];const jd=jr&&(jr.last_done||jr.scheduled_date);if(jd)jobDate=fmtShort(String(jd).split('T')[0]);}
+    if(inv.job_date){jobDate=fmtShort(inv.job_date);}
+    else if(jid){const [jr]=await sb(`wc_jobs?id=eq.${jid}&select=last_done,scheduled_date`)||[];const jd=jr&&(jr.last_done||jr.scheduled_date);if(jd){rawJobDate=String(jd).split('T')[0];jobDate=fmtShort(rawJobDate);}}
   }catch(e){console.warn('job date lookup',e);}
   const patch={};
   if(!inv.due_date)patch.due_date=due;
   if(!inv.po_reference&&c.po_reference)patch.po_reference=c.po_reference;
+  if(!inv.job_date&&rawJobDate)patch.job_date=rawJobDate;
   if(Object.keys(patch).length)await sb(`wc_invoices?id=eq.${inv.id}`,{method:'PATCH',body:JSON.stringify(patch),prefer:'return=minimal'});
   let invoiceFormat=c.invoice_format;
   if(!invoiceFormat){
