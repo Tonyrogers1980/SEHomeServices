@@ -1306,7 +1306,11 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
         <div class="field"><label>Default duration</label><input id="st-duration" placeholder="00:30" inputmode="numeric" maxlength="5"></div>
         <div class="field"><label>Sort order</label><input id="st-sort" type="number" inputmode="numeric" step="1" placeholder="Auto"></div>
       </div>
-      <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+      <div class="form-row">
+        <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+        <div class="field"><label>Pricing method</label><select id="st-method"><option value="">Not priced</option><option value="by_variation">By variation</option><option value="per_unit">Per unit</option><option value="flat">Flat price</option><option value="manual_quote">Manual quote</option></select></div>
+      </div>
+      <div id="st-prices-link" style="display:none"><button type="button" class="btn btn-ghost btn-sm" onclick="stGoPrices()">View prices for this service →</button></div>
       <div id="st-review" style="display:none;font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:8px;border:1px solid var(--border);color:var(--text-soft)"></div>
       <div id="st-usage" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
@@ -1314,6 +1318,78 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <button class="btn btn-outline-danger" id="st-btn-delete" style="display:none" onclick="deleteServiceType()">Delete</button>
       <button class="btn btn-ghost" onclick="closeModal('svcTypeModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveServiceType()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="svcPriceModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="svcPriceModalTitle">Price</div>
+      <button class="modal-close" onclick="closeModal('svcPriceModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+    <div class="form-grid">
+      <input type="hidden" id="sp-id">
+      <div class="field"><label>Service type</label><select id="sp-type"></select></div>
+      <div class="form-row">
+        <div class="field"><label>Varies by</label><select id="sp-dim"><option value="">Nothing (one price)</option><option value="bedrooms">Bedrooms</option><option value="size">Size</option><option value="area">Area</option></select></div>
+        <div class="field"><label>Option</label><input id="sp-key" placeholder="e.g. 3_bed, small" autocomplete="off"></div>
+      </div>
+      <div class="field"><label>Label (optional)</label><input id="sp-label" placeholder="e.g. 3 bedrooms"></div>
+      <div class="form-row">
+        <div class="field"><label>Price (£)</label><input id="sp-price" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Not set"></div>
+        <div class="field"><label>Charged</label><select id="sp-unit"><option value="">Per job</option><option value="item">Per item</option><option value="pane">Per pane</option><option value="length">Per length</option><option value="sq_ft">Per sq ft</option><option value="extra_bedroom">Per extra bedroom</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Minimum charge (£)</label><input id="sp-min" type="number" inputmode="decimal" step="0.01" min="0" placeholder="None"></div>
+        <div class="field"><label>Typical units</label><input id="sp-units" type="number" inputmode="decimal" step="0.5" min="0" placeholder="None"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Minutes</label><input id="sp-mins" type="number" inputmode="numeric" step="1" min="0" placeholder="None"></div>
+        <div class="field"><label>Status</label><select id="sp-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+      </div>
+      <div id="sp-hint" style="font-size:12px;color:var(--text-muted);line-height:1.45">A price left empty is never quoted. Typical units is used when the number isn't known, for example the usual gutter lengths for a terraced house.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline-danger" id="sp-btn-delete" style="display:none" onclick="deleteServicePrice()">Delete</button>
+      <button class="btn btn-ghost" onclick="closeModal('svcPriceModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveServicePrice()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="svcAdjustModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Adjust prices</div>
+      <button class="modal-close" onclick="closeModal('svcAdjustModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="field"><label>Change (%)</label><input id="adj-pct" type="number" inputmode="decimal" step="0.5" placeholder="e.g. 10" oninput="stAdjustPreview()"></div>
+        <div class="field"><label>Round to</label><select id="adj-round" onchange="stAdjustPreview()"><option value="0.5">Nearest 50p</option><option value="0.1">Nearest 10p</option><option value="1">Nearest £1</option><option value="0">No rounding</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Applies to</label><select id="adj-scope" onchange="stAdjustPreview()"><option value="all">All prices</option><option value="window_cleaning">Windows</option><option value="gutter_cleaning">Gutters</option><option value="pressure_washing">Pressure washing</option><option value="addons">Extras only</option></select></div>
+        <div class="field"><label>Minimum charges</label><select id="adj-min" onchange="stAdjustPreview()"><option value="1">Adjust too</option><option value="0">Leave as they are</option></select></div>
+      </div>
+      <div id="adj-preview" style="font-size:12.5px;color:var(--text-soft);line-height:1.5"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('svcAdjustModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="stAdjustApply()">Apply changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="svcQuoteModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Test a quote</div>
+      <button class="modal-close" onclick="closeModal('svcQuoteModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+    <div class="form-grid">
+      <div class="field"><label>Service</label><select id="q-service" onchange="stQuoteForm()"><option value="window_cleaning">Window cleaning</option><option value="gutter_cleaning">Gutter cleaning</option><option value="pressure_washing">Pressure washing</option></select></div>
+      <div id="q-fields"></div>
+      <div id="q-result" style="margin-top:4px"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('svcQuoteModal')">Close</button>
+      <button class="btn btn-primary" onclick="stQuoteRun()">Calculate</button>
     </div>
   </div>
 </div>
@@ -1333,8 +1409,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='227';
-const BUILD_DATE='09 Nov 2026 16:20';
+const BUILD_VERSION='228';
+const BUILD_DATE='09 Nov 2026 18:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1889,8 +1965,8 @@ function navigate(page){
   else if(page==='overdue')renderOverdue();
   else if(page==='optimizer')renderOptimizer();
   else if(page==='rounds-config')renderRoundsConfig();
-  else if(page==='service-types-config')renderServiceTypesConfig();
-  else if(page==='pricing-config')renderPricingConfig();
+  else if(page==='service-types-config'){if(stView==='prices')stView='table';renderServiceTypesConfig();}
+  else if(page==='pricing-config'){stView='prices';stPriceFilter=null;renderServiceTypesConfig();}
   else if(page==='team-config')renderTeamConfig();
   else if(page==='availability-config')renderAvailabilityConfig();
   else if(page==='settings')renderSettings();
@@ -6364,7 +6440,7 @@ async function renderRoundsConfig(){
     </div>`;
 }
 
-let svcTypeUse={},stReviewOnly=false,stOptions=[],stView='table',stSortKey=null,stSortDir=1;
+let svcTypeUse={},stReviewOnly=false,stOptions=[],stView='table',stSortKey=null,stSortDir=1,stPrices=[],stMults=[],stPriceFilter=null,stAdjustUndo=null;
 const ST_ATTR_LABEL={segment:'segment',property_type:'property type',scope:'scope',addon_code:'add-on type'};
 function stKey(v){const k=String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');return k||null;}
 // ── rules (service_attribute_options): which attribute applies to which category, and its allowed values
@@ -6381,7 +6457,7 @@ function stLabel(attr,val){
   return o?o.label:((attr==='scope'?SVC_SCOPE[val]:attr==='property_type'?SVC_PROP[val]:SVC_ADDON[val])||svcHuman(val));
 }
 function stToggleReview(){stReviewOnly=!stReviewOnly;stRender();}
-function stSetView(v){stView=v;stRender();}
+function stSetView(v){stView=v;document.getElementById('topbarPage').textContent=v==='prices'?'Pricing':'Service Types';stRender();}
 function stSortBy(k){if(stSortKey===k)stSortDir=-stSortDir;else{stSortKey=k;stSortDir=1;}stRender();}
 const ST_SEG_RANK={commercial:0,domestic:1};
 function stDefaultCmp(a,b){
@@ -6475,23 +6551,231 @@ function stListHtml(list){
     return`<div class="sq-sec"><span>${esc(SVC_CAT[k].label)}<span class="n">${l.length}</span></span></div><div class="detail-section">${l.map(stRowHtml).join('')}</div>`;
   }).join('');
 }
+// ── PRICES (service_prices / service_multipliers: the single source the WhatsApp agent quotes from) ──
+const ST_UNIT={'':'per job',item:'per item',pane:'per pane',length:'per length',sq_ft:'per sq ft',extra_bedroom:'per extra bedroom'};
+const ST_METHOD={by_variation:'By variation',per_unit:'Per unit',flat:'Flat price',manual_quote:'Manual quote'};
+function stMoney(n){return n==null?'':'£'+(Math.round(Number(n)*100)/100).toFixed(2).replace(/\.00$/,'');}
+function stTypeById(id){return wcServiceTypes.find(t=>t.id===id);}
+function stPriceLabel(p){return p.variation_label||(p.dimension?svcHuman(p.variation_key):(p.unit?'Rate':'Flat price'));}
+function stPricesHtml(){
+  const byType={};
+  stPrices.forEach(p=>{(byType[p.service_type_id]=byType[p.service_type_id]||[]).push(p);});
+  let types=Object.keys(byType).map(stTypeById).filter(Boolean);
+  if(stPriceFilter)types=types.filter(t=>t.id===stPriceFilter);
+  types.sort(stDefaultCmp);
+  const unpriced=stPrices.filter(p=>p.price==null).length;
+  const actions=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px">
+    <button class="btn btn-ghost btn-sm" onclick="openPriceEditor('', '${stPriceFilter||''}')">+ Add price</button>
+    <button class="btn btn-ghost btn-sm" onclick="stAdjustOpen()">Adjust prices</button>
+    <button class="btn btn-ghost btn-sm" onclick="stQuoteOpen()">Test a quote</button>
+    ${stAdjustUndo?`<button class="btn btn-ghost btn-sm" style="color:var(--gold)" onclick="stAdjustUndoRun()">↩ Undo last adjustment</button>`:''}
+    ${stPriceFilter?`<button class="btn btn-ghost btn-sm" onclick="stPriceFilter=null;stRender()">Show all</button>`:''}
+  </div>${unpriced?`<div style="font-size:12.5px;color:#b5882a;margin:0 2px 10px">${unpriced} price${unpriced===1?' is':'s are'} not set yet. They won't be quoted until you set them.</div>`:''}`;
+  const blocks=types.map(t=>{
+    const cat=SVC_CAT[t.category]||SVC_CAT.other,rows=byType[t.id].slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const trs=rows.map(p=>{
+      const price=p.price==null?'<span class="st-blank">set price</span>':esc(stMoney(p.price))+(p.unit?` <span class="st-na" style="opacity:.8">${esc(ST_UNIT[p.unit]||p.unit)}</span>`:'');
+      return`<tr class="${p.active?'':'st-off'}" onclick="openPriceEditor('${p.id}')"><td class="st-name" style="font-weight:500">${esc(stPriceLabel(p))}</td><td>${price}</td><td>${p.min_charge!=null?esc(stMoney(p.min_charge))+' min':'<span class="st-na">–</span>'}</td><td>${p.default_units!=null?esc(String(p.default_units))+' typical':'<span class="st-na">–</span>'}</td><td>${p.minutes!=null?p.minutes+' min'+(p.unit?' each':''):'<span class="st-na">–</span>'}</td><td>${p.active?'':'Inactive'}</td></tr>`;
+    }).join('');
+    return`<div class="sq-sec" style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span style="flex:1">${esc(t.name)}${t.pricing_method?` <span style="font-weight:400;color:var(--text-muted)">· ${esc(ST_METHOD[t.pricing_method]||'')}</span>`:''}</span><button class="btn btn-ghost btn-sm" onclick="openPriceEditor('', '${t.id}')">+ Add</button></div>
+      <div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table" style="min-width:560px"><tbody>${trs}</tbody></table></div>`;
+  }).join('');
+  return actions+(blocks||'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No prices yet</span></div></div>')+(stPriceFilter?'':stMultsHtml());
+}
+function stMultLabel(m){
+  if(m.factor==='inside_clean')return'Inside and out';
+  if(m.key==='one_off')return'One-off clean';
+  const n=Number(m.key);return n===1?'Every week':`Every ${n} weeks`;
+}
+function stMultsHtml(){
+  const f=stMults.filter(m=>m.factor==='frequency').sort((a,b)=>(a.key==='one_off'?999:Number(a.key))-(b.key==='one_off'?999:Number(b.key)));
+  const ic2=stMults.filter(m=>m.factor==='inside_clean');
+  const row=m=>`<div class="detail-row" style="gap:10px"><span class="detail-value" style="text-align:left;flex:1;font-size:13.5px">${esc(stMultLabel(m))}</span><input type="number" step="0.05" min="0.1" value="${m.multiplier}" style="width:90px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--navy-900);color:var(--text);font-family:inherit;font-size:14px;text-align:right" onchange="stSaveMult('${m.id}',this)" aria-label="${esc(stMultLabel(m))} multiplier"><span style="width:14px;color:var(--text-muted)">×</span></div>`;
+  return`<div class="sq-sec" style="display:flex;align-items:center"><span style="flex:1">Multipliers · windows only</span><button class="btn btn-ghost btn-sm" onclick="stAddFreq()">+ Add</button></div>
+    <div class="detail-section">${f.map(row).join('')}${ic2.map(row).join('')}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">Frequency changes the base window price only; extras are never multiplied. An unlisted frequency uses the 4-weekly value. The agent doesn't price inside cleans yet, so that multiplier is stored but not used.</div>`;
+}
+async function stSaveMult(id,el){
+  const v=parseFloat(el.value);
+  if(!(v>0)){showToast('Enter a multiplier above 0','error');renderServiceTypesConfig();return;}
+  try{await sb(`service_multipliers?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({multiplier:v,updated_at:new Date().toISOString()}),prefer:'return=minimal'});showToast('Multiplier saved','success');const m=stMults.find(x=>x.id===id);if(m)m.multiplier=v;}
+  catch(e){showToast(e.message,'error');renderServiceTypesConfig();}
+}
+async function stAddFreq(){
+  const raw=(prompt('Every how many weeks? (a whole number)')||'').trim();
+  if(!raw)return;
+  if(!/^\d+$/.test(raw)||Number(raw)<1){showToast('Enter a whole number of weeks','error');return;}
+  if(stMults.some(m=>m.factor==='frequency'&&m.key===raw)){showToast('That frequency already exists','error');return;}
+  try{await sb('service_multipliers',{method:'POST',body:JSON.stringify({business_id:BUSINESS_ID,category:'window_cleaning',factor:'frequency',key:raw,multiplier:1}),prefer:'return=minimal'});showToast('Added. Set its multiplier.','success');renderServiceTypesConfig();}
+  catch(e){showToast(e.message,'error');}
+}
+function stGoPrices(){const id=document.getElementById('st-id').value;closeModal('svcTypeModal');stPriceFilter=id||null;stSetView('prices');}
+// ── price editor
+function openPriceEditor(id,typeId){
+  const p=id?stPrices.find(x=>x.id===id):null;
+  if(id&&!p)return;
+  const cand=wcServiceTypes.filter(t=>t.active&&(t.pricing_method||t.is_addon||stPrices.some(x=>x.service_type_id===t.id))).sort(stDefaultCmp);
+  document.getElementById('svcPriceModalTitle').textContent=p?'Edit price':'Add price';
+  document.getElementById('sp-id').value=p?p.id:'';
+  const ts=document.getElementById('sp-type');
+  ts.innerHTML=(p||typeId?'':'<option value="">Choose a service</option>')+cand.concat(p&&!cand.some(t=>t.id===p.service_type_id)?[stTypeById(p.service_type_id)].filter(Boolean):[]).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  ts.value=p?p.service_type_id:(typeId||'');ts.disabled=!!p;
+  document.getElementById('sp-dim').value=p?(p.dimension||''):'';
+  document.getElementById('sp-key').value=p?(p.variation_key||''):'';
+  document.getElementById('sp-label').value=p?(p.variation_label||''):'';
+  document.getElementById('sp-price').value=p&&p.price!=null?p.price:'';
+  document.getElementById('sp-unit').value=p?(p.unit||''):'';
+  document.getElementById('sp-min').value=p&&p.min_charge!=null?p.min_charge:'';
+  document.getElementById('sp-units').value=p&&p.default_units!=null?p.default_units:'';
+  document.getElementById('sp-mins').value=p&&p.minutes!=null?p.minutes:'';
+  document.getElementById('sp-active').value=!p||p.active?'1':'0';
+  document.getElementById('sp-btn-delete').style.display=p?'':'none';
+  document.getElementById('svcPriceModal').classList.add('open');
+}
+function stNum(id,label,opts={}){
+  const raw=document.getElementById(id).value.trim();
+  if(raw==='')return{v:null};
+  const n=Number(raw);
+  if(!Number.isFinite(n)||n<0||(opts.int&&!Number.isInteger(n)))return{err:`${label} must be ${opts.int?'a whole number':'a number'} of 0 or more`};
+  return{v:n};
+}
+async function saveServicePrice(){
+  const id=document.getElementById('sp-id').value;
+  const typeId=document.getElementById('sp-type').value;
+  if(!typeId){showToast('Choose a service','error');return;}
+  const price=stNum('sp-price','Price'),min=stNum('sp-min','Minimum charge'),units=stNum('sp-units','Typical units'),mins=stNum('sp-mins','Minutes',{int:true});
+  const bad=[price,min,units,mins].find(x=>x.err);if(bad){showToast(bad.err,'error');return;}
+  const dim=document.getElementById('sp-dim').value||null;
+  const key=stKey(document.getElementById('sp-key').value);
+  if(dim&&!key){showToast('Add an option name, for example 3_bed or small','error');return;}
+  let active=document.getElementById('sp-active').value==='1';
+  if(price.v==null&&active){active=false;showToast('Saved as inactive until a price is set','success');}
+  const payload={service_type_id:typeId,dimension:dim,variation_key:dim?key:null,variation_label:document.getElementById('sp-label').value.trim()||null,
+    price:price.v,unit:document.getElementById('sp-unit').value||null,min_charge:min.v,default_units:units.v,minutes:mins.v,active,updated_at:new Date().toISOString()};
+  if(!dim&&!id&&stPrices.some(x=>x.service_type_id===typeId&&!x.dimension&&!x.variation_key)){showToast('That service already has a single price. Edit it, or choose what it varies by.','error');return;}
+  try{
+    if(id){delete payload.service_type_id;await sb(`service_prices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});}
+    else await sb('service_prices',{method:'POST',body:JSON.stringify({...payload,business_id:BUSINESS_ID}),prefer:'return=minimal'});
+    closeModal('svcPriceModal');if(price.v!=null||!active)showToast(id?'Price saved':'Price added','success');renderServiceTypesConfig();
+  }catch(e){showToast(/duplicate|unique/i.test(e.message||'')?'That option already exists for this service':e.message,'error');}
+}
+async function deleteServicePrice(){
+  const id=document.getElementById('sp-id').value;const p=stPrices.find(x=>x.id===id);if(!p)return;
+  if(!confirm(`Delete "${stPriceLabel(p)}"? It will stop being quoted.`))return;
+  try{await sb(`service_prices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});closeModal('svcPriceModal');showToast('Deleted','success');renderServiceTypesConfig();}
+  catch(e){showToast(e.message,'error');}
+}
+// ── bulk adjustment (with preview and undo)
+function stAdjustRound(v,step){return step>0?Math.round(v/step)*step:Math.round(v*100)/100;}
+function stAdjustPlan(){
+  const pct=parseFloat(document.getElementById('adj-pct').value);
+  if(!Number.isFinite(pct))return{rows:[],pct:null};
+  const step=parseFloat(document.getElementById('adj-round').value),scope=document.getElementById('adj-scope').value,withMin=document.getElementById('adj-min').value==='1';
+  const rows=[];
+  stPrices.filter(p=>p.active&&p.price!=null).forEach(p=>{
+    const t=stTypeById(p.service_type_id);if(!t||!t.active)return;
+    if(scope==='addons'?!t.is_addon:(scope!=='all'&&t.category!==scope))return;
+    const np=stAdjustRound(p.price*(1+pct/100),step);
+    const nm=withMin&&p.min_charge!=null?stAdjustRound(p.min_charge*(1+pct/100),step):p.min_charge;
+    if(np!==Number(p.price)||nm!==p.min_charge)rows.push({p,t,np,nm});
+  });
+  return{rows,pct};
+}
+function stAdjustOpen(){
+  document.getElementById('adj-pct').value='';document.getElementById('adj-scope').value='all';
+  document.getElementById('adj-preview').textContent='Enter a percentage to preview every change before anything is saved.';
+  document.getElementById('svcAdjustModal').classList.add('open');
+}
+function stAdjustPreview(){
+  const {rows,pct}=stAdjustPlan(),el=document.getElementById('adj-preview');
+  if(pct===null){el.textContent='Enter a percentage to preview every change before anything is saved.';return;}
+  if(!rows.length){el.textContent='Nothing would change.';return;}
+  const show=rows.slice(0,10).map(r=>`<div style="display:flex;justify-content:space-between;gap:10px"><span>${esc(r.t.name.replace(/^Window Cleaning: /,''))} · ${esc(stPriceLabel(r.p))}</span><span style="white-space:nowrap">${esc(stMoney(r.p.price))} → <b>${esc(stMoney(r.np))}</b></span></div>`).join('');
+  el.innerHTML=`<div style="margin-bottom:6px"><b>${rows.length}</b> price${rows.length===1?'':'s'} would change (${pct>0?'+':''}${pct}%).</div>${show}${rows.length>10?`<div style="color:var(--text-muted)">and ${rows.length-10} more</div>`:''}`;
+}
+async function stAdjustApply(){
+  const {rows,pct}=stAdjustPlan();
+  if(pct===null){showToast('Enter a percentage','error');return;}
+  if(Math.abs(pct)>50){showToast('That is a large change. Use 50% or less at a time.','error');return;}
+  if(!rows.length){showToast('Nothing would change','error');return;}
+  if(!confirm(`Change ${rows.length} price${rows.length===1?'':'s'} by ${pct>0?'+':''}${pct}%?\n\nThe WhatsApp agent will quote the new prices immediately. You can undo this afterwards.`))return;
+  const undo=rows.map(r=>({id:r.p.id,price:r.p.price,min_charge:r.p.min_charge}));
+  try{
+    for(const r of rows)await sb(`service_prices?id=eq.${r.p.id}`,{method:'PATCH',body:JSON.stringify({price:r.np,min_charge:r.nm,updated_at:new Date().toISOString()}),prefer:'return=minimal'});
+    stAdjustUndo=undo;closeModal('svcAdjustModal');showToast(`${rows.length} prices updated`,'success');renderServiceTypesConfig();
+  }catch(e){
+    showToast('Stopped part-way: '+e.message+'. Use Undo to restore.','error');
+    stAdjustUndo=undo;renderServiceTypesConfig();
+  }
+}
+async function stAdjustUndoRun(){
+  if(!stAdjustUndo)return;
+  if(!confirm(`Restore the ${stAdjustUndo.length} previous prices?`))return;
+  try{
+    for(const u of stAdjustUndo)await sb(`service_prices?id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({price:u.price,min_charge:u.min_charge,updated_at:new Date().toISOString()}),prefer:'return=minimal'});
+    stAdjustUndo=null;showToast('Previous prices restored','success');renderServiceTypesConfig();
+  }catch(e){showToast(e.message,'error');}
+}
+// ── test a quote (runs the same database function the agent's logic is checked against)
+function stQuoteOpen(){document.getElementById('q-result').innerHTML='';stQuoteForm();document.getElementById('svcQuoteModal').classList.add('open');}
+function stQF(label,inner){return`<div class="field"><label>${label}</label>${inner}</div>`;}
+function stQuoteForm(){
+  const sv=document.getElementById('q-service').value,num=(id,ph)=>`<input id="${id}" type="number" inputmode="numeric" min="0" step="1" placeholder="${ph||'0'}">`,chk=(id,l)=>`<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)"><input type="checkbox" id="${id}" style="width:18px;height:18px">${l}</label>`;
+  let h='';
+  if(sv==='window_cleaning')h=`<div class="form-row">${stQF('Bedrooms',`<select id="q-beds">${[1,2,3,4,5,6,7].map(n=>`<option${n===3?' selected':''}>${n}</option>`).join('')}</select>`)}${stQF('Cleaning',`<select id="q-fb"><option value="front_and_back">Front and back</option><option value="front_only">Front only</option></select>`)}</div>
+    ${stQF('How often',`<select id="q-freq"><option value="4">Every 4 weeks</option><option value="2">Every 2 weeks</option><option value="6">Every 6 weeks</option><option value="8">Every 8 weeks</option><option value="12">Every 12 weeks</option><option value="one_off">One-off</option><option value="">Not stated</option></select>`)}
+    <div class="form-row">${stQF('Skylights',num('q-skylight'))}${stQF('Roof lanterns',num('q-roof_lantern'))}</div>
+    <div class="form-row">${stQF('Bifold panes',num('q-bifold_door'))}${stQF('French doors',num('q-french_door'))}</div>
+    <div class="form-row">${stQF('Patio doors',num('q-patio_door'))}${stQF('Conservatory panes',num('q-conservatory_windows'))}</div>
+    ${chk('q-roof_access_required','Roof access needed (flat roof)')}${chk('q-through','Back access through the house')}`;
+  else if(sv==='gutter_cleaning')h=`${stQF('Property',`<select id="q-prop"><option value="terraced">Terraced</option><option value="semi_detached">Semi-detached</option><option value="detached">Detached</option><option value="bungalow">Other (agent can't price)</option></select>`)}
+    ${stQF('Gutter lengths (optional)',num('q-lengths','Typical for the property'))}${chk('q-extension','Extension')}${chk('q-conservatory','Conservatory')}`;
+  else h=`${stQF('Size',`<select id="q-band"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select>`)}
+    ${stQF('Area in sq ft (optional)',num('q-sqft','Used when a sq ft price is set'))}${chk('q-block','Block paving re-sanding')}`;
+  document.getElementById('q-fields').innerHTML=h;
+  document.getElementById('q-result').innerHTML='';
+}
+function stQuoteInput(){
+  const sv=document.getElementById('q-service').value,g=id=>document.getElementById(id),n=id=>{const v=g(id).value.trim();return v===''?0:Number(v);};
+  if(sv==='window_cleaning'){
+    const fr=g('q-freq').value;
+    const feats={};['skylight','roof_lantern','bifold_door','french_door','patio_door','conservatory_windows'].forEach(k=>{const v=n('q-'+k);if(v>0)feats[k]=v;});
+    if(g('q-roof_access_required').checked)feats.roof_access_required=true;
+    return{service:sv,bedrooms:Number(g('q-beds').value),front_back:g('q-fb').value,frequency:fr==='one_off'?'one_off':'repeat',frequency_weeks:(fr&&fr!=='one_off')?Number(fr):null,features:feats,back_access_type:g('q-through').checked?'through_house':null};
+  }
+  if(sv==='gutter_cleaning')return{service:sv,property_type:g('q-prop').value,lengths:n('q-lengths')||null,extension:g('q-extension').checked,conservatory:g('q-conservatory').checked};
+  return{service:sv,band:g('q-band').value,sq_ft:n('q-sqft')||null,block_paving_resanding:g('q-block').checked};
+}
+const ST_QUOTE_REASON={no_price_for_bedrooms:"There's no price for that number of bedrooms, so the agent hands this to you.",no_service_type:"No matching service for those details, so the agent hands this to you.",no_price:"The matching service has no price set, so the agent hands this to you.",manual_quote_service:"This service is quoted manually."};
+async function stQuoteRun(){
+  const out=document.getElementById('q-result');out.innerHTML='<div style="font-size:13px;color:var(--text-muted)">Calculating…</div>';
+  try{
+    const r=await sb('rpc/cr_quote',{method:'POST',body:JSON.stringify({p:stQuoteInput()})});
+    if(!r||r.status!=='READY'){out.innerHTML=`<div style="padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:13.5px;color:var(--text-soft)"><b style="color:#b5882a">Manual review</b><br>${esc(ST_QUOTE_REASON[r&&r.reason]||'The agent would hand this to you.')}</div>`;return;}
+    const lines=(r.lines||[]).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:3px 0"><span style="color:var(--text-soft)">${esc(l.label)}</span><span>${esc(stMoney(l.amount))}</span></div>`).join('');
+    out.innerHTML=`<div style="padding:12px;border:1px solid var(--border);border-radius:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:13px;color:var(--text-muted)">Quote</span><span style="font-size:24px;font-weight:700">${esc(stMoney(r.amount))}</span></div>${lines}${r.minutes?`<div style="font-size:12px;color:var(--text-muted);margin-top:6px">About ${r.minutes} minutes</div>`:''}</div>`;
+  }catch(e){out.innerHTML=`<div style="font-size:13px;color:var(--danger)">${esc(e.message)}</div>`;}
+}
+
 function stRender(){
   const el=document.getElementById('mainContent');if(!el)return;
   const reviewN=wcServiceTypes.filter(s=>(s.inferred_fields||[]).length).length;
   if(!reviewN)stReviewOnly=false;
   const list=wcServiceTypes.filter(s=>!stReviewOnly||(s.inferred_fields||[]).length);
-  const seg=['table:Table','list:List','rules:Rules'].map(x=>{const[k,l]=x.split(':');return`<button type="button" class="${stView===k?'on':''}" onclick="stSetView('${k}')">${l}</button>`;}).join('');
-  const body=!wcServiceTypes.length?'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>':stView==='rules'?stRulesHtml():stView==='list'?stListHtml(list):stTableHtml(list);
-  el.innerHTML=`<div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span>${reviewN&&stView!=='rules'?`<span class="sq-pill" style="cursor:pointer;${stReviewOnly?'background:#b5882a;color:#fff':''}" onclick="stToggleReview()">${reviewN} to review</span>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
+  const seg=['table:Table','prices:Prices','list:List','rules:Rules'].map(x=>{const[k,l]=x.split(':');return`<button type="button" class="${stView===k?'on':''}" onclick="stSetView('${k}')">${l}</button>`;}).join('');
+  const body=!wcServiceTypes.length?'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>':stView==='prices'?stPricesHtml():stView==='rules'?stRulesHtml():stView==='list'?stListHtml(list):stTableHtml(list);
+  el.innerHTML=`<div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span>${reviewN&&(stView==='table'||stView==='list')?`<span class="sq-pill" style="cursor:pointer;${stReviewOnly?'background:#b5882a;color:#fff':''}" onclick="stToggleReview()">${reviewN} to review</span>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
     <div class="sq-seg fit" style="margin:2px 0 10px">${seg}</div>${body}`;
 }
 async function renderServiceTypesConfig(){
-  document.getElementById('topbarPage').textContent='Service Types';
+  document.getElementById('topbarPage').textContent=stView==='prices'?'Pricing':'Service Types';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{
     wcServiceTypes=await sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`)||[];
     stOptions=await sb(`service_attribute_options?business_id=eq.${BUSINESS_ID}&active=eq.true&order=sort_order.asc`)||[];
+    stPrices=await sb(`service_prices?business_id=eq.${BUSINESS_ID}&order=sort_order.asc`)||[];
+    stMults=await sb(`service_multipliers?business_id=eq.${BUSINESS_ID}&order=key.asc`)||[];
     svcTypeUse={};
     try{(await sb('rpc/cr_service_type_usage',{method:'POST',body:'{}'})||[]).forEach(r=>{svcTypeUse[r.service_type_id]=Number(r.n)||0;});}catch(_){}
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
@@ -6552,6 +6836,8 @@ function openServiceTypeEditor(id){
   document.getElementById('st-duration').value=s?(s.default_duration||''):'00:30';
   document.getElementById('st-sort').value=s&&s.sort_order!=null?s.sort_order:'';
   document.getElementById('st-active').value=!s||s.active?'1':'0';
+  document.getElementById('st-method').value=s?(s.pricing_method||''):'';
+  document.getElementById('st-prices-link').style.display=s&&stPrices.some(x=>x.service_type_id===s.id)?'':'none';
   stOnShape(s?{segment:s.segment||'',property_type:s.property_type||'',scope:s.scope||'',addon_code:s.addon_code||''}:{});
   const n=s?(svcTypeUse[s.id]||0):0;
   document.getElementById('st-usage').textContent=s?(n?`Used on ${n} job${n===1?'':'s'}. Renaming keeps those jobs linked; to retire it, set Inactive.`:'Not used on any jobs yet.'):'';
@@ -6602,6 +6888,7 @@ async function saveServiceType(){
     default_duration:dur||null,
     sort_order:sortRaw?parseInt(sortRaw,10):null,
     active:document.getElementById('st-active').value==='1',
+    pricing_method:document.getElementById('st-method').value||null,
     inferred_fields:[]
   };
   const cur=id?wcServiceTypes.find(x=>x.id===id):null;
