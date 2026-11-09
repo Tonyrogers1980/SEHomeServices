@@ -351,6 +351,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .sq-sub a{color:inherit;text-decoration:none;}
 .sq-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
 .svc-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;}
+.svc-lines{display:flex;flex-direction:column;gap:3px;margin-bottom:6px;}
+.svc-line{display:flex;align-items:center;gap:7px;min-width:0;}
+.svc-ic{flex:none;width:18px;height:18px;display:inline-flex;}
+.svc-ic svg{width:18px;height:18px;}
+.svc-nm{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;}
+.svc-dt{font-size:13px;font-weight:500;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.svc-mods{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 2px 25px;}
 .svc-pill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;vertical-align:top;}
 .sq-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .sq-chip.ghost{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-weight:600;}
@@ -1276,8 +1283,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='223';
-const BUILD_DATE='04 Nov 2026 10:05';
+const BUILD_VERSION='224';
+const BUILD_DATE='09 Nov 2026 13:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2950,8 +2957,8 @@ async function renderRound(){
   let unassignedJobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
-    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
+    const byDue=await sb(`wc_jobs?next_due=eq.${roundDate}&business_id=eq.${BUSINESS_ID}${af}&order=round_order.asc,created_at.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type),${SVC_EMBED}`);
+    const byDate=await sb(`wc_jobs?scheduled_date=eq.${roundDate}&next_due=is.null&business_id=eq.${BUSINESS_ID}${af}&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type),${SVC_EMBED}`);
     jobs=[...byDue,...byDate];
     roundJobsCache=jobs;
     roundPaid=new Set();
@@ -3244,7 +3251,7 @@ async function renderOverdue(){
   await loadUsers();
   if(overdueAssignees===null)overdueAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
   const today=todayStr();
-  const cust='wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)';
+  const cust='wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type),'+SVC_EMBED;
   let jobs=[];
   try{
     const a=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&next_due=lt.${today}&select=*,${cust}&order=next_due.asc`)||[];
@@ -3376,7 +3383,7 @@ function jobCard(j,num){
   if(balanceNum>0)banners.push(`<span class="sq-flag owe">${hidePrices()?'⚠ Payment owing':'⚠ Owes £'+balanceNum.toFixed(2)}</span>`);
   if(noteText)banners.push(`<span class="sq-flag note">📝 ${esc(noteText)}</span>`);
   const chg=jobChangeBlock(j.id);
-  const svc=svcInfo(j.service_type);
+  const svc=svcBlock(j);
   const chipsHtml=`${svc.extra?sqChip(svc.extra,'#52667d','ghost'):''}${j.round_name?sqRoundChip(j.round_name):''}${j.frequency?sqChip(freqShort(j.frequency),'#52667d','ghost'):''}${c.payer_type&&c.payer_type!=='stripe'?payerBadge(c):''}${flags.join('')}`;
   const dragAttr=(isSched&&currentPageId==='round'&&ROUND_DRAG_MQ.matches)?` draggable="true" data-jid="${j.id}" data-series="${j.series_id||''}"`:'';
   return`<div class="job-card-wrap${chg?' has-change':''}"${dragAttr}>
@@ -3412,7 +3419,7 @@ async function renderRoundWeek(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type)`);
+    jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type),${SVC_EMBED}`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
@@ -5067,6 +5074,15 @@ async function deleteInvoice(id){
 
 // ═══ v1.0.166 design-system helpers ═══════════════════════════════════════════
 const SQI={
+  svc_windows:'M4 4h16v16H4zM12 4v16M4 12h16',
+  svc_gutters:'M3 7h12a4 4 0 014 4v9M8 4.5v5M13 4.5v5M16.5 20h5',
+  svc_repairs:'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z',
+  svc_wash:'M12 3s6 6.2 6 10.5a6 6 0 01-12 0C6 9.2 12 3 12 3z',
+  svc_pool:'M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1',
+  svc_sign:'M4 4h16v9H4zM12 13v7M8 20h8',
+  svc_conservatory:'M3 20h18M5 20v-8l7-6 7 6v8M12 6v14M5 12h14',
+  svc_fascia:'M2 11l10-6 10 6M4 11h16v3.5H4z',
+  svc_other:'M5 12h.01M12 12h.01M19 12h.01',
   phone:'M3 5a2 2 0 012-2h2.3a1 1 0 01.95.68l1.1 3.3a1 1 0 01-.27 1.06L7.6 9.5a12 12 0 006.9 6.9l1.46-1.48a1 1 0 011.06-.27l3.3 1.1a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z',
   mail:'M3 7l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
   chat:'M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8a10 10 0 01-3.6-.7L3 21l1.5-4.2A7.6 7.6 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z',
@@ -5146,6 +5162,65 @@ function svcInfo(serviceType){
     html:`<div class="svc-row">${hits.map(h=>pill(h.d?h.f.label+' · '+h.d:h.f.label,h.f.color)).join('')}</div>`,
     extra:extras.join(', ')
   };
+}
+// ── Classified service line items (wc_job_services) ─────────────────────────
+const SVC_EMBED='services:wc_job_services(id,quantity,sort_order,wc_service_types(name,category,segment,property_type,scope,visit_type,is_addon,addon_code))';
+const SVC_CAT={
+  window_cleaning:{label:'Windows',color:'#5aa9ff',icon:'svc_windows'},
+  gutter_cleaning:{label:'Gutters',color:'#2dd4bf',icon:'svc_gutters'},
+  gutter_repairs:{label:'Gutter repairs',color:'#a78bfa',icon:'svc_repairs'},
+  pressure_washing:{label:'Pressure washing',color:'#fb923c',icon:'svc_wash'},
+  pool_cleaning:{label:'Pool',color:'#38bdf8',icon:'svc_pool'},
+  fascia_soffit:{label:'Fascia',color:'#f472b6',icon:'svc_fascia'},
+  conservatory:{label:'Conservatory',color:'#a3e635',icon:'svc_conservatory'},
+  signage:{label:'Signage',color:'#facc15',icon:'svc_sign'},
+  other:{label:'Other',color:'#94a3b8',icon:'svc_other'}
+};
+const SVC_SCOPE={front_and_back:'Front & back',front_only:'Front only',inside_and_out:'Inside & out',outside_only:'Outside only',upstairs_and_down:'Upstairs & down',downstairs_only:'Downstairs only',windows_and_roof:'Windows & roof'};
+const SVC_PROP={terraced:'Terraced',semi_detached:'Semi-detached',detached:'Detached',flat:'Flat',multiple_flats:'Multiple flats',block:'Block',pub:'Pub',shop:'Shop'};
+const SVC_VISIT={one_off:'One-off',deep_clean:'Deep clean',with_enclosure:'With enclosure'};
+const SVC_ADDON={balustrade:'Balustrade',gutter_addon:'Gutter add-on'};
+// Normalises line items from either source: owner app (embedded wc_job_services) or crew RPC (flat services[]).
+function jobSvcItems(j){
+  const raw=j&&(j.services||j.wc_job_services);
+  if(!Array.isArray(raw)||!raw.length)return null;
+  return raw.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(x=>{
+    const t=x.wc_service_types||x;
+    return{name:t.name,category:t.category,segment:t.segment,property_type:t.property_type,scope:t.scope,visit_type:t.visit_type,is_addon:!!t.is_addon,addon_code:t.addon_code,quantity:x.quantity||1};
+  });
+}
+function svcSplit(items){
+  const adds=items.filter(i=>i.is_addon),prim=items.filter(i=>!i.is_addon);
+  return prim.length?{prim,adds}:{prim:items,adds:[]};
+}
+function svcLabel(i){return i.category==='other'||!SVC_CAT[i.category]?(i.name||'Other'):SVC_CAT[i.category].label;}
+function svcDetail(i){return SVC_SCOPE[i.scope]||SVC_PROP[i.property_type]||'';}
+function svcAddonText(i){return(SVC_ADDON[i.addon_code]||i.name||'Add-on')+(i.quantity>1?' ×'+i.quantity:'');}
+// Round-card block: one icon line per service, quiet chips for modifiers, amber chips for add-ons.
+function svcBlock(j){
+  const items=jobSvcItems(j);
+  if(!items)return svcInfo(j&&j.service_type);
+  const {prim,adds}=svcSplit(items);
+  const body=prim.map(i=>{
+    const cat=SVC_CAT[i.category]||SVC_CAT.other;
+    const d=svcDetail(i);
+    const mods=[];
+    if(i.segment==='commercial')mods.push(sqChip('Commercial','#7a5af8'));
+    if(i.scope&&i.property_type)mods.push(sqChip(SVC_PROP[i.property_type]||i.property_type,'#52667d','ghost'));
+    if(i.visit_type&&SVC_VISIT[i.visit_type])mods.push(sqChip(SVC_VISIT[i.visit_type],'#52667d','ghost'));
+    if(i.quantity>1)mods.push(sqChip('×'+i.quantity,'#52667d','ghost'));
+    return`<div class="svc-line"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span class="svc-nm">${esc(svcLabel(i))}</span>${d?`<span class="svc-dt">${esc(d)}</span>`:''}</div>${mods.length?`<div class="svc-mods">${mods.join('')}</div>`:''}`;
+  }).join('');
+  const addHtml=adds.length?`<div class="svc-mods">${adds.map(a=>sqChip(svcAddonText(a),'#b5882a')).join('')}</div>`:'';
+  return{html:`<div class="svc-lines">${body}${addHtml}</div>`,extra:''};
+}
+// Compact chips for list views (Jobs tab).
+function svcCompactChips(j){
+  const items=jobSvcItems(j);
+  if(!items)return sqChip(sqShortSvc(j.service_type)||'Job','#52667d','ghost');
+  const {prim,adds}=svcSplit(items);
+  return prim.map(i=>{const d=svcDetail(i);return sqChip(svcLabel(i)+(d?' · '+d:'')+(i.segment==='commercial'?' · Commercial':''),'#52667d','ghost');}).join('')
+    +adds.map(a=>sqChip('+ '+svcAddonText(a),'#b5882a')).join('');
 }
 function sqShortSvc(s){
   let t=String(s||'').replace(/^Window Cleaning:\s*/i,'').replace(/^Window cleaning$/i,'Windows');
@@ -5483,7 +5558,7 @@ async function renderJobs(){
   await loadUsers();
   if(jobsAssignees===null)jobsAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
   let jobs=[];
-  try{jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=*,wc_customers(id,name,address,postcode)&order=next_due.asc.nullsfirst`);}
+  try{jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=*,wc_customers(id,name,address,postcode),${SVC_EMBED}&order=next_due.asc.nullsfirst`);}
   catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   // One row per client job — recurring series collapse to their soonest upcoming occurrence
   const seen=new Set();const deduped=[];
@@ -5531,7 +5606,7 @@ function jobsOverviewCard(j){
   return`<div class="sq-block"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${accent}">
     ${sqAv(c.name,needsRound?'#d9741a':sqColor(j.round_name))}
     <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      <div class="sq-chips">${sqChip(sqShortSvc(j.service_type)||'Job','#52667d','ghost')}${sqChip(freqLabel(j.frequency),'#52667d','ghost')}${needsRound?'':sqRoundChip(j.round_name||'No round')}${needsPerson?sqBadge('Unassigned','due'):sqChip(assigneeName.split(' ')[0],'#2f9e6e')}</div></div>
+      <div class="sq-chips">${svcCompactChips(j)}${sqChip(freqLabel(j.frequency),'#52667d','ghost')}${needsRound?'':sqRoundChip(j.round_name||'No round')}${needsPerson?sqBadge('Unassigned','due'):sqChip(assigneeName.split(' ')[0],'#2f9e6e')}</div></div>
     <div class="sq-right">${sqMoney(j.price)}${due}<button class="sq-act ico" style="margin-top:2px" title="Edit job" onclick="event.stopPropagation();openEditJob('${j.id}','${c.id}')">✏️</button></div>
   </div>${needsRound?`<div class="sq-acts"><button class="sq-act primary" onclick="event.stopPropagation();assignRoundToJob('${j.id}','${j.quote_id||''}')">Assign round &amp; date</button></div>`:''}</div>`;
 }
