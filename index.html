@@ -358,6 +358,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .svc-nm{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;}
 .svc-dt{font-size:13px;font-weight:500;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .svc-mods{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 2px 25px;}
+.st-table{border-collapse:collapse;width:100%;min-width:820px;font-size:12.5px;}
+.st-table th{text-align:left;font-weight:700;color:var(--text-muted);padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+.st-table td{padding:7px 10px;border-top:1px solid var(--border);color:var(--text);white-space:nowrap;vertical-align:middle;}
+.st-table tbody tr{cursor:pointer;}
+.st-table tbody tr:hover td{background:rgba(255,255,255,.035);}
+.st-table tr.st-catstart td{border-top:2px solid var(--border-stronger,var(--text-muted));}
+.st-table td.st-name{white-space:normal;min-width:230px;font-weight:600;}
+.st-table tr.st-off td{opacity:.5;}
+.st-na{color:var(--text-muted);opacity:.45;}
+.st-blank{color:#b5882a;font-style:italic;}
+.st-asm{color:#b5882a;}
+.st-rules td,.st-rules th{vertical-align:top;white-space:normal;}
 .svc-pill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;vertical-align:top;}
 .sq-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .sq-chip.ghost{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-weight:600;}
@@ -1278,25 +1290,23 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <input type="hidden" id="st-id">
       <div class="field"><label>Name *</label><div style="display:flex;gap:8px"><input id="st-name" style="flex:1;min-width:0" placeholder="e.g. Window Cleaning: Front and Back Standard" onblur="if(!document.getElementById('st-id').value)stFillFromName(true)"><button type="button" class="btn btn-ghost btn-sm" onclick="stFillFromName(false)">Fill from name</button></div></div>
       <div class="form-row">
-        <div class="field"><label>Category</label><select id="st-category"></select></div>
-        <div class="field"><label>Segment</label><select id="st-segment"><option value="">Not set</option><option value="domestic">Domestic</option><option value="commercial">Commercial</option></select></div>
+        <div class="field"><label>Category</label><select id="st-category" onchange="stOnShape()"></select></div>
+        <div class="field"><label>Kind</label><select id="st-addon" onchange="stOnShape()"><option value="0">Main service</option><option value="1">Add-on</option></select></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Property type</label><input id="st-property" list="st-property-list" placeholder="Not set" autocomplete="off"><datalist id="st-property-list"></datalist></div>
-        <div class="field"><label>Scope</label><input id="st-scope" list="st-scope-list" placeholder="Not set" autocomplete="off"><datalist id="st-scope-list"></datalist></div>
+        <div class="field" id="st-w-segment"><label>Segment</label><select id="st-segment"></select></div>
+        <div class="field" id="st-w-property"><label>Property type</label><select id="st-property" onchange="stOptPick('property_type','st-property')"></select></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Visit type</label><input id="st-visit" list="st-visit-list" placeholder="Standard" autocomplete="off"><datalist id="st-visit-list"></datalist></div>
+        <div class="field" id="st-w-scope"><label>Scope</label><select id="st-scope" onchange="stOptPick('scope','st-scope')"></select></div>
+        <div class="field" id="st-w-addon"><label>Add-on type</label><select id="st-addon-code" onchange="stOptPick('addon_code','st-addon-code')"></select></div>
+      </div>
+      <div id="st-rule-note" style="font-size:12px;color:var(--text-muted)"></div>
+      <div class="form-row">
         <div class="field"><label>Default duration</label><input id="st-duration" placeholder="00:30" inputmode="numeric" maxlength="5"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Kind</label><select id="st-addon" onchange="stToggleAddon()"><option value="0">Main service</option><option value="1">Add-on</option></select></div>
-        <div class="field" id="st-addon-wrap"><label>Add-on code</label><input id="st-addon-code" list="st-addon-list" placeholder="e.g. balustrade" autocomplete="off"><datalist id="st-addon-list"></datalist></div>
-      </div>
-      <div class="form-row">
         <div class="field"><label>Sort order</label><input id="st-sort" type="number" inputmode="numeric" step="1" placeholder="Auto"></div>
-        <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
       </div>
+      <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
       <div id="st-review" style="display:none;font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:8px;border:1px solid var(--border);color:var(--text-soft)"></div>
       <div id="st-usage" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
@@ -1323,8 +1333,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='226';
-const BUILD_DATE='09 Nov 2026 15:05';
+const BUILD_VERSION='227';
+const BUILD_DATE='09 Nov 2026 16:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -5216,7 +5226,7 @@ const SVC_CAT={
   signage:{label:'Signage',color:'#facc15',icon:'svc_sign'},
   other:{label:'Other',color:'#94a3b8',icon:'svc_other'}
 };
-const SVC_SCOPE={front_and_back:'Front & back',front_only:'Front only',inside_and_out:'Inside & out',outside_only:'Outside only',upstairs_and_down:'Upstairs & down',downstairs_only:'Downstairs only',windows_and_roof:'Windows & roof'};
+const SVC_SCOPE={pool_only:'Pool only',with_enclosure:'Pool & enclosure',windows_only:'Windows only',sign_only:'Sign only',sign_and_shutter:'Sign & shutter',front_and_back:'Front & back',front_only:'Front only',inside_and_out:'Inside & out',outside_only:'Outside only',upstairs_and_down:'Upstairs & down',downstairs_only:'Downstairs only',windows_and_roof:'Windows & roof'};
 const SVC_PROP={terraced:'Terraced',semi_detached:'Semi-detached',detached:'Detached',flat:'Flat',multiple_flats:'Multiple flats',block:'Block',pub:'Pub',shop:'Shop'};
 const SVC_VISIT={one_off:'One-off',deep_clean:'Deep clean',with_enclosure:'With enclosure'};
 const SVC_ADDON={balustrade:'Balustrade',gutter_addon:'Gutter add-on'};
@@ -6354,18 +6364,95 @@ async function renderRoundsConfig(){
     </div>`;
 }
 
-let svcTypeUse={},stReviewOnly=false;
-function stToggleReview(){stReviewOnly=!stReviewOnly;renderServiceTypesConfig();}
+let svcTypeUse={},stReviewOnly=false,stOptions=[],stView='table',stSortKey=null,stSortDir=1;
+const ST_ATTR_LABEL={segment:'segment',property_type:'property type',scope:'scope',addon_code:'add-on type'};
 function stKey(v){const k=String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');return k||null;}
+// ── rules (service_attribute_options): which attribute applies to which category, and its allowed values
+function stOpts(attr,cat){return stOptions.filter(o=>o.attribute===attr&&(o.category==null||o.category===cat)).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));}
+function stApplies(s,attr){
+  if(!s.category&&attr!=='segment')return false;
+  if(attr==='addon_code')return !!s.is_addon;
+  if(s.is_addon)return false;
+  return stOpts(attr,s.category).length>0;
+}
+function stLabel(attr,val){
+  if(!val)return'';
+  const o=stOptions.find(o=>o.attribute===attr&&o.value===val);
+  return o?o.label:((attr==='scope'?SVC_SCOPE[val]:attr==='property_type'?SVC_PROP[val]:SVC_ADDON[val])||svcHuman(val));
+}
+function stToggleReview(){stReviewOnly=!stReviewOnly;stRender();}
+function stSetView(v){stView=v;stRender();}
+function stSortBy(k){if(stSortKey===k)stSortDir=-stSortDir;else{stSortKey=k;stSortDir=1;}stRender();}
+const ST_SEG_RANK={commercial:0,domestic:1};
+function stDefaultCmp(a,b){
+  const cats=Object.keys(SVC_CAT),ci=x=>{const i=cats.indexOf(x.category);return i<0?99:i;},si=x=>x.segment in ST_SEG_RANK?ST_SEG_RANK[x.segment]:9;
+  return (ci(a)-ci(b))||(si(a)-si(b))||((a.is_addon?1:0)-(b.is_addon?1:0))||((a.sort_order??9999)-(b.sort_order??9999))||String(a.name).localeCompare(String(b.name));
+}
+function stColVal(s,k){
+  switch(k){
+    case 'category':return Object.keys(SVC_CAT).indexOf(s.category);
+    case 'segment':return s.segment in ST_SEG_RANK?ST_SEG_RANK[s.segment]:9;
+    case 'kind':return s.is_addon?1:0;
+    case 'name':return String(s.name).toLowerCase();
+    case 'property_type':return stLabel('property_type',s.property_type)||'~';
+    case 'scope':return stLabel('scope',s.scope)||'~';
+    case 'addon_code':return stLabel('addon_code',s.addon_code)||'~';
+    case 'default_duration':return s.default_duration||'~';
+    case 'jobs':return svcTypeUse[s.id]||0;
+    case 'active':return s.active?0:1;
+  }
+  return 0;
+}
+function stSorted(list){
+  return list.slice().sort((a,b)=>{
+    if(stSortKey){const x=stColVal(a,stSortKey),y=stColVal(b,stSortKey);const c=(x<y?-1:x>y?1:0)*stSortDir;if(c)return c;}
+    return stDefaultCmp(a,b);
+  });
+}
+// ── table (data) view
+function stCell(s,attr){
+  if(!stApplies(s,attr))return'<span class="st-na">n/a</span>';
+  const v=s[attr];
+  if(!v)return'<span class="st-blank">blank</span>';
+  const asm=(s.inferred_fields||[]).includes(attr);
+  return`<span${asm?' class="st-asm" title="Assumed, not stated in the name"':''}>${esc(stLabel(attr,v))}${asm?' •':''}</span>`;
+}
+function stTableHtml(list){
+  const cols=[['category','Category'],['segment','Segment'],['kind','Kind'],['name','Name'],['property_type','Property'],['scope','Scope'],['addon_code','Add-on'],['default_duration','Time'],['jobs','Jobs'],['active','Status']];
+  const head=cols.map(([k,l])=>`<th onclick="stSortBy('${k}')">${l}${stSortKey===k?(stSortDir>0?' ↑':' ↓'):''}</th>`).join('');
+  let prev=null;
+  const rows=stSorted(list).map(s=>{
+    const cat=SVC_CAT[s.category]||SVC_CAT.other,start=!stSortKey&&prev!==null&&prev!==s.category;prev=s.category;
+    const seg=!s.is_addon?(stApplies(s,'segment')?(s.segment?`<span${(s.inferred_fields||[]).includes('segment')?' class="st-asm" title="Assumed, not stated in the name"':''}>${esc(stLabel('segment',s.segment))}${(s.inferred_fields||[]).includes('segment')?' •':''}</span>`:'<span class="st-blank">blank</span>'):'<span class="st-na">n/a</span>'):'<span class="st-na">n/a</span>';
+    const n=svcTypeUse[s.id]||0;
+    return`<tr class="${start?'st-catstart':''}${s.active?'':' st-off'}" onclick="openServiceTypeEditor('${s.id}')">
+      <td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span>${esc(cat.label)}</span></td>
+      <td>${seg}</td><td>${s.is_addon?'Add-on':'Main'}</td><td class="st-name">${esc(s.name)}</td>
+      <td>${stCell(s,'property_type')}</td><td>${stCell(s,'scope')}</td><td>${stCell(s,'addon_code')}</td>
+      <td>${esc(s.default_duration||'')}</td><td>${n}</td><td>${s.active?'Active':'Inactive'}</td></tr>`;
+  }).join('');
+  return`<div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">Sorted by category, then segment, then kind. Tap a heading to re-sort. <span class="st-na">n/a</span> = doesn't apply to that category; <span class="st-blank">blank</span> = applies but not set; <span class="st-asm">•</span> = assumed.</div>`;
+}
+// ── rules view
+function stRulesHtml(){
+  const rows=Object.keys(SVC_CAT).map(k=>{
+    const cat=SVC_CAT[k];
+    const cell=(attr)=>{const o=stOpts(attr,k);return o.length?esc(o.map(x=>x.label).join(', ')):'<span class="st-na">n/a</span>';};
+    return`<tr><td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><b>${esc(cat.label)}</b></span></td><td>${cell('segment')}</td><td>${cell('property_type')}</td><td>${cell('scope')}</td><td>${cell('addon_code')}</td></tr>`;
+  }).join('');
+  return`<div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table st-rules" style="min-width:680px"><thead><tr><th style="cursor:default">Category</th><th style="cursor:default">Segment</th><th style="cursor:default">Property type</th><th style="cursor:default">Scope</th><th style="cursor:default">Add-ons</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">These rules decide which fields appear for each category and what values are allowed. Add-ons take their segment, property and scope from the main service on the job. New values are added from the editor ("Add new option…").</div>`;
+}
+// ── list view (cards)
 function stRowHtml(s){
   const cat=SVC_CAT[s.category]||SVC_CAT.other;
   const chips=[];
   if(s.segment==='commercial')chips.push(sqChip('Commercial','#7a5af8'));
   else if(s.segment==='domestic')chips.push(sqChip('Domestic','#52667d','ghost'));
-  if(s.property_type)chips.push(sqChip(SVC_PROP[s.property_type]||svcHuman(s.property_type),'#52667d','ghost'));
-  if(s.scope)chips.push(sqChip(SVC_SCOPE[s.scope]||svcHuman(s.scope),'#52667d','ghost'));
-  if(s.visit_type&&s.visit_type!=='standard')chips.push(sqChip(SVC_VISIT[s.visit_type]||svcHuman(s.visit_type),'#52667d','ghost'));
-  if(s.is_addon)chips.push(sqChip('Add-on'+(s.addon_code?' · '+(SVC_ADDON[s.addon_code]||svcHuman(s.addon_code)):''),'#b5882a'));
+  if(s.property_type)chips.push(sqChip(stLabel('property_type',s.property_type),'#52667d','ghost'));
+  if(s.scope)chips.push(sqChip(stLabel('scope',s.scope),'#52667d','ghost'));
+  if(s.is_addon)chips.push(sqChip('Add-on'+(s.addon_code?' · '+stLabel('addon_code',s.addon_code):''),'#b5882a'));
   if(s.default_duration)chips.push(sqChip(s.default_duration,'#52667d','mono'));
   const inf=s.inferred_fields||[];
   if(inf.length)chips.push(sqChip('Assumed: '+inf.map(svcHuman).join(', '),'#b5882a','ghost'));
@@ -6380,64 +6467,98 @@ function stRowHtml(s){
       ${s.active?'':'<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--danger-light);color:var(--danger)">Inactive</span>'}
     </div></div>`;
 }
+function stListHtml(list){
+  const groups={};
+  list.forEach(s=>{const k=SVC_CAT[s.category]?s.category:'other';(groups[k]=groups[k]||[]).push(s);});
+  return Object.keys(SVC_CAT).filter(k=>groups[k]).map(k=>{
+    const l=groups[k].sort(stDefaultCmp);
+    return`<div class="sq-sec"><span>${esc(SVC_CAT[k].label)}<span class="n">${l.length}</span></span></div><div class="detail-section">${l.map(stRowHtml).join('')}</div>`;
+  }).join('');
+}
+function stRender(){
+  const el=document.getElementById('mainContent');if(!el)return;
+  const reviewN=wcServiceTypes.filter(s=>(s.inferred_fields||[]).length).length;
+  if(!reviewN)stReviewOnly=false;
+  const list=wcServiceTypes.filter(s=>!stReviewOnly||(s.inferred_fields||[]).length);
+  const seg=['table:Table','list:List','rules:Rules'].map(x=>{const[k,l]=x.split(':');return`<button type="button" class="${stView===k?'on':''}" onclick="stSetView('${k}')">${l}</button>`;}).join('');
+  const body=!wcServiceTypes.length?'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>':stView==='rules'?stRulesHtml():stView==='list'?stListHtml(list):stTableHtml(list);
+  el.innerHTML=`<div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span>${reviewN&&stView!=='rules'?`<span class="sq-pill" style="cursor:pointer;${stReviewOnly?'background:#b5882a;color:#fff':''}" onclick="stToggleReview()">${reviewN} to review</span>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
+    <div class="sq-seg fit" style="margin:2px 0 10px">${seg}</div>${body}`;
+}
 async function renderServiceTypesConfig(){
   document.getElementById('topbarPage').textContent='Service Types';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{
     wcServiceTypes=await sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`)||[];
+    stOptions=await sb(`service_attribute_options?business_id=eq.${BUSINESS_ID}&active=eq.true&order=sort_order.asc`)||[];
     svcTypeUse={};
     try{(await sb('rpc/cr_service_type_usage',{method:'POST',body:'{}'})||[]).forEach(r=>{svcTypeUse[r.service_type_id]=Number(r.n)||0;});}catch(_){}
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
-  const order=Object.keys(SVC_CAT);
-  const groups={};
-  const reviewN=wcServiceTypes.filter(s=>(s.inferred_fields||[]).length).length;
-  if(!reviewN)stReviewOnly=false;
-  wcServiceTypes.filter(s=>!stReviewOnly||(s.inferred_fields||[]).length).forEach(s=>{const k=SVC_CAT[s.category]?s.category:'other';(groups[k]=groups[k]||[]).push(s);});
-  const cmp=(x,y)=>((x.sort_order??9999)-(y.sort_order??9999))||String(x.name).localeCompare(String(y.name));
-  const body=order.filter(k=>groups[k]).map(k=>{
-    const list=groups[k].sort(cmp);
-    return`<div class="sq-sec"><span>${esc(SVC_CAT[k].label)}<span class="n">${list.length}</span></span></div>
-      <div class="detail-section">${list.map(stRowHtml).join('')}</div>`;
-  }).join('');
-  el.innerHTML=`
-    <div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span>${reviewN?`<span class="sq-pill" style="cursor:pointer;${stReviewOnly?'background:#b5882a;color:#fff':''}" onclick="stToggleReview()">${reviewN} to review</span>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
-    ${body||'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>'}`;
+  stRender();
 }
-function stFillList(listId,known,field){
-  const used=[...new Set(wcServiceTypes.map(s=>s[field]).filter(Boolean))];
-  const keys=[...new Set([...Object.keys(known||{}),...used])];
-  document.getElementById(listId).innerHTML=keys.map(k=>`<option value="${esc(k)}" label="${esc((known&&known[k])||svcHuman(k))}"></option>`).join('');
+// ── editor: fields shown depend on category + kind (the rules)
+function stFillSel(id,attr,cat,show,want){
+  const el=document.getElementById(id),wrap=el.closest('.field');
+  const opts=stOpts(attr,cat);
+  wrap.style.display=show?'':'none';
+  if(!show){const had=el.value;el.innerHTML='';return had;}
+  const cur=want!==undefined?want:el.value;
+  const known=opts.some(o=>o.value===cur);
+  el.innerHTML='<option value="">Not set</option>'+opts.map(o=>`<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')
+    +(cur&&!known?`<option value="${esc(cur)}">${esc(svcHuman(cur))} (not in rules)</option>`:'')
+    +(attr!=='segment'?'<option value="__new__">+ Add new option…</option>':'');
+  el.value=cur||'';
+  return'';
 }
-function stToggleAddon(){document.getElementById('st-addon-wrap').style.display=document.getElementById('st-addon').value==='1'?'':'none';}
+function stOnShape(want){
+  const cat=document.getElementById('st-category').value,add=document.getElementById('st-addon').value==='1';
+  const w=want||{};
+  const lost=[];
+  const chk=(had,label)=>{if(had)lost.push(label);};
+  chk(stFillSel('st-segment','segment',cat,!add&&!!cat&&stOpts('segment',cat).length>0,w.segment),'segment');
+  chk(stFillSel('st-property','property_type',cat,!add&&!!cat&&stOpts('property_type',cat).length>0,w.property_type),'property type');
+  chk(stFillSel('st-scope','scope',cat,!add&&!!cat&&stOpts('scope',cat).length>0,w.scope),'scope');
+  chk(stFillSel('st-addon-code','addon_code',cat,add&&!!cat,w.addon_code),'add-on type');
+  const c=SVC_CAT[cat];
+  document.getElementById('st-rule-note').textContent=!cat?'Choose a category to see the fields that apply.':add?'Add-ons take segment, property and scope from the main service on the job.':`For ${c.label.toLowerCase()}: ${['segment','property_type','scope'].filter(a=>stOpts(a,cat).length).map(a=>ST_ATTR_LABEL[a]).join(', ')}.`;
+  if(!want&&lost.length)showToast('Cleared (not used here): '+lost.join(', '),'success');
+}
+async function stOptPick(attr,selId){
+  const el=document.getElementById(selId);
+  if(el.value!=='__new__')return;
+  const cat=document.getElementById('st-category').value;
+  const label=(prompt(`New ${ST_ATTR_LABEL[attr]} option (e.g. ${attr==='scope'?'Roof only':attr==='property_type'?'Bungalow':'Skylight'}):`)||'').trim();
+  if(!label){el.value='';return;}
+  const value=stKey(label);
+  if(!value){el.value='';return;}
+  if(stOpts(attr,cat).some(o=>o.value===value)){el.value=value;return;}
+  try{
+    await sb('service_attribute_options',{method:'POST',body:JSON.stringify({attribute:attr,category:cat,value,label,business_id:BUSINESS_ID,sort_order:((stOpts(attr,cat).slice(-1)[0]||{}).sort_order||0)+10}),prefer:'return=minimal'});
+    stOptions=await sb(`service_attribute_options?business_id=eq.${BUSINESS_ID}&active=eq.true&order=sort_order.asc`)||[];
+    const keep={segment:document.getElementById('st-segment').value,property_type:document.getElementById('st-property').value,scope:document.getElementById('st-scope').value,addon_code:document.getElementById('st-addon-code').value};
+    keep[attr]=value;stOnShape(keep);showToast('Option added','success');
+  }catch(e){el.value='';showToast(e.message,'error');}
+}
 function openServiceTypeEditor(id){
   const s=id?wcServiceTypes.find(x=>x.id===id):null;
   if(id&&!s)return;
   document.getElementById('svcTypeModalTitle').textContent=s?'Edit service type':'Add service type';
   document.getElementById('st-id').value=s?s.id:'';
   document.getElementById('st-category').innerHTML='<option value="">Choose category</option>'+Object.keys(SVC_CAT).map(k=>`<option value="${k}">${esc(SVC_CAT[k].label)}</option>`).join('');
-  stFillList('st-property-list',SVC_PROP,'property_type');
-  stFillList('st-scope-list',SVC_SCOPE,'scope');
-  stFillList('st-visit-list',{standard:'Standard',...SVC_VISIT},'visit_type');
-  stFillList('st-addon-list',SVC_ADDON,'addon_code');
   document.getElementById('st-name').value=s?s.name:'';
   document.getElementById('st-category').value=s&&SVC_CAT[s.category]?s.category:'';
-  document.getElementById('st-segment').value=s?(s.segment||''):'';
-  document.getElementById('st-property').value=s?(s.property_type||''):'';
-  document.getElementById('st-scope').value=s?(s.scope||''):'';
-  document.getElementById('st-visit').value=s?(s.visit_type||''):'';
-  document.getElementById('st-duration').value=s?(s.default_duration||''):'00:30';
   document.getElementById('st-addon').value=s&&s.is_addon?'1':'0';
-  document.getElementById('st-addon-code').value=s?(s.addon_code||''):'';
+  document.getElementById('st-duration').value=s?(s.default_duration||''):'00:30';
   document.getElementById('st-sort').value=s&&s.sort_order!=null?s.sort_order:'';
   document.getElementById('st-active').value=!s||s.active?'1':'0';
+  stOnShape(s?{segment:s.segment||'',property_type:s.property_type||'',scope:s.scope||'',addon_code:s.addon_code||''}:{});
   const n=s?(svcTypeUse[s.id]||0):0;
   document.getElementById('st-usage').textContent=s?(n?`Used on ${n} job${n===1?'':'s'}. Renaming keeps those jobs linked; to retire it, set Inactive.`:'Not used on any jobs yet.'):'';
   const rv=document.getElementById('st-review'),inf=s?(s.inferred_fields||[]):[];
   rv.style.display=inf.length?'':'none';
   rv.textContent=inf.length?`Assumed, not stated in the name: ${inf.map(svcHuman).join(', ')}. Check them, then Save to confirm.`:'';
   document.getElementById('st-btn-delete').style.display=s?'':'none';
-  stToggleAddon();
   document.getElementById('svcTypeModal').classList.add('open');
 }
 async function stFillFromName(auto){
@@ -6447,15 +6568,15 @@ async function stFillFromName(auto){
   try{j=await sb('rpc/cr_parse_service_name',{method:'POST',body:JSON.stringify({p_name:name})});}
   catch(e){if(!auto)showToast('Could not read the name','error');return;}
   if(!j||typeof j!=='object')return;
-  const filled=[];
-  const fill=(id,val,label)=>{const el=document.getElementById(id);if(val==null||val===''||el.value!=='')return;el.value=val;filled.push(label);};
-  fill('st-category',j.category,'category');
-  fill('st-segment',j.segment,'segment');
-  fill('st-property',j.property_type,'property type');
-  fill('st-scope',j.scope,'scope');
-  fill('st-visit',j.visit_type,'visit type');
-  if(j.is_addon&&document.getElementById('st-addon').value==='0'){document.getElementById('st-addon').value='1';filled.push('add-on');stToggleAddon();}
-  fill('st-addon-code',j.addon_code,'add-on code');
+  const filled=[],catEl=document.getElementById('st-category'),kindEl=document.getElementById('st-addon');
+  const keep=()=>({segment:document.getElementById('st-segment').value,property_type:document.getElementById('st-property').value,scope:document.getElementById('st-scope').value,addon_code:document.getElementById('st-addon-code').value});
+  let shape=false;
+  if(j.category&&!catEl.value&&SVC_CAT[j.category]){catEl.value=j.category;filled.push('category');shape=true;}
+  if(j.is_addon&&kindEl.value==='0'){kindEl.value='1';filled.push('add-on');shape=true;}
+  if(shape)stOnShape(keep());
+  const cat=catEl.value;
+  const put=(selId,attr,label)=>{const el=document.getElementById(selId),v=j[attr];if(!v||el.value!==''||el.closest('.field').style.display==='none')return;if(!stOpts(attr,cat).some(o=>o.value===v))return;el.value=v;filled.push(label);};
+  put('st-segment','segment','segment');put('st-property','property_type','property type');put('st-scope','scope','scope');put('st-addon-code','addon_code','add-on type');
   if(filled.length)showToast('Filled from name: '+filled.join(', '),'success');
   else if(!auto)showToast('Nothing more to read from the name','success');
 }
@@ -6468,17 +6589,16 @@ async function saveServiceType(){
   if(dur&&!/^\d{1,2}:[0-5]\d$/.test(dur)){showToast('Duration must look like 00:30','error');return;}
   const sortRaw=document.getElementById('st-sort').value.trim();
   if(sortRaw&&!/^-?\d+$/.test(sortRaw)){showToast('Sort order must be a whole number','error');return;}
+  const category=document.getElementById('st-category').value;
+  if(!category){showToast('Choose a category','error');return;}
   const isAddon=document.getElementById('st-addon').value==='1';
-  if(!document.getElementById('st-category').value){showToast('Choose a category','error');return;}
+  const val=(selId)=>{const el=document.getElementById(selId);return el.closest('.field').style.display==='none'||el.value===''||el.value==='__new__'?null:el.value;};
   const payload={
-    name,
-    category:document.getElementById('st-category').value,
-    segment:document.getElementById('st-segment').value||null,
-    property_type:stKey(document.getElementById('st-property').value),
-    scope:stKey(document.getElementById('st-scope').value),
-    visit_type:stKey(document.getElementById('st-visit').value),
-    is_addon:isAddon,
-    addon_code:isAddon?stKey(document.getElementById('st-addon-code').value):null,
+    name,category,is_addon:isAddon,
+    segment:isAddon?null:val('st-segment'),
+    property_type:isAddon?null:val('st-property'),
+    scope:isAddon?null:val('st-scope'),
+    addon_code:isAddon?val('st-addon-code'):null,
     default_duration:dur||null,
     sort_order:sortRaw?parseInt(sortRaw,10):null,
     active:document.getElementById('st-active').value==='1',
@@ -6490,7 +6610,7 @@ async function saveServiceType(){
     if(id)await sb(`wc_service_types?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
     else await sb('wc_service_types',{method:'POST',body:JSON.stringify({...payload,business_id:BUSINESS_ID}),prefer:'return=minimal'});
     closeModal('svcTypeModal');showToast(id?'Service saved':'Service added','success');
-    wcServiceTypes=[];renderServiceTypesConfig();
+    renderServiceTypesConfig();
   }catch(e){showToast(/duplicate|unique/i.test(e.message||'')?'A service with that name already exists':e.message,'error');}
 }
 async function deleteServiceType(){
@@ -6498,7 +6618,7 @@ async function deleteServiceType(){
   const cur=wcServiceTypes.find(x=>x.id===id);if(!cur)return;
   if((svcTypeUse[id]||0)>0){showToast(`In use on ${svcTypeUse[id]} job${svcTypeUse[id]===1?'':'s'} — set it Inactive instead`,'error');return;}
   if(!confirm(`Delete "${cur.name}"?`))return;
-  try{await sb(`wc_service_types?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});closeModal('svcTypeModal');showToast('Deleted','success');wcServiceTypes=[];renderServiceTypesConfig();}
+  try{await sb(`wc_service_types?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});closeModal('svcTypeModal');showToast('Deleted','success');renderServiceTypesConfig();}
   catch(e){showToast('Could not delete — set it Inactive instead','error');}
 }
 
