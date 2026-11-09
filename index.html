@@ -358,7 +358,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .svc-nm{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;}
 .svc-dt{font-size:13px;font-weight:500;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .svc-mods{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 2px 25px;}
-.st-table{border-collapse:collapse;width:100%;min-width:820px;font-size:12.5px;}
+.st-table{border-collapse:collapse;width:100%;min-width:1080px;font-size:12.5px;}
 .st-table th{text-align:left;font-weight:700;color:var(--text-muted);padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
 .st-table td{padding:7px 10px;border-top:1px solid var(--border);color:var(--text);white-space:nowrap;vertical-align:middle;}
 .st-table tbody tr{cursor:pointer;}
@@ -1310,7 +1310,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
         <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
         <div class="field"><label>Pricing method</label><select id="st-method"><option value="">Not priced</option><option value="by_variation">By variation</option><option value="per_unit">Per unit</option><option value="flat">Flat price</option><option value="manual_quote">Manual quote</option></select></div>
       </div>
-      <div id="st-prices-link" style="display:none"><button type="button" class="btn btn-ghost btn-sm" onclick="stGoPrices()">View prices for this service →</button></div>
+      <div id="st-prices-link" style="display:none;align-items:center;gap:10px;justify-content:space-between;padding:8px 10px;border:1px solid var(--border);border-radius:8px"><span id="st-price-text" style="font-size:13px;color:var(--text-soft)"></span><button type="button" class="btn btn-ghost btn-sm" id="st-price-btn" onclick="stGoPrices()">Edit prices →</button></div>
       <div id="st-review" style="display:none;font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:8px;border:1px solid var(--border);color:var(--text-soft)"></div>
       <div id="st-usage" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
@@ -1409,8 +1409,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='228';
-const BUILD_DATE='09 Nov 2026 18:05';
+const BUILD_VERSION='229';
+const BUILD_DATE='09 Nov 2026 19:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -6464,6 +6464,50 @@ function stDefaultCmp(a,b){
   const cats=Object.keys(SVC_CAT),ci=x=>{const i=cats.indexOf(x.category);return i<0?99:i;},si=x=>x.segment in ST_SEG_RANK?ST_SEG_RANK[x.segment]:9;
   return (ci(a)-ci(b))||(si(a)-si(b))||((a.is_addon?1:0)-(b.is_addon?1:0))||((a.sort_order??9999)-(b.sort_order??9999))||String(a.name).localeCompare(String(b.name));
 }
+// ── pricing summary for a service type (from service_prices)
+function stPriceInfo(t){
+  const rows=stPrices.filter(p=>p.service_type_id===t.id);
+  const act=rows.filter(p=>p.active&&p.price!=null);
+  const unset=rows.filter(p=>p.price==null).length;
+  const base=act.filter(p=>!p.unit),unit=act.filter(p=>p.unit&&p.unit!=='extra_bedroom');
+  const UN={item:'/item',pane:'/pane',length:'/length',sq_ft:'/sq ft'};
+  let text='',min=null,mins=null,each=false;
+  if(base.length){
+    const v=base.map(p=>Number(p.price)),lo=Math.min(...v),hi=Math.max(...v);
+    text=lo===hi?stMoney(lo):stMoney(lo)+'–'+stMoney(hi);min=lo;
+    const m=base.map(p=>p.minutes).filter(x=>x!=null);if(m.length)mins=[Math.min(...m),Math.max(...m)];
+  }else if(unit.length){
+    const u=unit[0];
+    text=stMoney(u.price)+(UN[u.unit]||'')+(u.min_charge!=null?' · min '+stMoney(u.min_charge):'');min=Number(u.price);
+    if(u.minutes!=null){mins=[u.minutes,u.minutes];each=!!t.is_addon;}
+  }
+  return{text,unset,count:rows.length,min,mins,each};
+}
+function stTimeText(t){
+  const i=stPriceInfo(t);
+  if(i.mins)return(i.mins[0]===i.mins[1]?i.mins[0]:i.mins[0]+'–'+i.mins[1])+' min'+(i.each?' each':'');
+  return t.default_duration||'';
+}
+function stTimeMins(t){
+  const i=stPriceInfo(t);if(i.mins)return i.mins[0];
+  const m=/^(\d+):(\d+)$/.exec(t.default_duration||'');return m?Number(m[1])*60+Number(m[2]):99999;
+}
+function stMethodCell(t){return t.pricing_method?esc(ST_METHOD[t.pricing_method]||t.pricing_method):'<span class="st-na">–</span>';}
+function stPriceCell(t){
+  const i=stPriceInfo(t);
+  if(t.pricing_method==='manual_quote'&&!i.text)return'Quote';
+  if(i.text)return esc(i.text)+(i.unset?` <span class="st-blank">· ${i.unset} not set</span>`:'');
+  if(i.count)return`<span class="st-blank">${i.count} not set</span>`;
+  return t.pricing_method?'<span class="st-blank">no price</span>':'<span class="st-na">–</span>';
+}
+function stMethodSync(want){
+  const el=document.getElementById('st-method');if(!el)return;
+  const add=document.getElementById('st-addon').value==='1';
+  const allowed=add?['flat','per_unit']:['by_variation','per_unit','flat','manual_quote'];
+  const cur=want!==undefined?want:el.value;
+  el.innerHTML='<option value="">Not priced</option>'+allowed.map(k=>`<option value="${k}">${esc(ST_METHOD[k])}</option>`).join('')+(cur&&!allowed.includes(cur)?`<option value="${esc(cur)}">${esc(ST_METHOD[cur]||cur)} (not valid here)</option>`:'');
+  el.value=cur||'';
+}
 function stColVal(s,k){
   switch(k){
     case 'category':return Object.keys(SVC_CAT).indexOf(s.category);
@@ -6473,7 +6517,9 @@ function stColVal(s,k){
     case 'property_type':return stLabel('property_type',s.property_type)||'~';
     case 'scope':return stLabel('scope',s.scope)||'~';
     case 'addon_code':return stLabel('addon_code',s.addon_code)||'~';
-    case 'default_duration':return s.default_duration||'~';
+    case 'time':return stTimeMins(s);
+    case 'pricing_method':return s.pricing_method?(ST_METHOD[s.pricing_method]||s.pricing_method):'~';
+    case 'price':{const i=stPriceInfo(s);return i.min==null?1e9:i.min;}
     case 'jobs':return svcTypeUse[s.id]||0;
     case 'active':return s.active?0:1;
   }
@@ -6494,7 +6540,7 @@ function stCell(s,attr){
   return`<span${asm?' class="st-asm" title="Assumed, not stated in the name"':''}>${esc(stLabel(attr,v))}${asm?' •':''}</span>`;
 }
 function stTableHtml(list){
-  const cols=[['category','Category'],['segment','Segment'],['kind','Kind'],['name','Name'],['property_type','Property'],['scope','Scope'],['addon_code','Add-on'],['default_duration','Time'],['jobs','Jobs'],['active','Status']];
+  const cols=[['category','Category'],['segment','Segment'],['kind','Kind'],['name','Name'],['property_type','Property'],['scope','Scope'],['addon_code','Add-on'],['pricing_method','Method'],['price','Price'],['time','Time'],['jobs','Jobs'],['active','Status']];
   const head=cols.map(([k,l])=>`<th onclick="stSortBy('${k}')">${l}${stSortKey===k?(stSortDir>0?' ↑':' ↓'):''}</th>`).join('');
   let prev=null;
   const rows=stSorted(list).map(s=>{
@@ -6505,10 +6551,10 @@ function stTableHtml(list){
       <td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span>${esc(cat.label)}</span></td>
       <td>${seg}</td><td>${s.is_addon?'Add-on':'Main'}</td><td class="st-name">${esc(s.name)}</td>
       <td>${stCell(s,'property_type')}</td><td>${stCell(s,'scope')}</td><td>${stCell(s,'addon_code')}</td>
-      <td>${esc(s.default_duration||'')}</td><td>${n}</td><td>${s.active?'Active':'Inactive'}</td></tr>`;
+      <td>${stMethodCell(s)}</td><td>${stPriceCell(s)}</td><td>${esc(stTimeText(s))}</td><td>${n}</td><td>${s.active?'Active':'Inactive'}</td></tr>`;
   }).join('');
   return`<div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">Sorted by category, then segment, then kind. Tap a heading to re-sort. <span class="st-na">n/a</span> = doesn't apply to that category; <span class="st-blank">blank</span> = applies but not set; <span class="st-asm">•</span> = assumed.</div>`;
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">Sorted by category, then segment, then kind. Tap a heading to re-sort. <span class="st-na">n/a</span> = doesn't apply to that category; <span class="st-blank">blank</span> = applies but not set; <span class="st-asm">•</span> = assumed. Price and time come from the Prices tab.</div>`;
 }
 // ── rules view
 function stRulesHtml(){
@@ -6529,7 +6575,13 @@ function stRowHtml(s){
   if(s.property_type)chips.push(sqChip(stLabel('property_type',s.property_type),'#52667d','ghost'));
   if(s.scope)chips.push(sqChip(stLabel('scope',s.scope),'#52667d','ghost'));
   if(s.is_addon)chips.push(sqChip('Add-on'+(s.addon_code?' · '+stLabel('addon_code',s.addon_code):''),'#b5882a'));
-  if(s.default_duration)chips.push(sqChip(s.default_duration,'#52667d','mono'));
+  const pi=stPriceInfo(s);
+  if(pi.text)chips.push(sqChip(pi.text,'#2f9e6e'));
+  else if(s.pricing_method==='manual_quote')chips.push(sqChip('Quote','#52667d','ghost'));
+  else if(s.pricing_method||pi.count)chips.push(sqChip('Price not set','#b5882a','ghost'));
+  if(pi.text&&pi.unset)chips.push(sqChip(pi.unset+' not set','#b5882a','ghost'));
+  if(s.pricing_method)chips.push(sqChip(ST_METHOD[s.pricing_method]||s.pricing_method,'#52667d','ghost'));
+  const tt=stTimeText(s);if(tt)chips.push(sqChip(tt,'#52667d','ghost'));
   const inf=s.inferred_fields||[];
   if(inf.length)chips.push(sqChip('Assumed: '+inf.map(svcHuman).join(', '),'#b5882a','ghost'));
   const n=svcTypeUse[s.id]||0;
@@ -6575,7 +6627,7 @@ function stPricesHtml(){
     const cat=SVC_CAT[t.category]||SVC_CAT.other,rows=byType[t.id].slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
     const trs=rows.map(p=>{
       const price=p.price==null?'<span class="st-blank">set price</span>':esc(stMoney(p.price))+(p.unit?` <span class="st-na" style="opacity:.8">${esc(ST_UNIT[p.unit]||p.unit)}</span>`:'');
-      return`<tr class="${p.active?'':'st-off'}" onclick="openPriceEditor('${p.id}')"><td class="st-name" style="font-weight:500">${esc(stPriceLabel(p))}</td><td>${price}</td><td>${p.min_charge!=null?esc(stMoney(p.min_charge))+' min':'<span class="st-na">–</span>'}</td><td>${p.default_units!=null?esc(String(p.default_units))+' typical':'<span class="st-na">–</span>'}</td><td>${p.minutes!=null?p.minutes+' min'+(p.unit?' each':''):'<span class="st-na">–</span>'}</td><td>${p.active?'':'Inactive'}</td></tr>`;
+      return`<tr class="${p.active?'':'st-off'}" onclick="openPriceEditor('${p.id}')"><td class="st-name" style="font-weight:500">${esc(stPriceLabel(p))}</td><td>${price}</td><td>${p.min_charge!=null?esc(stMoney(p.min_charge))+' min':'<span class="st-na">–</span>'}</td><td>${p.default_units!=null?esc(String(p.default_units))+' typical':'<span class="st-na">–</span>'}</td><td>${p.minutes!=null?p.minutes+' min'+(p.unit&&t.is_addon?' each':''):'<span class="st-na">–</span>'}</td><td>${p.active?'':'Inactive'}</td></tr>`;
     }).join('');
     return`<div class="sq-sec" style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span style="flex:1">${esc(t.name)}${t.pricing_method?` <span style="font-weight:400;color:var(--text-muted)">· ${esc(ST_METHOD[t.pricing_method]||'')}</span>`:''}</span><button class="btn btn-ghost btn-sm" onclick="openPriceEditor('', '${t.id}')">+ Add</button></div>
       <div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table" style="min-width:560px"><tbody>${trs}</tbody></table></div>`;
@@ -6609,7 +6661,7 @@ async function stAddFreq(){
   try{await sb('service_multipliers',{method:'POST',body:JSON.stringify({business_id:BUSINESS_ID,category:'window_cleaning',factor:'frequency',key:raw,multiplier:1}),prefer:'return=minimal'});showToast('Added. Set its multiplier.','success');renderServiceTypesConfig();}
   catch(e){showToast(e.message,'error');}
 }
-function stGoPrices(){const id=document.getElementById('st-id').value;closeModal('svcTypeModal');stPriceFilter=id||null;stSetView('prices');}
+function stGoPrices(){const id=document.getElementById('st-id').value;closeModal('svcTypeModal');if(id&&!stPrices.some(x=>x.service_type_id===id)){openPriceEditor('',id);return;}stPriceFilter=id||null;stSetView('prices');}
 // ── price editor
 function openPriceEditor(id,typeId){
   const p=id?stPrices.find(x=>x.id===id):null;
@@ -6806,6 +6858,7 @@ function stOnShape(want){
   chk(stFillSel('st-addon-code','addon_code',cat,add&&!!cat,w.addon_code),'add-on type');
   const c=SVC_CAT[cat];
   document.getElementById('st-rule-note').textContent=!cat?'Choose a category to see the fields that apply.':add?'Add-ons take segment, property and scope from the main service on the job.':`For ${c.label.toLowerCase()}: ${['segment','property_type','scope'].filter(a=>stOpts(a,cat).length).map(a=>ST_ATTR_LABEL[a]).join(', ')}.`;
+  stMethodSync();
   if(!want&&lost.length)showToast('Cleared (not used here): '+lost.join(', '),'success');
 }
 async function stOptPick(attr,selId){
@@ -6837,8 +6890,10 @@ function openServiceTypeEditor(id){
   document.getElementById('st-sort').value=s&&s.sort_order!=null?s.sort_order:'';
   document.getElementById('st-active').value=!s||s.active?'1':'0';
   document.getElementById('st-method').value=s?(s.pricing_method||''):'';
-  document.getElementById('st-prices-link').style.display=s&&stPrices.some(x=>x.service_type_id===s.id)?'':'none';
+  const pl=document.getElementById('st-prices-link');
+  if(s){const pi=stPriceInfo(s);pl.style.display='flex';document.getElementById('st-price-text').textContent=pi.text?('Price: '+pi.text+(pi.unset?` · ${pi.unset} not set`:'')):(pi.count?`${pi.count} price${pi.count===1?'':'s'}, none set yet`:'No prices yet');document.getElementById('st-price-btn').textContent=pi.count?'Edit prices →':'+ Add a price';}else pl.style.display='none';
   stOnShape(s?{segment:s.segment||'',property_type:s.property_type||'',scope:s.scope||'',addon_code:s.addon_code||''}:{});
+  stMethodSync(s?(s.pricing_method||''):'');
   const n=s?(svcTypeUse[s.id]||0):0;
   document.getElementById('st-usage').textContent=s?(n?`Used on ${n} job${n===1?'':'s'}. Renaming keeps those jobs linked; to retire it, set Inactive.`:'Not used on any jobs yet.'):'';
   const rv=document.getElementById('st-review'),inf=s?(s.inferred_fields||[]):[];
