@@ -1268,6 +1268,45 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   </div>
 </div>
 
+<div class="modal-overlay" id="svcTypeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="svcTypeModalTitle">Edit service type</div>
+      <button class="modal-close" onclick="closeModal('svcTypeModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="form-grid">
+      <input type="hidden" id="st-id">
+      <div class="field"><label>Name *</label><input id="st-name" placeholder="e.g. Window Cleaning: Front and Back Standard"></div>
+      <div class="form-row">
+        <div class="field"><label>Category</label><select id="st-category"></select></div>
+        <div class="field"><label>Segment</label><select id="st-segment"><option value="">Not set</option><option value="domestic">Domestic</option><option value="commercial">Commercial</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Property type</label><input id="st-property" list="st-property-list" placeholder="Not set" autocomplete="off"><datalist id="st-property-list"></datalist></div>
+        <div class="field"><label>Scope</label><input id="st-scope" list="st-scope-list" placeholder="Not set" autocomplete="off"><datalist id="st-scope-list"></datalist></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Visit type</label><input id="st-visit" list="st-visit-list" placeholder="Standard" autocomplete="off"><datalist id="st-visit-list"></datalist></div>
+        <div class="field"><label>Default duration</label><input id="st-duration" placeholder="00:30" inputmode="numeric" maxlength="5"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Kind</label><select id="st-addon" onchange="stToggleAddon()"><option value="0">Main service</option><option value="1">Add-on</option></select></div>
+        <div class="field" id="st-addon-wrap"><label>Add-on code</label><input id="st-addon-code" list="st-addon-list" placeholder="e.g. balustrade" autocomplete="off"><datalist id="st-addon-list"></datalist></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Sort order</label><input id="st-sort" type="number" inputmode="numeric" step="1" placeholder="Auto"></div>
+        <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+      </div>
+      <div id="st-usage" style="font-size:12px;color:var(--text-muted)"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline-danger" id="st-btn-delete" style="display:none" onclick="deleteServiceType()">Delete</button>
+      <button class="btn btn-ghost" onclick="closeModal('svcTypeModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveServiceType()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1283,8 +1322,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='224';
-const BUILD_DATE='09 Nov 2026 13:30';
+const BUILD_VERSION='225';
+const BUILD_DATE='09 Nov 2026 14:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -5194,8 +5233,9 @@ function svcSplit(items){
   return prim.length?{prim,adds}:{prim:items,adds:[]};
 }
 function svcLabel(i){return i.category==='other'||!SVC_CAT[i.category]?(i.name||'Other'):SVC_CAT[i.category].label;}
-function svcDetail(i){return SVC_SCOPE[i.scope]||SVC_PROP[i.property_type]||'';}
-function svcAddonText(i){return(SVC_ADDON[i.addon_code]||i.name||'Add-on')+(i.quantity>1?' ×'+i.quantity:'');}
+function svcHuman(v){return v?String(v).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'';}
+function svcDetail(i){return SVC_SCOPE[i.scope]||(i.scope?svcHuman(i.scope):'')||SVC_PROP[i.property_type]||svcHuman(i.property_type);}
+function svcAddonText(i){return(SVC_ADDON[i.addon_code]||(i.addon_code?svcHuman(i.addon_code):'')||i.name||'Add-on')+(i.quantity>1?' ×'+i.quantity:'');}
 // Round-card block: one icon line per service, quiet chips for modifiers, amber chips for add-ons.
 function svcBlock(j){
   const items=jobSvcItems(j);
@@ -5206,8 +5246,8 @@ function svcBlock(j){
     const d=svcDetail(i);
     const mods=[];
     if(i.segment==='commercial')mods.push(sqChip('Commercial','#7a5af8'));
-    if(i.scope&&i.property_type)mods.push(sqChip(SVC_PROP[i.property_type]||i.property_type,'#52667d','ghost'));
-    if(i.visit_type&&SVC_VISIT[i.visit_type])mods.push(sqChip(SVC_VISIT[i.visit_type],'#52667d','ghost'));
+    if(i.scope&&i.property_type)mods.push(sqChip(SVC_PROP[i.property_type]||svcHuman(i.property_type),'#52667d','ghost'));
+    if(i.visit_type&&i.visit_type!=='standard')mods.push(sqChip(SVC_VISIT[i.visit_type]||svcHuman(i.visit_type),'#52667d','ghost'));
     if(i.quantity>1)mods.push(sqChip('×'+i.quantity,'#52667d','ghost'));
     return`<div class="svc-line"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span class="svc-nm">${esc(svcLabel(i))}</span>${d?`<span class="svc-dt">${esc(d)}</span>`:''}</div>${mods.length?`<div class="svc-mods">${mods.join('')}</div>`:''}`;
   }).join('');
@@ -6313,30 +6353,123 @@ async function renderRoundsConfig(){
     </div>`;
 }
 
+let svcTypeUse={};
+function stKey(v){const k=String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');return k||null;}
+function stRowHtml(s){
+  const cat=SVC_CAT[s.category]||SVC_CAT.other;
+  const chips=[];
+  if(s.segment==='commercial')chips.push(sqChip('Commercial','#7a5af8'));
+  else if(s.segment==='domestic')chips.push(sqChip('Domestic','#52667d','ghost'));
+  if(s.property_type)chips.push(sqChip(SVC_PROP[s.property_type]||svcHuman(s.property_type),'#52667d','ghost'));
+  if(s.scope)chips.push(sqChip(SVC_SCOPE[s.scope]||svcHuman(s.scope),'#52667d','ghost'));
+  if(s.visit_type&&s.visit_type!=='standard')chips.push(sqChip(SVC_VISIT[s.visit_type]||svcHuman(s.visit_type),'#52667d','ghost'));
+  if(s.is_addon)chips.push(sqChip('Add-on'+(s.addon_code?' · '+(SVC_ADDON[s.addon_code]||svcHuman(s.addon_code)):''),'#b5882a'));
+  if(s.default_duration)chips.push(sqChip(s.default_duration,'#52667d','mono'));
+  const n=svcTypeUse[s.id]||0;
+  return`<div class="detail-row" style="cursor:pointer;align-items:flex-start;gap:10px${s.active?'':';opacity:.55'}" onclick="openServiceTypeEditor('${s.id}')">
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span class="detail-value" style="font-size:13.5px;font-weight:700;white-space:normal;text-align:left">${esc(s.name)}</span></div>
+      ${chips.length?`<div class="svc-mods">${chips.join('')}</div>`:''}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none">
+      <span style="font-size:12px;color:var(--text-muted)">${n} job${n===1?'':'s'}</span>
+      ${s.active?'':'<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--danger-light);color:var(--danger)">Inactive</span>'}
+    </div></div>`;
+}
 async function renderServiceTypesConfig(){
   document.getElementById('topbarPage').textContent='Service Types';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
-  try{wcServiceTypes=await sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`);}
-  catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  try{
+    wcServiceTypes=await sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&order=name.asc`)||[];
+    svcTypeUse={};
+    try{(await sb('rpc/cr_service_type_usage',{method:'POST',body:'{}'})||[]).forEach(r=>{svcTypeUse[r.service_type_id]=Number(r.n)||0;});}catch(_){}
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
+  const order=Object.keys(SVC_CAT);
+  const groups={};
+  wcServiceTypes.forEach(s=>{const k=SVC_CAT[s.category]?s.category:'other';(groups[k]=groups[k]||[]).push(s);});
+  const cmp=(x,y)=>((x.sort_order??9999)-(y.sort_order??9999))||String(x.name).localeCompare(String(y.name));
+  const body=order.filter(k=>groups[k]).map(k=>{
+    const list=groups[k].sort(cmp);
+    return`<div class="sq-sec"><span>${esc(SVC_CAT[k].label)}<span class="n">${list.length}</span></span></div>
+      <div class="detail-section">${list.map(stRowHtml).join('')}</div>`;
+  }).join('');
   el.innerHTML=`
-    <div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="addSettingsItem('service')" aria-label="Add">${ic('plus')}</button></div>
-    <div class="detail-section">
-      ${wcServiceTypes.map(s=>`<div class="detail-row"><span class="detail-value" style="font-size:13px">${esc(s.name)}</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${s.active?'var(--done-light)':'var(--danger-light)'};color:${s.active?'var(--done)':'var(--danger)'}">${s.active?'Active':'Inactive'}</span>
-          <button class="btn btn-ghost btn-sm" onclick="toggleSettingsItem('service','${s.id}',${s.active})">${s.active?'Off':'On'}</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteSettingsItem('service','${s.id}','${jsq(s.name)}')">Del</button>
-        </div></div>`).join('')}
-      ${!wcServiceTypes.length?'<div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div>':''}
-      <div id="add-service-form" style="display:none;padding:12px 16px;border-top:1px solid var(--border)">
-        <div style="display:flex;gap:8px">
-          <input id="new-service-name" placeholder="Service name…" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--navy-900);outline:none">
-          <button class="btn btn-primary btn-sm" onclick="saveNewService()">Save</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-service-form').style.display='none'">Cancel</button>
-        </div>
-      </div>
-    </div>`;
+    <div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
+    ${body||'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>'}`;
+}
+function stFillList(listId,known,field){
+  const used=[...new Set(wcServiceTypes.map(s=>s[field]).filter(Boolean))];
+  const keys=[...new Set([...Object.keys(known||{}),...used])];
+  document.getElementById(listId).innerHTML=keys.map(k=>`<option value="${esc(k)}" label="${esc((known&&known[k])||svcHuman(k))}"></option>`).join('');
+}
+function stToggleAddon(){document.getElementById('st-addon-wrap').style.display=document.getElementById('st-addon').value==='1'?'':'none';}
+function openServiceTypeEditor(id){
+  const s=id?wcServiceTypes.find(x=>x.id===id):null;
+  if(id&&!s)return;
+  document.getElementById('svcTypeModalTitle').textContent=s?'Edit service type':'Add service type';
+  document.getElementById('st-id').value=s?s.id:'';
+  document.getElementById('st-category').innerHTML=Object.keys(SVC_CAT).map(k=>`<option value="${k}">${esc(SVC_CAT[k].label)}</option>`).join('');
+  stFillList('st-property-list',SVC_PROP,'property_type');
+  stFillList('st-scope-list',SVC_SCOPE,'scope');
+  stFillList('st-visit-list',{standard:'Standard',...SVC_VISIT},'visit_type');
+  stFillList('st-addon-list',SVC_ADDON,'addon_code');
+  document.getElementById('st-name').value=s?s.name:'';
+  document.getElementById('st-category').value=s&&SVC_CAT[s.category]?s.category:'window_cleaning';
+  document.getElementById('st-segment').value=s?(s.segment||''):'';
+  document.getElementById('st-property').value=s?(s.property_type||''):'';
+  document.getElementById('st-scope').value=s?(s.scope||''):'';
+  document.getElementById('st-visit').value=s?(s.visit_type||''):'standard';
+  document.getElementById('st-duration').value=s?(s.default_duration||''):'00:30';
+  document.getElementById('st-addon').value=s&&s.is_addon?'1':'0';
+  document.getElementById('st-addon-code').value=s?(s.addon_code||''):'';
+  document.getElementById('st-sort').value=s&&s.sort_order!=null?s.sort_order:'';
+  document.getElementById('st-active').value=!s||s.active?'1':'0';
+  const n=s?(svcTypeUse[s.id]||0):0;
+  document.getElementById('st-usage').textContent=s?(n?`Used on ${n} job${n===1?'':'s'}. Renaming keeps those jobs linked; to retire it, set Inactive.`:'Not used on any jobs yet.'):'';
+  document.getElementById('st-btn-delete').style.display=s?'':'none';
+  stToggleAddon();
+  document.getElementById('svcTypeModal').classList.add('open');
+}
+async function saveServiceType(){
+  const id=document.getElementById('st-id').value;
+  const name=document.getElementById('st-name').value.trim();
+  if(!name){showToast('Enter a name','error');return;}
+  if(wcServiceTypes.some(x=>x.id!==id&&String(x.name).trim().toLowerCase()===name.toLowerCase())){showToast('A service with that name already exists','error');return;}
+  const dur=document.getElementById('st-duration').value.trim();
+  if(dur&&!/^\d{1,2}:[0-5]\d$/.test(dur)){showToast('Duration must look like 00:30','error');return;}
+  const sortRaw=document.getElementById('st-sort').value.trim();
+  if(sortRaw&&!/^-?\d+$/.test(sortRaw)){showToast('Sort order must be a whole number','error');return;}
+  const isAddon=document.getElementById('st-addon').value==='1';
+  const payload={
+    name,
+    category:document.getElementById('st-category').value||'other',
+    segment:document.getElementById('st-segment').value||null,
+    property_type:stKey(document.getElementById('st-property').value),
+    scope:stKey(document.getElementById('st-scope').value),
+    visit_type:stKey(document.getElementById('st-visit').value),
+    is_addon:isAddon,
+    addon_code:isAddon?stKey(document.getElementById('st-addon-code').value):null,
+    default_duration:dur||null,
+    sort_order:sortRaw?parseInt(sortRaw,10):null,
+    active:document.getElementById('st-active').value==='1'
+  };
+  const cur=id?wcServiceTypes.find(x=>x.id===id):null;
+  if(cur&&cur.name!==name&&!confirm(`Rename "${cur.name}" to "${name}"?\n\nJobs already using it stay linked. The older text summary on past jobs keeps the old name.`))return;
+  try{
+    if(id)await sb(`wc_service_types?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
+    else await sb('wc_service_types',{method:'POST',body:JSON.stringify({...payload,business_id:BUSINESS_ID}),prefer:'return=minimal'});
+    closeModal('svcTypeModal');showToast(id?'Service saved':'Service added','success');
+    wcServiceTypes=[];renderServiceTypesConfig();
+  }catch(e){showToast(/duplicate|unique/i.test(e.message||'')?'A service with that name already exists':e.message,'error');}
+}
+async function deleteServiceType(){
+  const id=document.getElementById('st-id').value;
+  const cur=wcServiceTypes.find(x=>x.id===id);if(!cur)return;
+  if((svcTypeUse[id]||0)>0){showToast(`In use on ${svcTypeUse[id]} job${svcTypeUse[id]===1?'':'s'} — set it Inactive instead`,'error');return;}
+  if(!confirm(`Delete "${cur.name}"?`))return;
+  try{await sb(`wc_service_types?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});closeModal('svcTypeModal');showToast('Deleted','success');wcServiceTypes=[];renderServiceTypesConfig();}
+  catch(e){showToast('Could not delete — set it Inactive instead','error');}
 }
 
 // ── PRICING CONFIG (backed by real tables: pricing_window_base_rates, pricing_window_extras,
@@ -6863,7 +6996,7 @@ async function saveNewRound(){
   const name=document.getElementById('new-round-name').value.trim();if(!name){showToast('Enter a name','error');return;}
   try{await sb('wc_rounds',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Round added','success');wcRounds=[];renderRoundsConfig();}catch(e){showToast(e.message,'error');}
 }
-async function saveNewService(){
+async function saveNewService_legacy(){
   const name=document.getElementById('new-service-name').value.trim();if(!name){showToast('Enter a name','error');return;}
   try{await sb('wc_service_types',{method:'POST',body:JSON.stringify({name,business_id:BUSINESS_ID,active:true}),prefer:'return=minimal'});showToast('Service added','success');wcServiceTypes=[];renderServiceTypesConfig();}catch(e){showToast(e.message,'error');}
 }
