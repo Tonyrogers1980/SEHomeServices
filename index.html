@@ -1098,6 +1098,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
           </select>
         </div>
       </div>
+      <div id="q-nearby" style="display:none"></div>
       <div class="form-row">
         <div class="field"><label>Round</label><select id="q-round"><option value="">No round</option></select></div>
         <div class="field"><label>Day of week</label>
@@ -1397,8 +1398,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='234';
-const BUILD_DATE='10 Nov 2026 15:20';
+const BUILD_VERSION='235';
+const BUILD_DATE='10 Nov 2026 15:34';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1530,7 +1531,7 @@ function showToast(msg,type=''){
   setTimeout(()=>t.classList.add('show'),10);
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
 }
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='jobModal'||id==='quoteModal'){nearbyToken++;['j-nearby','q-nearby'].forEach(b=>{const e=document.getElementById(b);if(e){e.style.display='none';e.innerHTML='';}});}}
 
 // ── LOGIN ──────────────────────────────────────────────────────────────────────
 let allUsers=[],selectedUserId=null,pinEntry='';
@@ -3298,8 +3299,9 @@ async function findNearbySlots(customerId){
   const slots=[...groups.values()].map(g=>({...g,next:g.dates.sort()[0]||''})).sort((a,b)=>a.km-b.km).slice(0,3);
   return{slots,reason:slots.length?'ok':'none'};
 }
-async function suggestNearbySlot(customerId){
-  const box=document.getElementById('j-nearby');if(!box)return;
+async function suggestNearbySlot(customerId,pfx='j'){
+  window._nearbyPfx=pfx;
+  const box=document.getElementById(pfx+'-nearby');if(!box)return;
   const tok=++nearbyToken;
   box.style.display='none';box.innerHTML='';
   try{
@@ -3324,11 +3326,12 @@ async function suggestNearbySlot(customerId){
 }
 function applyNearbySlot(i){
   const g=(window._nearbySlots||[])[i];if(!g)return;
+  const pfx=window._nearbyPfx||'j';
   const setSel=(id,v)=>{const el=document.getElementById(id);if(!el)return;if(v&&![...el.options].some(o=>(o.value||o.text)===v)){el.add(new Option(v,v));}el.value=v||'';};
-  setSel('j-assigned',g.assigned_to||'');
-  setSel('j-round',g.round_name||'');
-  setSel('j-day',g.day_of_week||'');
-  const dateEl=document.getElementById('j-date');
+  setSel(pfx+'-assigned',g.assigned_to||'');
+  setSel(pfx+'-round',g.round_name||'');
+  setSel(pfx+'-day',g.day_of_week||'');
+  const dateEl=document.getElementById(pfx==='q'?'q-start-date':'j-date');
   const min=dateEl.min||localDateStr(new Date());
   if(g.next&&g.next>=min)dateEl.value=g.next;
   else if(g.day_of_week){dateEl.value=nextDateForWeekday(g.day_of_week,min);}
@@ -4261,6 +4264,7 @@ async function assignRoundToJob(jobId, quoteId){
   sendBtn.textContent='Save round & date';
   sendBtn.onclick=saveRoundAssignment;
   document.getElementById('quoteModal').classList.add('open');
+  suggestNearbySlot(q.customer_id,'q');
 }
 function saveRoundAssignment(){
   if(!document.getElementById('q-round').value){showToast('Pick a round before saving','error');return;}
