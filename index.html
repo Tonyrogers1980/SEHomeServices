@@ -1308,9 +1308,14 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       </div>
       <div class="form-row">
         <div class="field"><label>Status</label><select id="st-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
-        <div class="field"><label>Pricing method</label><select id="st-method"><option value="">Not priced</option><option value="by_variation">By variation</option><option value="per_unit">Per unit</option><option value="flat">Flat price</option><option value="manual_quote">Manual quote</option></select></div>
+        <div class="field"><label>Pricing method</label><select id="st-method" onchange="stPricingShow()"><option value="">Not priced</option><option value="by_variation">By variation</option><option value="per_unit">Per unit</option><option value="flat">Flat price</option><option value="manual_quote">Manual quote</option></select></div>
       </div>
-      <div id="st-prices-link" style="display:none;align-items:center;gap:10px;justify-content:space-between;padding:8px 10px;border:1px solid var(--border);border-radius:8px"><span id="st-price-text" style="font-size:13px;color:var(--text-soft)"></span><button type="button" class="btn btn-ghost btn-sm" id="st-price-btn" onclick="stGoPrices()">Edit prices →</button></div>
+      <div id="st-pricing">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px"><span style="font-size:13px;font-weight:700;color:var(--text)">Prices</span><button type="button" class="btn btn-ghost btn-sm" onclick="stDraftAdd();stDraw()">+ Add variation</button></div>
+        <div id="st-price-list"></div>
+        <div id="st-mult-note" style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-top:2px"></div>
+        <div id="st-test-wrap" style="margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" onclick="stQuoteFromType()">Test this service</button></div>
+      </div>
       <div id="st-review" style="display:none;font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:8px;border:1px solid var(--border);color:var(--text-soft)"></div>
       <div id="st-usage" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
@@ -1318,40 +1323,6 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
       <button class="btn btn-outline-danger" id="st-btn-delete" style="display:none" onclick="deleteServiceType()">Delete</button>
       <button class="btn btn-ghost" onclick="closeModal('svcTypeModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveServiceType()">Save</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="svcPriceModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title" id="svcPriceModalTitle">Price</div>
-      <button class="modal-close" onclick="closeModal('svcPriceModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
-    <div class="form-grid">
-      <input type="hidden" id="sp-id">
-      <div class="field"><label>Service type</label><select id="sp-type"></select></div>
-      <div class="form-row">
-        <div class="field"><label>Varies by</label><select id="sp-dim"><option value="">Nothing (one price)</option><option value="bedrooms">Bedrooms</option><option value="size">Size</option><option value="area">Area</option></select></div>
-        <div class="field"><label>Option</label><input id="sp-key" placeholder="e.g. 3_bed, small" autocomplete="off"></div>
-      </div>
-      <div class="field"><label>Label (optional)</label><input id="sp-label" placeholder="e.g. 3 bedrooms"></div>
-      <div class="form-row">
-        <div class="field"><label>Price (£)</label><input id="sp-price" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Not set"></div>
-        <div class="field"><label>Charged</label><select id="sp-unit"><option value="">Per job</option><option value="item">Per item</option><option value="pane">Per pane</option><option value="length">Per length</option><option value="sq_ft">Per sq ft</option><option value="extra_bedroom">Per extra bedroom</option></select></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Minimum charge (£)</label><input id="sp-min" type="number" inputmode="decimal" step="0.01" min="0" placeholder="None"></div>
-        <div class="field"><label>Typical units</label><input id="sp-units" type="number" inputmode="decimal" step="0.5" min="0" placeholder="None"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Minutes</label><input id="sp-mins" type="number" inputmode="numeric" step="1" min="0" placeholder="None"></div>
-        <div class="field"><label>Status</label><select id="sp-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
-      </div>
-      <div id="sp-hint" style="font-size:12px;color:var(--text-muted);line-height:1.45">A price left empty is never quoted. Typical units is used when the number isn't known, for example the usual gutter lengths for a terraced house.</div>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-outline-danger" id="sp-btn-delete" style="display:none" onclick="deleteServicePrice()">Delete</button>
-      <button class="btn btn-ghost" onclick="closeModal('svcPriceModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveServicePrice()">Save</button>
     </div>
   </div>
 </div>
@@ -1385,6 +1356,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
     <div class="form-grid">
       <div class="field"><label>Service</label><select id="q-service" onchange="stQuoteForm()"><option value="window_cleaning">Window cleaning</option><option value="gutter_cleaning">Gutter cleaning</option><option value="pressure_washing">Pressure washing</option></select></div>
       <div id="q-fields"></div>
+      <div style="font-size:12px;color:var(--text-muted)">Uses the prices already saved.</div>
       <div id="q-result" style="margin-top:4px"></div>
     </div>
     <div class="form-actions">
@@ -1409,8 +1381,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='229';
-const BUILD_DATE='09 Nov 2026 19:10';
+const BUILD_VERSION='230';
+const BUILD_DATE='09 Nov 2026 20:15';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -6507,6 +6479,7 @@ function stMethodSync(want){
   const cur=want!==undefined?want:el.value;
   el.innerHTML='<option value="">Not priced</option>'+allowed.map(k=>`<option value="${k}">${esc(ST_METHOD[k])}</option>`).join('')+(cur&&!allowed.includes(cur)?`<option value="${esc(cur)}">${esc(ST_METHOD[cur]||cur)} (not valid here)</option>`:'');
   el.value=cur||'';
+  stPricingShow();
 }
 function stColVal(s,k){
   switch(k){
@@ -6617,7 +6590,6 @@ function stPricesHtml(){
   types.sort(stDefaultCmp);
   const unpriced=stPrices.filter(p=>p.price==null).length;
   const actions=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px">
-    <button class="btn btn-ghost btn-sm" onclick="openPriceEditor('', '${stPriceFilter||''}')">+ Add price</button>
     <button class="btn btn-ghost btn-sm" onclick="stAdjustOpen()">Adjust prices</button>
     <button class="btn btn-ghost btn-sm" onclick="stQuoteOpen()">Test a quote</button>
     ${stAdjustUndo?`<button class="btn btn-ghost btn-sm" style="color:var(--gold)" onclick="stAdjustUndoRun()">↩ Undo last adjustment</button>`:''}
@@ -6627,9 +6599,9 @@ function stPricesHtml(){
     const cat=SVC_CAT[t.category]||SVC_CAT.other,rows=byType[t.id].slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
     const trs=rows.map(p=>{
       const price=p.price==null?'<span class="st-blank">set price</span>':esc(stMoney(p.price))+(p.unit?` <span class="st-na" style="opacity:.8">${esc(ST_UNIT[p.unit]||p.unit)}</span>`:'');
-      return`<tr class="${p.active?'':'st-off'}" onclick="openPriceEditor('${p.id}')"><td class="st-name" style="font-weight:500">${esc(stPriceLabel(p))}</td><td>${price}</td><td>${p.min_charge!=null?esc(stMoney(p.min_charge))+' min':'<span class="st-na">–</span>'}</td><td>${p.default_units!=null?esc(String(p.default_units))+' typical':'<span class="st-na">–</span>'}</td><td>${p.minutes!=null?p.minutes+' min'+(p.unit&&t.is_addon?' each':''):'<span class="st-na">–</span>'}</td><td>${p.active?'':'Inactive'}</td></tr>`;
+      return`<tr class="${p.active?'':'st-off'}" onclick="openServiceTypeEditor('${t.id}','${p.id}')"><td class="st-name" style="font-weight:500">${esc(stPriceLabel(p))}</td><td>${price}</td><td>${p.min_charge!=null?esc(stMoney(p.min_charge))+' min':'<span class="st-na">–</span>'}</td><td>${p.default_units!=null?esc(String(p.default_units))+' typical':'<span class="st-na">–</span>'}</td><td>${p.minutes!=null?p.minutes+' min'+(p.unit&&t.is_addon?' each':''):'<span class="st-na">–</span>'}</td><td>${p.active?'':'Inactive'}</td></tr>`;
     }).join('');
-    return`<div class="sq-sec" style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span style="flex:1">${esc(t.name)}${t.pricing_method?` <span style="font-weight:400;color:var(--text-muted)">· ${esc(ST_METHOD[t.pricing_method]||'')}</span>`:''}</span><button class="btn btn-ghost btn-sm" onclick="openPriceEditor('', '${t.id}')">+ Add</button></div>
+    return`<div class="sq-sec" style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span style="flex:1">${esc(t.name)}${t.pricing_method?` <span style="font-weight:400;color:var(--text-muted)">· ${esc(ST_METHOD[t.pricing_method]||'')}</span>`:''}</span><button class="btn btn-ghost btn-sm" onclick="openServiceTypeEditor('${t.id}','new')">+ Add</button></div>
       <div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table" style="min-width:560px"><tbody>${trs}</tbody></table></div>`;
   }).join('');
   return actions+(blocks||'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No prices yet</span></div></div>')+(stPriceFilter?'':stMultsHtml());
@@ -6643,7 +6615,7 @@ function stMultsHtml(){
   const f=stMults.filter(m=>m.factor==='frequency').sort((a,b)=>(a.key==='one_off'?999:Number(a.key))-(b.key==='one_off'?999:Number(b.key)));
   const ic2=stMults.filter(m=>m.factor==='inside_clean');
   const row=m=>`<div class="detail-row" style="gap:10px"><span class="detail-value" style="text-align:left;flex:1;font-size:13.5px">${esc(stMultLabel(m))}</span><input type="number" step="0.05" min="0.1" value="${m.multiplier}" style="width:90px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--navy-900);color:var(--text);font-family:inherit;font-size:14px;text-align:right" onchange="stSaveMult('${m.id}',this)" aria-label="${esc(stMultLabel(m))} multiplier"><span style="width:14px;color:var(--text-muted)">×</span></div>`;
-  return`<div class="sq-sec" style="display:flex;align-items:center"><span style="flex:1">Multipliers · windows only</span><button class="btn btn-ghost btn-sm" onclick="stAddFreq()">+ Add</button></div>
+  return`<div id="st-mults" class="sq-sec" style="display:flex;align-items:center"><span style="flex:1">Multipliers · windows only</span><button class="btn btn-ghost btn-sm" onclick="stAddFreq()">+ Add</button></div>
     <div class="detail-section">${f.map(row).join('')}${ic2.map(row).join('')}</div>
     <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">Frequency changes the base window price only; extras are never multiplied. An unlisted frequency uses the 4-weekly value. The agent doesn't price inside cleans yet, so that multiplier is stored but not used.</div>`;
 }
@@ -6661,61 +6633,101 @@ async function stAddFreq(){
   try{await sb('service_multipliers',{method:'POST',body:JSON.stringify({business_id:BUSINESS_ID,category:'window_cleaning',factor:'frequency',key:raw,multiplier:1}),prefer:'return=minimal'});showToast('Added. Set its multiplier.','success');renderServiceTypesConfig();}
   catch(e){showToast(e.message,'error');}
 }
-function stGoPrices(){const id=document.getElementById('st-id').value;closeModal('svcTypeModal');if(id&&!stPrices.some(x=>x.service_type_id===id)){openPriceEditor('',id);return;}stPriceFilter=id||null;stSetView('prices');}
-// ── price editor
-function openPriceEditor(id,typeId){
-  const p=id?stPrices.find(x=>x.id===id):null;
-  if(id&&!p)return;
-  const cand=wcServiceTypes.filter(t=>t.active&&(t.pricing_method||t.is_addon||stPrices.some(x=>x.service_type_id===t.id))).sort(stDefaultCmp);
-  document.getElementById('svcPriceModalTitle').textContent=p?'Edit price':'Add price';
-  document.getElementById('sp-id').value=p?p.id:'';
-  const ts=document.getElementById('sp-type');
-  ts.innerHTML=(p||typeId?'':'<option value="">Choose a service</option>')+cand.concat(p&&!cand.some(t=>t.id===p.service_type_id)?[stTypeById(p.service_type_id)].filter(Boolean):[]).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
-  ts.value=p?p.service_type_id:(typeId||'');ts.disabled=!!p;
-  document.getElementById('sp-dim').value=p?(p.dimension||''):'';
-  document.getElementById('sp-key').value=p?(p.variation_key||''):'';
-  document.getElementById('sp-label').value=p?(p.variation_label||''):'';
-  document.getElementById('sp-price').value=p&&p.price!=null?p.price:'';
-  document.getElementById('sp-unit').value=p?(p.unit||''):'';
-  document.getElementById('sp-min').value=p&&p.min_charge!=null?p.min_charge:'';
-  document.getElementById('sp-units').value=p&&p.default_units!=null?p.default_units:'';
-  document.getElementById('sp-mins').value=p&&p.minutes!=null?p.minutes:'';
-  document.getElementById('sp-active').value=!p||p.active?'1':'0';
-  document.getElementById('sp-btn-delete').style.display=p?'':'none';
-  document.getElementById('svcPriceModal').classList.add('open');
+// ── prices inside the service record (draft edited in the type editor, saved with it)
+let stDraft=[],stDraftDel=[],stDraftOrig={};
+function stDraftNorm(r){return JSON.stringify([r.dimension||'',r.variation_key||'',r.variation_label||'',String(r.price??''),r.unit||'',String(r.min_charge??''),String(r.default_units??''),String(r.minutes??''),r.active?1:0]);}
+function stDraftInit(s,focus){
+  stDraftDel=[];stDraftOrig={};
+  stDraft=s?stPrices.filter(p=>p.service_type_id===s.id).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(p=>{
+    const r={id:p.id,dimension:p.dimension||'',variation_key:p.variation_key||'',variation_label:p.variation_label||'',price:p.price==null?'':String(p.price),unit:p.unit||'',
+      min_charge:p.min_charge==null?'':String(p.min_charge),default_units:p.default_units==null?'':String(p.default_units),minutes:p.minutes==null?'':String(p.minutes),active:!!p.active,sort_order:p.sort_order||0,_open:focus===p.id};
+    stDraftOrig[p.id]=stDraftNorm(r);return r;}):[];
+  if(focus==='new')stDraftAdd();
+  stDraw();
 }
-function stNum(id,label,opts={}){
-  const raw=document.getElementById(id).value.trim();
-  if(raw==='')return{v:null};
-  const n=Number(raw);
-  if(!Number.isFinite(n)||n<0||(opts.int&&!Number.isInteger(n)))return{err:`${label} must be ${opts.int?'a whole number':'a number'} of 0 or more`};
+function stDraftAdd(){
+  const last=stDraft[stDraft.length-1];
+  stDraft.push({id:null,dimension:last?last.dimension:'',variation_key:'',variation_label:'',price:'',unit:'',min_charge:'',default_units:'',minutes:'',active:true,sort_order:stDraft.reduce((m,r)=>Math.max(m,r.sort_order||0),0)+10,_open:true});
+}
+function stDraftSummary(r){
+  const label=r.variation_label||(r.variation_key?svcHuman(r.variation_key):(r.unit?'Rate':'Flat price'));
+  const price=r.price!==''&&Number.isFinite(Number(r.price))?stMoney(Number(r.price))+(r.unit?' '+(ST_UNIT[r.unit]||''):''):'not set';
+  return label+' · '+price;
+}
+function stDraftToggle(i){stDraft[i]._open=!stDraft[i]._open;stDraw();}
+function stDraftSet(i,f,v){
+  const r=stDraft[i];if(!r)return;
+  r[f]=f==='active'?v==='1':v;
+  const el=document.getElementById('dv-sum-'+i);if(el&&el.textContent!==undefined)el.textContent=stDraftSummary(r);
+}
+function stDraftRemove(i){
+  const r=stDraft[i];if(!r)return;
+  if(r.id)stDraftDel.push(r.id);
+  stDraft.splice(i,1);stDraw();
+}
+function stDraw(){
+  const box=document.getElementById('st-price-list');if(!box)return;
+  const add=document.getElementById('st-addon').value==='1';
+  const opt=(v,l,cur)=>`<option value="${esc(v)}"${String(cur)===String(v)?' selected':''}>${esc(l)}</option>`;
+  box.innerHTML=stDraft.length?stDraft.map((r,i)=>{
+    const editor=r._open?`<div style="padding:0 11px 11px;display:flex;flex-direction:column;gap:10px">
+      <div class="form-row"><div class="field"><label>Varies by</label><select onchange="stDraftSet(${i},'dimension',this.value)">${opt('','Nothing (one price)',r.dimension)}${opt('bedrooms','Bedrooms',r.dimension)}${opt('size','Size',r.dimension)}${opt('area','Area',r.dimension)}</select></div>
+        <div class="field"><label>Option</label><input value="${esc(r.variation_key)}" placeholder="e.g. 3_bed, small" autocomplete="off" oninput="stDraftSet(${i},'variation_key',this.value)"></div></div>
+      <div class="field"><label>Label (optional)</label><input value="${esc(r.variation_label)}" placeholder="e.g. 3 bedrooms" oninput="stDraftSet(${i},'variation_label',this.value)"></div>
+      <div class="form-row"><div class="field"><label>Price (£)</label><input type="number" inputmode="decimal" step="0.01" min="0" value="${esc(r.price)}" placeholder="Not set" oninput="stDraftSet(${i},'price',this.value)"></div>
+        <div class="field"><label>Charged</label><select onchange="stDraftSet(${i},'unit',this.value)">${Object.keys(ST_UNIT).map(k=>opt(k,ST_UNIT[k].replace(/^per /,'Per '),r.unit)).join('')}</select></div></div>
+      <div class="form-row"><div class="field"><label>Minimum (£)</label><input type="number" inputmode="decimal" step="0.01" min="0" value="${esc(r.min_charge)}" placeholder="None" oninput="stDraftSet(${i},'min_charge',this.value)"></div>
+        <div class="field"><label>Typical units</label><input type="number" inputmode="decimal" step="0.5" min="0" value="${esc(r.default_units)}" placeholder="None" oninput="stDraftSet(${i},'default_units',this.value)"></div></div>
+      <div class="form-row"><div class="field"><label>Minutes${add&&r.unit?' each':''}</label><input type="number" inputmode="numeric" step="1" min="0" value="${esc(r.minutes)}" placeholder="None" oninput="stDraftSet(${i},'minutes',this.value)"></div>
+        <div class="field"><label>Status</label><select onchange="stDraftSet(${i},'active',this.value)">${opt('1','Active',r.active?'1':'0')}${opt('0','Inactive',r.active?'1':'0')}</select></div></div>
+      <div><button type="button" class="btn btn-outline-danger btn-sm" onclick="stDraftRemove(${i})">Remove variation</button></div></div>`:'';
+    return`<div style="border:1px solid var(--border);border-radius:10px;margin:0 0 8px${r.active?'':';opacity:.6'}">
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer" onclick="stDraftToggle(${i})"><span id="dv-sum-${i}" style="flex:1;font-size:13.5px;font-weight:600">${esc(stDraftSummary(r))}</span><span style="color:var(--text-muted);font-size:12px">${r._open?'Done':'Edit'}</span></div>${editor}</div>`;
+  }).join(''):'<div style="font-size:13px;color:var(--text-muted);padding:4px 2px 8px">No prices yet. Add a variation to set one.</div>';
+}
+function stParseNum(raw,label,int){
+  const t=String(raw??'').trim();
+  if(t==='')return{v:null};
+  const n=Number(t);
+  if(!Number.isFinite(n)||n<0||(int&&!Number.isInteger(n)))return{err:`${label} must be ${int?'a whole number':'a number'} of 0 or more`};
   return{v:n};
 }
-async function saveServicePrice(){
-  const id=document.getElementById('sp-id').value;
-  const typeId=document.getElementById('sp-type').value;
-  if(!typeId){showToast('Choose a service','error');return;}
-  const price=stNum('sp-price','Price'),min=stNum('sp-min','Minimum charge'),units=stNum('sp-units','Typical units'),mins=stNum('sp-mins','Minutes',{int:true});
-  const bad=[price,min,units,mins].find(x=>x.err);if(bad){showToast(bad.err,'error');return;}
-  const dim=document.getElementById('sp-dim').value||null;
-  const key=stKey(document.getElementById('sp-key').value);
-  if(dim&&!key){showToast('Add an option name, for example 3_bed or small','error');return;}
-  let active=document.getElementById('sp-active').value==='1';
-  if(price.v==null&&active){active=false;showToast('Saved as inactive until a price is set','success');}
-  const payload={service_type_id:typeId,dimension:dim,variation_key:dim?key:null,variation_label:document.getElementById('sp-label').value.trim()||null,
-    price:price.v,unit:document.getElementById('sp-unit').value||null,min_charge:min.v,default_units:units.v,minutes:mins.v,active,updated_at:new Date().toISOString()};
-  if(!dim&&!id&&stPrices.some(x=>x.service_type_id===typeId&&!x.dimension&&!x.variation_key)){showToast('That service already has a single price. Edit it, or choose what it varies by.','error');return;}
-  try{
-    if(id){delete payload.service_type_id;await sb(`service_prices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});}
-    else await sb('service_prices',{method:'POST',body:JSON.stringify({...payload,business_id:BUSINESS_ID}),prefer:'return=minimal'});
-    closeModal('svcPriceModal');if(price.v!=null||!active)showToast(id?'Price saved':'Price added','success');renderServiceTypesConfig();
-  }catch(e){showToast(/duplicate|unique/i.test(e.message||'')?'That option already exists for this service':e.message,'error');}
+function stDraftValidate(){
+  const seen=new Set(),rows=[];
+  for(const r of stDraft){
+    const price=stParseNum(r.price,'Price'),min=stParseNum(r.min_charge,'Minimum charge'),units=stParseNum(r.default_units,'Typical units'),mins=stParseNum(r.minutes,'Minutes',true);
+    const bad=[price,min,units,mins].find(x=>x.err);if(bad)return{err:bad.err};
+    const dim=r.dimension||null,key=stKey(r.variation_key);
+    if(dim&&!key)return{err:'Add an option name to each variation, for example 3_bed or small'};
+    const sig=(dim||'')+'|'+(dim?key:'');
+    if(seen.has(sig))return{err:dim?`Two variations share the option "${key}"`:'Only one price can have no "varies by". Choose what the others vary by.'};
+    seen.add(sig);
+    rows.push({id:r.id,changed:!r.id||stDraftOrig[r.id]!==stDraftNorm(r),payload:{dimension:dim,variation_key:dim?key:null,variation_label:(r.variation_label||'').trim()||null,price:price.v,unit:r.unit||null,min_charge:min.v,default_units:units.v,minutes:mins.v,active:price.v==null?false:!!r.active,sort_order:r.sort_order||0,updated_at:new Date().toISOString()}});
+  }
+  return{rows};
 }
-async function deleteServicePrice(){
-  const id=document.getElementById('sp-id').value;const p=stPrices.find(x=>x.id===id);if(!p)return;
-  if(!confirm(`Delete "${stPriceLabel(p)}"? It will stop being quoted.`))return;
-  try{await sb(`service_prices?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});closeModal('svcPriceModal');showToast('Deleted','success');renderServiceTypesConfig();}
-  catch(e){showToast(e.message,'error');}
+function stPricingShow(){
+  const wrap=document.getElementById('st-pricing');if(!wrap)return;
+  const m=document.getElementById('st-method').value,cat=document.getElementById('st-category').value,add=document.getElementById('st-addon').value==='1';
+  wrap.style.display=m==='manual_quote'?'none':'';
+  const note=document.getElementById('st-mult-note'),win=cat==='window_cleaning'&&!add;
+  note.style.display=win?'':'none';
+  if(win){
+    const f=stMults.filter(x=>x.factor==='frequency').sort((a,b)=>(a.key==='one_off'?999:Number(a.key))-(b.key==='one_off'?999:Number(b.key)));
+    note.innerHTML='Frequency multipliers, shared by every window service: '+f.map(x=>`${x.key==='one_off'?'One-off':esc(x.key)+'w'} ×${esc(String(x.multiplier))}`).join(' · ')+' <a href="#" onclick="stGoMults();return false" style="color:var(--gold)">Edit</a>';
+  }
+  document.getElementById('st-test-wrap').style.display=(!add&&['window_cleaning','gutter_cleaning','pressure_washing'].includes(cat)&&document.getElementById('st-id').value)?'':'none';
+  stDraw();
+}
+function stGoMults(){closeModal('svcTypeModal');stPriceFilter=null;stSetView('prices');setTimeout(()=>{const e=document.getElementById('st-mults');if(e)e.scrollIntoView({behavior:'smooth'});},60);}
+function stQuoteFromType(){
+  const t=stTypeById(document.getElementById('st-id').value);
+  if(!t){showToast('Save the service first','error');return;}
+  if(t.is_addon||!['window_cleaning','gutter_cleaning','pressure_washing'].includes(t.category)){showToast('Quote tests cover windows, gutters and pressure washing','error');return;}
+  document.getElementById('q-service').value=t.category;
+  stQuoteOpen();
+  if(t.category==='window_cleaning'&&(t.scope==='front_only'||t.scope==='front_and_back'))document.getElementById('q-fb').value=t.scope;
+  if(t.category==='gutter_cleaning'){const sel=document.getElementById('q-prop');if(sel&&[...sel.options].some(o=>o.value===t.property_type))sel.value=t.property_type;}
 }
 // ── bulk adjustment (with preview and undo)
 function stAdjustRound(v,step){return step>0?Math.round(v/step)*step:Math.round(v*100)/100;}
@@ -6877,7 +6889,7 @@ async function stOptPick(attr,selId){
     keep[attr]=value;stOnShape(keep);showToast('Option added','success');
   }catch(e){el.value='';showToast(e.message,'error');}
 }
-function openServiceTypeEditor(id){
+function openServiceTypeEditor(id,focus){
   const s=id?wcServiceTypes.find(x=>x.id===id):null;
   if(id&&!s)return;
   document.getElementById('svcTypeModalTitle').textContent=s?'Edit service type':'Add service type';
@@ -6890,10 +6902,9 @@ function openServiceTypeEditor(id){
   document.getElementById('st-sort').value=s&&s.sort_order!=null?s.sort_order:'';
   document.getElementById('st-active').value=!s||s.active?'1':'0';
   document.getElementById('st-method').value=s?(s.pricing_method||''):'';
-  const pl=document.getElementById('st-prices-link');
-  if(s){const pi=stPriceInfo(s);pl.style.display='flex';document.getElementById('st-price-text').textContent=pi.text?('Price: '+pi.text+(pi.unset?` · ${pi.unset} not set`:'')):(pi.count?`${pi.count} price${pi.count===1?'':'s'}, none set yet`:'No prices yet');document.getElementById('st-price-btn').textContent=pi.count?'Edit prices →':'+ Add a price';}else pl.style.display='none';
   stOnShape(s?{segment:s.segment||'',property_type:s.property_type||'',scope:s.scope||'',addon_code:s.addon_code||''}:{});
   stMethodSync(s?(s.pricing_method||''):'');
+  stDraftInit(s,focus);
   const n=s?(svcTypeUse[s.id]||0):0;
   document.getElementById('st-usage').textContent=s?(n?`Used on ${n} job${n===1?'':'s'}. Renaming keeps those jobs linked; to retire it, set Inactive.`:'Not used on any jobs yet.'):'';
   const rv=document.getElementById('st-review'),inf=s?(s.inferred_fields||[]):[];
@@ -6947,14 +6958,28 @@ async function saveServiceType(){
     inferred_fields:[]
   };
   const cur=id?wcServiceTypes.find(x=>x.id===id):null;
+  const dv=stDraftValidate();if(dv.err){showToast(dv.err,'error');return;}
   if(cur&&cur.name!==name&&!confirm(`Rename "${cur.name}" to "${name}"?\n\nJobs already using it stay linked. The older text summary on past jobs keeps the old name.`))return;
+  let step='service';
   try{
+    let tid=id;
     if(id)await sb(`wc_service_types?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
-    else await sb('wc_service_types',{method:'POST',body:JSON.stringify({...payload,business_id:BUSINESS_ID}),prefer:'return=minimal'});
+    else{const r=await sb('wc_service_types',{method:'POST',body:JSON.stringify({...payload,business_id:BUSINESS_ID}),prefer:'return=representation'});tid=(Array.isArray(r)?r[0]:r).id;}
+    step='prices';
+    for(const d of stDraftDel)await sb(`service_prices?id=eq.${d}`,{method:'DELETE',prefer:'return=minimal'});
+    for(const row of dv.rows){
+      if(!row.id)await sb('service_prices',{method:'POST',body:JSON.stringify({...row.payload,service_type_id:tid,business_id:BUSINESS_ID}),prefer:'return=minimal'});
+      else if(row.changed)await sb(`service_prices?id=eq.${row.id}`,{method:'PATCH',body:JSON.stringify(row.payload),prefer:'return=minimal'});
+    }
     closeModal('svcTypeModal');showToast(id?'Service saved':'Service added','success');
     renderServiceTypesConfig();
-  }catch(e){showToast(/duplicate|unique/i.test(e.message||'')?'A service with that name already exists':e.message,'error');}
+  }catch(e){
+    const msg=/duplicate|unique/i.test(e.message||'')?(step==='service'?'A service with that name already exists':'Two variations share the same option'):e.message;
+    showToast(step==='prices'?'Service saved, but a price failed: '+msg:msg,'error');
+    if(step==='prices')renderServiceTypesConfig();
+  }
 }
+
 async function deleteServiceType(){
   const id=document.getElementById('st-id').value;
   const cur=wcServiceTypes.find(x=>x.id===id);if(!cur)return;
