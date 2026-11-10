@@ -358,7 +358,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .svc-nm{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;}
 .svc-dt{font-size:13px;font-weight:500;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .svc-mods{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 2px 25px;}
-.st-table{border-collapse:collapse;width:100%;min-width:1080px;font-size:12.5px;}
+.st-table{border-collapse:collapse;width:100%;min-width:1100px;font-size:12.5px;}
 .st-table th{text-align:left;font-weight:700;color:var(--text-muted);padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
 .st-table td{padding:7px 10px;border-top:1px solid var(--border);color:var(--text);white-space:nowrap;vertical-align:middle;}
 .st-table tbody tr{cursor:pointer;}
@@ -370,6 +370,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .st-blank{color:#b5882a;font-style:italic;}
 .st-asm{color:#b5882a;}
 .st-rules td,.st-rules th{vertical-align:top;white-space:normal;}
+.st-table tr.st-cont td{border-top:1px dotted var(--border);}
+.st-table td .st-sub{display:block;font-size:11.5px;font-weight:400;color:var(--text-muted);margin-top:1px;}
+.st-badge{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;background:var(--danger-light);color:var(--danger);margin-left:6px;font-weight:600;}
+.st-split{display:block;}
+.st-pane{margin-top:14px;}
+.st-none{display:none;}
+.st-table tr.st-sel td,.detail-row.st-sel{background:rgba(255,178,0,.10);}
+@media(min-width:1180px){
+  .st-split{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:24px;align-items:start;}
+  .st-main{min-width:0;}
+  .st-pane{margin-top:0;position:sticky;top:0;max-height:calc(100vh - 52px - 72px);overflow-y:auto;}
+  .st-pane .modal{position:static;transform:none;transition:none;width:auto;max-width:none;max-height:none;overflow:visible;margin:0;border-radius:16px;box-shadow:none;}
+  .st-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:110px 20px;color:var(--text-muted);font-size:14px;text-align:center;border:1px dashed var(--border);border-radius:16px;}
+  .st-none svg{width:34px;height:34px;color:var(--gold);}
+  .st-table tr.st-sel td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
+  .st-split .st-k-kind{display:none;}
+  .st-split .st-table{min-width:980px;}
+}
 .svc-pill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;vertical-align:top;}
 .sq-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;line-height:1.5;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .sq-chip.ghost{background:transparent!important;border:1px solid var(--border);color:var(--text-soft);font-weight:600;}
@@ -1284,7 +1302,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="svcTypeModalTitle">Edit service type</div>
-      <button class="modal-close" onclick="closeModal('svcTypeModal')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      <button class="modal-close" onclick="stCloseEditor()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
     </div>
     <div class="form-grid">
       <input type="hidden" id="st-id">
@@ -1321,7 +1339,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
     </div>
     <div class="form-actions">
       <button class="btn btn-outline-danger" id="st-btn-delete" style="display:none" onclick="deleteServiceType()">Delete</button>
-      <button class="btn btn-ghost" onclick="closeModal('svcTypeModal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="stCloseEditor()">Cancel</button>
       <button class="btn btn-primary" onclick="saveServiceType()">Save</button>
     </div>
   </div>
@@ -1381,8 +1399,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='230';
-const BUILD_DATE='09 Nov 2026 20:15';
+const BUILD_VERSION='231';
+const BUILD_DATE='10 Nov 2026 09:30';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1909,8 +1927,9 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue','payroll'];
+const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue','payroll','service-types-config','pricing-config'];
 function navigate(page){
+  if(typeof stReleaseEditor==='function')stReleaseEditor();
   const pages=getPages();
   if(!pages.find(p=>p.id===page))page='round';
   currentPageId=page;
@@ -1937,8 +1956,8 @@ function navigate(page){
   else if(page==='overdue')renderOverdue();
   else if(page==='optimizer')renderOptimizer();
   else if(page==='rounds-config')renderRoundsConfig();
-  else if(page==='service-types-config'){if(stView==='prices')stView='table';renderServiceTypesConfig();}
-  else if(page==='pricing-config'){stView='prices';stPriceFilter=null;renderServiceTypesConfig();}
+  else if(page==='service-types-config'){if(!stViewTouched||stView==='tools')stView=stDefaultView();renderServiceTypesConfig();}
+  else if(page==='pricing-config'){stView='tools';stPriceFilter=null;renderServiceTypesConfig();}
   else if(page==='team-config')renderTeamConfig();
   else if(page==='availability-config')renderAvailabilityConfig();
   else if(page==='settings')renderSettings();
@@ -6412,7 +6431,8 @@ async function renderRoundsConfig(){
     </div>`;
 }
 
-let svcTypeUse={},stReviewOnly=false,stOptions=[],stView='table',stSortKey=null,stSortDir=1,stPrices=[],stMults=[],stPriceFilter=null,stAdjustUndo=null;
+let svcTypeUse={},stReviewOnly=false,stOptions=[],stView='table',stSortKey=null,stSortDir=1,stPrices=[],stMults=[],stPriceFilter=null,stAdjustUndo=null,stSelectedId=null,stDocked=false,stReopen=null,stViewTouched=false;
+function stDefaultView(){return window.matchMedia('(min-width:768px)').matches?'table':'list';}
 const ST_ATTR_LABEL={segment:'segment',property_type:'property type',scope:'scope',addon_code:'add-on type'};
 function stKey(v){const k=String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');return k||null;}
 // ── rules (service_attribute_options): which attribute applies to which category, and its allowed values
@@ -6429,7 +6449,7 @@ function stLabel(attr,val){
   return o?o.label:((attr==='scope'?SVC_SCOPE[val]:attr==='property_type'?SVC_PROP[val]:SVC_ADDON[val])||svcHuman(val));
 }
 function stToggleReview(){stReviewOnly=!stReviewOnly;stRender();}
-function stSetView(v){stView=v;document.getElementById('topbarPage').textContent=v==='prices'?'Pricing':'Service Types';stRender();}
+function stSetView(v){stView=v;stViewTouched=true;document.getElementById('topbarPage').textContent=v==='tools'?'Pricing':'Service Types';stRender();}
 function stSortBy(k){if(stSortKey===k)stSortDir=-stSortDir;else{stSortKey=k;stSortDir=1;}stRender();}
 const ST_SEG_RANK={commercial:0,domestic:1};
 function stDefaultCmp(a,b){
@@ -6512,23 +6532,62 @@ function stCell(s,attr){
   const asm=(s.inferred_fields||[]).includes(attr);
   return`<span${asm?' class="st-asm" title="Assumed, not stated in the name"':''}>${esc(stLabel(attr,v))}${asm?' •':''}</span>`;
 }
+function stDefMins(t){const m=/^(\d+):(\d+)$/.exec(t.default_duration||'');return m?Number(m[1])*60+Number(m[2]):99999;}
+function stRowVal(r,k){
+  const t=r.t,p=r.p;
+  switch(k){
+    case 'variation':return p?String(stPriceLabel(p)).toLowerCase():'~';
+    case 'price':return p&&p.price!=null?Number(p.price):1e9;
+    case 'min':return p&&p.min_charge!=null?Number(p.min_charge):1e9;
+    case 'time':return p&&p.minutes!=null?p.minutes:stDefMins(t);
+    case 'scope':return t.is_addon?(stLabel('addon_code',t.addon_code)||'~'):(stLabel('scope',t.scope)||'~');
+  }
+  return stColVal(t,k);
+}
+// one row per price (a service with no prices still gets one row)
+function stFlatRows(list){
+  const out=[];
+  stSorted(list).forEach(t=>{
+    const rows=stPrices.filter(p=>p.service_type_id===t.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    if(!rows.length)out.push({t,p:null,first:true});else rows.forEach((p,i)=>out.push({t,p,first:i===0}));
+  });
+  if(stSortKey){
+    out.forEach(r=>{r.first=true;});
+    out.sort((a,b)=>{const x=stRowVal(a,stSortKey),y=stRowVal(b,stSortKey),c=(x<y?-1:x>y?1:0)*stSortDir;return c||stDefaultCmp(a.t,b.t)||((a.p?a.p.sort_order:0)-(b.p?b.p.sort_order:0));});
+  }
+  return out;
+}
+function stPriceCellRow(r){
+  const{t,p}=r;
+  if(!p)return t.pricing_method==='manual_quote'?'Quote':(t.pricing_method?'<span class="st-blank">no price</span>':'<span class="st-na">–</span>');
+  if(p.price==null)return'<span class="st-blank">set price</span>';
+  return esc(stMoney(p.price))+(p.unit?` <span class="st-na" style="opacity:.85">${esc(ST_UNIT[p.unit]||p.unit)}</span>`:'');
+}
 function stTableHtml(list){
-  const cols=[['category','Category'],['segment','Segment'],['kind','Kind'],['name','Name'],['property_type','Property'],['scope','Scope'],['addon_code','Add-on'],['pricing_method','Method'],['price','Price'],['time','Time'],['jobs','Jobs'],['active','Status']];
-  const head=cols.map(([k,l])=>`<th onclick="stSortBy('${k}')">${l}${stSortKey===k?(stSortDir>0?' ↑':' ↓'):''}</th>`).join('');
+  const cols=[['category','Category',''],['segment','Segment',''],['kind','Kind','st-k-kind'],['name','Service',''],['property_type','Property',''],['scope','Scope / add-on',''],['variation','Variation',''],['price','Price',''],['min','Min',''],['time','Mins',''],['jobs','Jobs','']];
+  const head=cols.map(([k,l,c])=>`<th class="${c}" onclick="stSortBy('${k}')">${l}${stSortKey===k?(stSortDir>0?' ↑':' ↓'):''}</th>`).join('');
   let prev=null;
-  const rows=stSorted(list).map(s=>{
-    const cat=SVC_CAT[s.category]||SVC_CAT.other,start=!stSortKey&&prev!==null&&prev!==s.category;prev=s.category;
-    const seg=!s.is_addon?(stApplies(s,'segment')?(s.segment?`<span${(s.inferred_fields||[]).includes('segment')?' class="st-asm" title="Assumed, not stated in the name"':''}>${esc(stLabel('segment',s.segment))}${(s.inferred_fields||[]).includes('segment')?' •':''}</span>`:'<span class="st-blank">blank</span>'):'<span class="st-na">n/a</span>'):'<span class="st-na">n/a</span>';
-    const n=svcTypeUse[s.id]||0;
-    return`<tr class="${start?'st-catstart':''}${s.active?'':' st-off'}" onclick="openServiceTypeEditor('${s.id}')">
-      <td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span>${esc(cat.label)}</span></td>
-      <td>${seg}</td><td>${s.is_addon?'Add-on':'Main'}</td><td class="st-name">${esc(s.name)}</td>
-      <td>${stCell(s,'property_type')}</td><td>${stCell(s,'scope')}</td><td>${stCell(s,'addon_code')}</td>
-      <td>${stMethodCell(s)}</td><td>${stPriceCell(s)}</td><td>${esc(stTimeText(s))}</td><td>${n}</td><td>${s.active?'Active':'Inactive'}</td></tr>`;
+  const rows=stFlatRows(list).map(r=>{
+    const{t,p,first}=r;
+    const cat=SVC_CAT[t.category]||SVC_CAT.other,start=!stSortKey&&first&&prev!==null&&prev!==t.category;
+    if(first)prev=t.category;
+    const cls=[start?'st-catstart':'',first?'':'st-cont',t.active?'':'st-off'].filter(Boolean).join(' ');
+    const asm=f=>(t.inferred_fields||[]).includes(f);
+    const seg=t.is_addon||!stApplies(t,'segment')?'<span class="st-na">n/a</span>':(t.segment?`<span${asm('segment')?' class="st-asm" title="Assumed, not stated in the name"':''}>${esc(stLabel('segment',t.segment))}${asm('segment')?' •':''}</span>`:'<span class="st-blank">blank</span>');
+    const scope=t.is_addon?stCell(t,'addon_code'):stCell(t,'scope');
+    const n=svcTypeUse[t.id]||0;
+    const left=first?`<td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span>${esc(cat.label)}</span></td><td>${seg}</td><td class="st-k-kind">${t.is_addon?'Add-on':'Main'}</td>
+      <td class="st-name">${esc(t.name)}${t.active?'':'<span class="st-badge">Inactive</span>'}<span class="st-sub">${t.pricing_method?esc(ST_METHOD[t.pricing_method]||''):''}</span></td><td>${stCell(t,'property_type')}</td><td>${scope}</td>`
+      :'<td></td><td></td><td class="st-k-kind"></td><td class="st-name"></td><td></td><td></td>';
+    const variation=p?esc(stPriceLabel(p))+(p.default_units!=null?` <span class="st-na" style="opacity:.85">· ${esc(String(p.default_units))} typical</span>`:'')+(p.active?'':' <span class="st-na">(inactive)</span>'):'<span class="st-na">–</span>';
+    const min=p&&p.min_charge!=null?esc(stMoney(p.min_charge)):'<span class="st-na">–</span>';
+    const mins=p&&p.minutes!=null?p.minutes+(p.unit&&t.is_addon?' each':''):(p?'<span class="st-na">–</span>':`<span class="st-na">${esc(t.default_duration||'')}</span>`);
+    return`<tr class="${cls}" data-tid="${t.id}" onclick="openServiceTypeEditor('${t.id}',${p?`'${p.id}'`:'null'})">${left}<td>${variation}</td><td>${stPriceCellRow(r)}</td><td>${min}</td><td>${mins}</td><td>${first?n:''}</td></tr>`;
   }).join('');
   return`<div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">Sorted by category, then segment, then kind. Tap a heading to re-sort. <span class="st-na">n/a</span> = doesn't apply to that category; <span class="st-blank">blank</span> = applies but not set; <span class="st-asm">•</span> = assumed. Price and time come from the Prices tab.</div>`;
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">One row per price. Sorted by category, then segment, then kind. Tap a heading to re-sort; sorting by a price column lists every price on its own. <span class="st-na">n/a</span> = doesn't apply; <span class="st-blank">blank</span> = applies but not set; <span class="st-asm">•</span> = assumed.</div>`;
 }
+
 // ── rules view
 function stRulesHtml(){
   const rows=Object.keys(SVC_CAT).map(k=>{
@@ -6558,7 +6617,7 @@ function stRowHtml(s){
   const inf=s.inferred_fields||[];
   if(inf.length)chips.push(sqChip('Assumed: '+inf.map(svcHuman).join(', '),'#b5882a','ghost'));
   const n=svcTypeUse[s.id]||0;
-  return`<div class="detail-row" style="cursor:pointer;align-items:flex-start;gap:10px${s.active?'':';opacity:.55'}" onclick="openServiceTypeEditor('${s.id}')">
+  return`<div class="detail-row" data-tid="${s.id}" style="cursor:pointer;align-items:flex-start;gap:10px${s.active?'':';opacity:.55'}" onclick="openServiceTypeEditor('${s.id}')">
     <div style="min-width:0;flex:1">
       <div style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span class="detail-value" style="font-size:13.5px;font-weight:700;white-space:normal;text-align:left">${esc(s.name)}</span></div>
       ${chips.length?`<div class="svc-mods">${chips.join('')}</div>`:''}
@@ -6582,29 +6641,14 @@ const ST_METHOD={by_variation:'By variation',per_unit:'Per unit',flat:'Flat pric
 function stMoney(n){return n==null?'':'£'+(Math.round(Number(n)*100)/100).toFixed(2).replace(/\.00$/,'');}
 function stTypeById(id){return wcServiceTypes.find(t=>t.id===id);}
 function stPriceLabel(p){return p.variation_label||(p.dimension?svcHuman(p.variation_key):(p.unit?'Rate':'Flat price'));}
-function stPricesHtml(){
-  const byType={};
-  stPrices.forEach(p=>{(byType[p.service_type_id]=byType[p.service_type_id]||[]).push(p);});
-  let types=Object.keys(byType).map(stTypeById).filter(Boolean);
-  if(stPriceFilter)types=types.filter(t=>t.id===stPriceFilter);
-  types.sort(stDefaultCmp);
+function stToolsHtml(){
   const unpriced=stPrices.filter(p=>p.price==null).length;
-  const actions=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px">
+  const actions=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px">
     <button class="btn btn-ghost btn-sm" onclick="stAdjustOpen()">Adjust prices</button>
     <button class="btn btn-ghost btn-sm" onclick="stQuoteOpen()">Test a quote</button>
     ${stAdjustUndo?`<button class="btn btn-ghost btn-sm" style="color:var(--gold)" onclick="stAdjustUndoRun()">↩ Undo last adjustment</button>`:''}
-    ${stPriceFilter?`<button class="btn btn-ghost btn-sm" onclick="stPriceFilter=null;stRender()">Show all</button>`:''}
-  </div>${unpriced?`<div style="font-size:12.5px;color:#b5882a;margin:0 2px 10px">${unpriced} price${unpriced===1?' is':'s are'} not set yet. They won't be quoted until you set them.</div>`:''}`;
-  const blocks=types.map(t=>{
-    const cat=SVC_CAT[t.category]||SVC_CAT.other,rows=byType[t.id].slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-    const trs=rows.map(p=>{
-      const price=p.price==null?'<span class="st-blank">set price</span>':esc(stMoney(p.price))+(p.unit?` <span class="st-na" style="opacity:.8">${esc(ST_UNIT[p.unit]||p.unit)}</span>`:'');
-      return`<tr class="${p.active?'':'st-off'}" onclick="openServiceTypeEditor('${t.id}','${p.id}')"><td class="st-name" style="font-weight:500">${esc(stPriceLabel(p))}</td><td>${price}</td><td>${p.min_charge!=null?esc(stMoney(p.min_charge))+' min':'<span class="st-na">–</span>'}</td><td>${p.default_units!=null?esc(String(p.default_units))+' typical':'<span class="st-na">–</span>'}</td><td>${p.minutes!=null?p.minutes+' min'+(p.unit&&t.is_addon?' each':''):'<span class="st-na">–</span>'}</td><td>${p.active?'':'Inactive'}</td></tr>`;
-    }).join('');
-    return`<div class="sq-sec" style="display:flex;align-items:center;gap:8px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><span style="flex:1">${esc(t.name)}${t.pricing_method?` <span style="font-weight:400;color:var(--text-muted)">· ${esc(ST_METHOD[t.pricing_method]||'')}</span>`:''}</span><button class="btn btn-ghost btn-sm" onclick="openServiceTypeEditor('${t.id}','new')">+ Add</button></div>
-      <div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table" style="min-width:560px"><tbody>${trs}</tbody></table></div>`;
-  }).join('');
-  return actions+(blocks||'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No prices yet</span></div></div>')+(stPriceFilter?'':stMultsHtml());
+  </div>${unpriced?`<div style="font-size:12.5px;color:#b5882a;margin:0 2px 12px">${unpriced} price${unpriced===1?' is':'s are'} not set yet. They won't be quoted until you set them.</div>`:''}`;
+  return actions+stMultsHtml()+`<div style="font-size:12px;color:var(--text-muted);margin:14px 2px">Every price is in the Table view. Tap a row to edit that service and its prices.</div>`;
 }
 function stMultLabel(m){
   if(m.factor==='inside_clean')return'Inside and out';
@@ -6719,7 +6763,7 @@ function stPricingShow(){
   document.getElementById('st-test-wrap').style.display=(!add&&['window_cleaning','gutter_cleaning','pressure_washing'].includes(cat)&&document.getElementById('st-id').value)?'':'none';
   stDraw();
 }
-function stGoMults(){closeModal('svcTypeModal');stPriceFilter=null;stSetView('prices');setTimeout(()=>{const e=document.getElementById('st-mults');if(e)e.scrollIntoView({behavior:'smooth'});},60);}
+function stGoMults(){stCloseEditor();stPriceFilter=null;stSetView('tools');setTimeout(()=>{const e=document.getElementById('st-mults');if(e)e.scrollIntoView({behavior:'smooth'});},60);}
 function stQuoteFromType(){
   const t=stTypeById(document.getElementById('st-id').value);
   if(!t){showToast('Save the service first','error');return;}
@@ -6823,16 +6867,39 @@ async function stQuoteRun(){
 
 function stRender(){
   const el=document.getElementById('mainContent');if(!el)return;
+  stUndock();
   const reviewN=wcServiceTypes.filter(s=>(s.inferred_fields||[]).length).length;
   if(!reviewN)stReviewOnly=false;
   const list=wcServiceTypes.filter(s=>!stReviewOnly||(s.inferred_fields||[]).length);
-  const seg=['table:Table','prices:Prices','list:List','rules:Rules'].map(x=>{const[k,l]=x.split(':');return`<button type="button" class="${stView===k?'on':''}" onclick="stSetView('${k}')">${l}</button>`;}).join('');
-  const body=!wcServiceTypes.length?'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>':stView==='prices'?stPricesHtml():stView==='rules'?stRulesHtml():stView==='list'?stListHtml(list):stTableHtml(list);
-  el.innerHTML=`<div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span>${reviewN&&(stView==='table'||stView==='list')?`<span class="sq-pill" style="cursor:pointer;${stReviewOnly?'background:#b5882a;color:#fff':''}" onclick="stToggleReview()">${reviewN} to review</span>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
-    <div class="sq-seg fit" style="margin:2px 0 10px">${seg}</div>${body}`;
+  const seg=['table:Table','list:List','rules:Rules','tools:Tools'].map(x=>{const[k,l]=x.split(':');return`<button type="button" class="${stView===k?'on':''}" onclick="stSetView('${k}')">${l}</button>`;}).join('');
+  const body=!wcServiceTypes.length?'<div class="detail-section"><div class="detail-row"><span class="detail-label" style="font-style:italic">No services yet</span></div></div>':stView==='tools'?stToolsHtml():stView==='rules'?stRulesHtml():stView==='list'?stListHtml(list):stTableHtml(list);
+  const head=`<div class="sq-top"><span class="sq-pill">${wcServiceTypes.length} service${wcServiceTypes.length!==1?'s':''}</span>${reviewN&&(stView==='table'||stView==='list')?`<span class="sq-pill" style="cursor:pointer;${stReviewOnly?'background:#b5882a;color:#fff':''}" onclick="stToggleReview()">${reviewN} to review</span>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openServiceTypeEditor('')" aria-label="Add">${ic('plus')}</button></div>
+    <div class="sq-seg fit" style="margin:2px 0 10px">${seg}</div>`;
+  const split=(stView==='table'||stView==='list')&&window.matchMedia('(min-width:1180px)').matches;
+  el.innerHTML=split?`<div class="st-split"><div class="st-main">${head}${body}</div><div class="st-pane" id="stDetailPane"><div class="st-none">${ic('svc_windows')}<div>Select a service to edit its details and prices</div></div></div></div>`:head+body;
+  if(stDocked){if(document.getElementById('stDetailPane'))stDock();else{stDocked=false;stSelectedId=null;}}
+  stMarkSelected();
 }
+// ── docked editor (desktop): the same editor card lives in a side pane instead of a pop-up
+function stDockOK(){return window.matchMedia('(min-width:1180px)').matches&&!!document.getElementById('stDetailPane');}
+function stDock(){
+  const pane=document.getElementById('stDetailPane'),card=document.querySelector('#svcTypeModal .modal')||document.querySelector('#stDetailPane .modal');
+  if(!pane||!card)return;
+  const none=pane.querySelector('.st-none');if(none)none.style.display='none';
+  if(card.parentElement!==pane)pane.appendChild(card);
+  stDocked=true;
+}
+function stUndock(){const card=document.querySelector('#stDetailPane .modal'),ov=document.getElementById('svcTypeModal');if(card&&ov)ov.appendChild(card);}
+function stReleaseEditor(){stUndock();stDocked=false;stSelectedId=null;}
+function stCloseEditor(){
+  if(stDocked){stUndock();stDocked=false;const none=document.querySelector('#stDetailPane .st-none');if(none)none.style.display='';}
+  else closeModal('svcTypeModal');
+  stSelectedId=null;stMarkSelected();
+}
+function stMarkSelected(){document.querySelectorAll('#mainContent [data-tid]').forEach(r=>r.classList.toggle('st-sel',!!stSelectedId&&r.dataset.tid===String(stSelectedId)));}
 async function renderServiceTypesConfig(){
-  document.getElementById('topbarPage').textContent=stView==='prices'?'Pricing':'Service Types';
+  stReleaseEditor();
+  document.getElementById('topbarPage').textContent=stView==='tools'?'Pricing':'Service Types';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   try{
@@ -6844,6 +6911,7 @@ async function renderServiceTypesConfig(){
     try{(await sb('rpc/cr_service_type_usage',{method:'POST',body:'{}'})||[]).forEach(r=>{svcTypeUse[r.service_type_id]=Number(r.n)||0;});}catch(_){}
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   stRender();
+  if(stReopen){const id=stReopen;stReopen=null;if(wcServiceTypes.some(t=>t.id===id)&&stDockOK())openServiceTypeEditor(id);}
 }
 // ── editor: fields shown depend on category + kind (the rules)
 function stFillSel(id,attr,cat,show,want){
@@ -6911,7 +6979,10 @@ function openServiceTypeEditor(id,focus){
   rv.style.display=inf.length?'':'none';
   rv.textContent=inf.length?`Assumed, not stated in the name: ${inf.map(svcHuman).join(', ')}. Check them, then Save to confirm.`:'';
   document.getElementById('st-btn-delete').style.display=s?'':'none';
-  document.getElementById('svcTypeModal').classList.add('open');
+  stSelectedId=s?s.id:null;
+  if(stDockOK()){stDock();const pn=document.getElementById('stDetailPane');if(pn)pn.scrollTop=0;}
+  else document.getElementById('svcTypeModal').classList.add('open');
+  stMarkSelected();
 }
 async function stFillFromName(auto){
   const name=document.getElementById('st-name').value.trim();
@@ -6971,7 +7042,8 @@ async function saveServiceType(){
       if(!row.id)await sb('service_prices',{method:'POST',body:JSON.stringify({...row.payload,service_type_id:tid,business_id:BUSINESS_ID}),prefer:'return=minimal'});
       else if(row.changed)await sb(`service_prices?id=eq.${row.id}`,{method:'PATCH',body:JSON.stringify(row.payload),prefer:'return=minimal'});
     }
-    closeModal('svcTypeModal');showToast(id?'Service saved':'Service added','success');
+    stReopen=stDockOK()?tid:null;if(!stReopen)stCloseEditor();
+    showToast(id?'Service saved':'Service added','success');
     renderServiceTypesConfig();
   }catch(e){
     const msg=/duplicate|unique/i.test(e.message||'')?(step==='service'?'A service with that name already exists':'Two variations share the same option'):e.message;
@@ -6985,7 +7057,7 @@ async function deleteServiceType(){
   const cur=wcServiceTypes.find(x=>x.id===id);if(!cur)return;
   if((svcTypeUse[id]||0)>0){showToast(`In use on ${svcTypeUse[id]} job${svcTypeUse[id]===1?'':'s'} — set it Inactive instead`,'error');return;}
   if(!confirm(`Delete "${cur.name}"?`))return;
-  try{await sb(`wc_service_types?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});closeModal('svcTypeModal');showToast('Deleted','success');renderServiceTypesConfig();}
+  try{await sb(`wc_service_types?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});stCloseEditor();showToast('Deleted','success');renderServiceTypesConfig();}
   catch(e){showToast('Could not delete — set it Inactive instead','error');}
 }
 
