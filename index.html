@@ -993,6 +993,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
           </select>
         </div>
       </div>
+      <div id="j-nearby" style="display:none"></div>
       <div class="form-row">
         <div class="field"><label>Round</label><select id="j-round"><option value="">No round</option></select></div>
         <div class="field"><label>Assign to</label><select id="j-assigned"></select></div>
@@ -1396,8 +1397,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='233';
-const BUILD_DATE='10 Nov 2026 13:05';
+const BUILD_VERSION='234';
+const BUILD_DATE='10 Nov 2026 15:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3243,6 +3244,96 @@ async function roundCalShift(n){
   try{box.outerHTML=await roundCalPanelHtml();}catch(e){showToast('Could not load month: '+e.message,'error');}
 }
 function changeRoundDate(n){roundDate=shiftDay(roundDate,n);renderRound();}
+// ── NEARBY-JOB SUGGESTION (v1.0.234) ─────────────────────────────────────────
+// When scheduling a job, look for existing recurring customers within NEARBY_KM and suggest slotting
+// the new job into their round/day. Customer coordinates are cached in wc_customers (latitude,
+// longitude, geocoded_at) so each postcode is only ever looked up once.
+const NEARBY_KM=0.25;
+let nearbyToken=0;
+async function geocodeFullPostcodes(list){ // bulk postcodes.io lookup, FULL postcodes only (never district-centre guesses)
+  const out=new Map();
+  const need=[...new Set(list.map(_pcNorm).filter(pc=>_PC_RE.test(pc)))];
+  for(let i=0;i<need.length;i+=100){
+    const r=await fetch('https://api.postcodes.io/postcodes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postcodes:need.slice(i,i+100)})});
+    const j=await r.json();
+    (j.result||[]).forEach(x=>{if(x&&x.result&&x.result.latitude!=null)out.set(_pcNorm(x.query),{lat:x.result.latitude,lng:x.result.longitude});});
+  }
+  return out;
+}
+async function ensureCustomerCoords(custs){ // fills + saves coordinates for any customer that has a full postcode but no cached coords
+  const missing=custs.filter(c=>c&&c.latitude==null&&_PC_RE.test(_pcNorm(c.postcode)));
+  if(!missing.length)return;
+  const geo=await geocodeFullPostcodes(missing.map(c=>c.postcode));
+  const now=new Date().toISOString(),saves=[];
+  missing.forEach(c=>{const g=geo.get(_pcNorm(c.postcode));if(!g)return;c.latitude=g.lat;c.longitude=g.lng;c.geocoded_at=now;saves.push(c);});
+  for(let i=0;i<saves.length;i+=8){
+    await Promise.all(saves.slice(i,i+8).map(c=>sb(`wc_customers?id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({latitude:c.latitude,longitude:c.longitude,geocoded_at:c.geocoded_at}),prefer:'return=minimal'}).catch(()=>{})));
+  }
+}
+const _WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+async function findNearbySlots(customerId){
+  let me=(customers||[]).find(c=>c.id===customerId);
+  if(!me){try{[me]=await sb(`wc_customers?id=eq.${customerId}&select=*`);}catch(e){}}
+  if(!me||!_PC_RE.test(_pcNorm(me.postcode)))return{slots:[],reason:'no-postcode'};
+  const today=localDateStr(new Date());
+  const rows=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&series_id=not.is.null&customer_id=neq.${customerId}&select=id,customer_id,assigned_to,round_name,day_of_week,next_due,scheduled_date,wc_customers(id,name,address,postcode,latitude,longitude,geocoded_at)`)||[];
+  const jobs=rows.filter(j=>j.wc_customers);
+  const uniq=new Map();jobs.forEach(j=>uniq.set(j.wc_customers.id,j.wc_customers));
+  await ensureCustomerCoords([me,...uniq.values()]);
+  if(me.latitude==null)return{slots:[],reason:'no-coords'};
+  const here={lat:Number(me.latitude),lng:Number(me.longitude)};
+  const groups=new Map();
+  jobs.forEach(j=>{
+    const c=j.wc_customers;if(c.latitude==null)return;
+    const km=_hav(here,{lat:Number(c.latitude),lng:Number(c.longitude)});
+    if(km>NEARBY_KM)return;
+    const d=String(j.next_due||j.scheduled_date||'').split('T')[0];
+    const dow=j.day_of_week||(d?_WD[new Date(d+'T12:00:00').getDay()]:'');
+    const key=[j.assigned_to||'',dow,j.round_name||''].join('|');
+    let g=groups.get(key);
+    if(!g){g={assigned_to:j.assigned_to||null,day_of_week:dow,round_name:j.round_name||'',km,name:c.name,address:c.address,dates:[]};groups.set(key,g);}
+    if(km<g.km){g.km=km;g.name=c.name;g.address=c.address;}
+    if(d&&d>=today)g.dates.push(d);
+  });
+  const slots=[...groups.values()].map(g=>({...g,next:g.dates.sort()[0]||''})).sort((a,b)=>a.km-b.km).slice(0,3);
+  return{slots,reason:slots.length?'ok':'none'};
+}
+async function suggestNearbySlot(customerId){
+  const box=document.getElementById('j-nearby');if(!box)return;
+  const tok=++nearbyToken;
+  box.style.display='none';box.innerHTML='';
+  try{
+    const {slots}=await findNearbySlots(customerId);
+    if(tok!==nearbyToken||!slots.length)return;
+    window._nearbySlots=slots;
+    const uname=id=>{const u=(wcUsers||[]).find(x=>x.id===id);return u?u.name:'Unassigned';};
+    const dist=m=>m<15?'same building/postcode':`${Math.round(m/10)*10} m away`;
+    const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}):'no upcoming date';
+    box.innerHTML=`<div style="border:1px solid var(--teal);border-radius:12px;padding:12px;margin-bottom:12px;background:rgba(0,224,207,.07)">
+      <div style="font-size:13px;font-weight:600;color:var(--teal);margin-bottom:8px">📍 You already work near here</div>
+      ${slots.map((g,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;${i?'border-top:1px solid var(--border);':''}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;color:var(--white)">${esc(g.name||'')} · <span style="color:var(--text-muted)">${dist(g.km*1000)}</span></div>
+          <div style="font-size:12px;color:var(--text-muted)">${esc(uname(g.assigned_to))} · ${esc(g.day_of_week||'any day')}${g.round_name?' · '+esc(g.round_name):''} · next ${esc(fmt(g.next))}</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="applyNearbySlot(${i})">Use</button>
+      </div>`).join('')}
+    </div>`;
+    box.style.display='';
+  }catch(e){/* suggestion is a bonus - never block scheduling */}
+}
+function applyNearbySlot(i){
+  const g=(window._nearbySlots||[])[i];if(!g)return;
+  const setSel=(id,v)=>{const el=document.getElementById(id);if(!el)return;if(v&&![...el.options].some(o=>(o.value||o.text)===v)){el.add(new Option(v,v));}el.value=v||'';};
+  setSel('j-assigned',g.assigned_to||'');
+  setSel('j-round',g.round_name||'');
+  setSel('j-day',g.day_of_week||'');
+  const dateEl=document.getElementById('j-date');
+  const min=dateEl.min||localDateStr(new Date());
+  if(g.next&&g.next>=min)dateEl.value=g.next;
+  else if(g.day_of_week){dateEl.value=nextDateForWeekday(g.day_of_week,min);}
+  showToast('Slotted into '+(g.round_name||g.day_of_week||'that round'),'success');
+}
 // ── ROUND ORDER / ROUTE OPTIMISER (v1.0.202) ─────────────────────────────────
 // Each worker's round starts and finishes at their home postcode. Postcodes are turned into
 // coordinates on the fly with the free postcodes.io service (nothing extra is stored).
@@ -4225,6 +4316,8 @@ async function saveCustomer(){
   const editedId=editingCustomerId;
   try{
     if(editingCustomerId){
+      const prevC=(customers||[]).find(c=>c.id===editingCustomerId);
+      if(prevC&&_pcNorm(prevC.postcode)!==_pcNorm(postcode)){payload.latitude=null;payload.longitude=null;payload.geocoded_at=null;}
       await sb(`wc_customers?id=eq.${editingCustomerId}`,{method:'PATCH',body:JSON.stringify(payload),prefer:'return=minimal'});
       showToast('Customer updated','success');
     }else{
@@ -4434,6 +4527,7 @@ async function openAddJob(customerId){
   const sel=document.getElementById('j-assigned');
   sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   document.getElementById('jobModal').classList.add('open');
+  suggestNearbySlot(customerId);
 }
 function toggleWindowAttrFields(){
   const isWindow=(document.getElementById('j-service').value||'').toLowerCase().includes('window');
@@ -4466,6 +4560,7 @@ async function openEditJob(jobId,customerId){
   const sel=document.getElementById('j-assigned');
   sel.innerHTML='<option value="">Unassigned</option>'+wcUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   sel.value=j.assigned_to||'';
+  nearbyToken++;const nb=document.getElementById('j-nearby');if(nb){nb.style.display='none';nb.innerHTML='';}
   document.getElementById('jobModal').classList.add('open');
 }
 async function saveJob(){
