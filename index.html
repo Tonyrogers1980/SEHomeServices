@@ -1399,12 +1399,12 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='231';
-const BUILD_DATE='10 Nov 2026 09:30';
+const BUILD_VERSION='232';
+const BUILD_DATE='10 Nov 2026 11:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
-let wcUsers=[],wcRounds=[],wcServiceTypes=[],customers=[],pricingConfigData=null;
+let wcUsers=[],wcRounds=[],wcServiceTypes=[],wcAliasNames=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundAssignees=null;
 let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null,editingJobOriginalDate=null,editingJobSeriesId=null;
 let editingQuoteId=null,quotes=[],quoteFilter='all',editingQuoteOriginalDate=null;
@@ -2008,9 +2008,10 @@ function refreshCurrentPage(){
 async function loadConfig(){
   if(wcRounds.length&&wcServiceTypes.length)return;
   try{
-    [wcRounds,wcServiceTypes]=await Promise.all([
+    [wcRounds,wcServiceTypes,wcAliasNames]=await Promise.all([
       sb(`wc_rounds?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
-      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`)
+      sb(`wc_service_types?business_id=eq.${BUSINESS_ID}&active=eq.true&order=name.asc`),
+      sb(`service_type_aliases?business_id=eq.${BUSINESS_ID}&selectable=eq.true&select=alias&order=alias.asc`).then(r=>(r||[]).map(x=>x.alias)).catch(()=>[])
     ]);
   }catch(e){console.warn('Config load failed',e);}
 }
@@ -2031,7 +2032,8 @@ function populateRoundSelect(id,selected=''){
 }
 function populateServiceSelect(id,selected=''){
   const sel=document.getElementById(id);if(!sel)return;
-  sel.innerHTML='<option value="">Select service…</option>'+wcServiceTypes.map(s=>`<option${s.name===selected?' selected':''}>${esc(s.name)}</option>`).join('');
+  const names=[...new Set([...wcServiceTypes.map(s=>s.name),...(wcAliasNames||[])])].sort((a,b)=>String(a).localeCompare(String(b)));
+  sel.innerHTML='<option value="">Select service…</option>'+names.map(n=>`<option${n===selected?' selected':''}>${esc(n)}</option>`).join('');
 }
 
 
@@ -5281,7 +5283,7 @@ function svcInfo(serviceType){
   };
 }
 // ── Classified service line items (wc_job_services) ─────────────────────────
-const SVC_EMBED='services:wc_job_services(id,quantity,sort_order,wc_service_types(name,category,segment,property_type,scope,visit_type,is_addon,addon_code))';
+const SVC_EMBED='services:wc_job_services(id,quantity,sort_order,price_id,service_prices(dimension,variation_key,variation_label),wc_service_types(name,category,segment,property_type,scope,visit_type,is_addon,addon_code))';
 const SVC_CAT={
   window_cleaning:{label:'Windows',color:'#5aa9ff',icon:'svc_windows'},
   gutter_cleaning:{label:'Gutters',color:'#2dd4bf',icon:'svc_gutters'},
@@ -5303,7 +5305,9 @@ function jobSvcItems(j){
   if(!Array.isArray(raw)||!raw.length)return null;
   return raw.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(x=>{
     const t=x.wc_service_types||x;
-    return{name:t.name,category:t.category,segment:t.segment,property_type:t.property_type,scope:t.scope,visit_type:t.visit_type,is_addon:!!t.is_addon,addon_code:t.addon_code,quantity:x.quantity||1};
+    const pv=x.service_prices||(x.variation_key?{dimension:x.variation_dimension,variation_key:x.variation_key,variation_label:x.variation_label}:null);
+    const prop=t.property_type||(pv&&pv.dimension==='property'?pv.variation_key:null);
+    return{name:t.name,category:t.category,segment:t.segment,property_type:prop,scope:t.scope,visit_type:t.visit_type,is_addon:!!t.is_addon,addon_code:t.addon_code,quantity:x.quantity||1};
   });
 }
 function svcSplit(items){
@@ -6589,14 +6593,21 @@ function stTableHtml(list){
 }
 
 // ── rules view
+const ST_DIM={property:'Property',bedrooms:'Bedrooms',size:'Size',area:'Area'};
+function stVaryBy(k){
+  const ids=wcServiceTypes.filter(t=>t.category===k&&!t.is_addon).map(t=>t.id);
+  const dims=[...new Set(stPrices.filter(p=>ids.includes(p.service_type_id)&&p.dimension).map(p=>p.dimension))];
+  const parts=dims.map(d=>{const base=ST_DIM[d]||svcHuman(d);if(d==='property'){const o=stOpts('property',k);return o.length?`${base} (${o.map(x=>x.label).join(', ')})`:base;}return base;});
+  return parts.length?esc(parts.join(' · ')):'<span class="st-na">–</span>';
+}
 function stRulesHtml(){
   const rows=Object.keys(SVC_CAT).map(k=>{
     const cat=SVC_CAT[k];
     const cell=(attr)=>{const o=stOpts(attr,k);return o.length?esc(o.map(x=>x.label).join(', ')):'<span class="st-na">n/a</span>';};
-    return`<tr><td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><b>${esc(cat.label)}</b></span></td><td>${cell('segment')}</td><td>${cell('property_type')}</td><td>${cell('scope')}</td><td>${cell('addon_code')}</td></tr>`;
+    return`<tr><td><span style="display:inline-flex;align-items:center;gap:7px"><span class="svc-ic" style="color:${cat.color}">${ic(cat.icon)}</span><b>${esc(cat.label)}</b></span></td><td>${cell('segment')}</td><td>${cell('property_type')}</td><td>${cell('scope')}</td><td>${stVaryBy(k)}</td><td>${cell('addon_code')}</td></tr>`;
   }).join('');
-  return`<div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table st-rules" style="min-width:680px"><thead><tr><th style="cursor:default">Category</th><th style="cursor:default">Segment</th><th style="cursor:default">Property type</th><th style="cursor:default">Scope</th><th style="cursor:default">Add-ons</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">These rules decide which fields appear for each category and what values are allowed. Add-ons take their segment, property and scope from the main service on the job. New values are added from the editor ("Add new option…").</div>`;
+  return`<div class="detail-section" style="overflow-x:auto;padding:0"><table class="st-table st-rules" style="min-width:820px"><thead><tr><th style="cursor:default">Category</th><th style="cursor:default">Segment</th><th style="cursor:default">Property type</th><th style="cursor:default">Scope</th><th style="cursor:default">Price varies by</th><th style="cursor:default">Add-ons</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 2px">These rules decide which fields appear for each category and what values are allowed. Add-ons take their segment and scope from the main service on the job. Property is a price variation, not a service attribute, wherever the price depends on it (gutters). New values are added from the editor ("Add new option…").</div>`;
 }
 // ── list view (cards)
 function stRowHtml(s){
@@ -6698,6 +6709,35 @@ function stDraftSummary(r){
   const price=r.price!==''&&Number.isFinite(Number(r.price))?stMoney(Number(r.price))+(r.unit?' '+(ST_UNIT[r.unit]||''):''):'not set';
   return label+' · '+price;
 }
+function stOptionField(i,r,opt){
+  if(r.dimension==='property'){
+    const cat=document.getElementById('st-category').value,os=stOpts('property',cat),known=os.some(o=>o.value===r.variation_key);
+    return`<select onchange="stDraftPick(${i},this.value)"><option value="">Choose…</option>${os.map(o=>opt(o.value,o.label,r.variation_key)).join('')}${r.variation_key&&!known?opt(r.variation_key,svcHuman(r.variation_key)+' (not in rules)',r.variation_key):''}<option value="__new__">+ Add new option…</option></select>`;
+  }
+  return`<input value="${esc(r.variation_key)}" placeholder="e.g. 3_bed, small" autocomplete="off" oninput="stDraftSet(${i},'variation_key',this.value)">`;
+}
+function stDraftDim(i,v){const r=stDraft[i];if(!r)return;if(r.dimension!==v){r.dimension=v;r.variation_key='';r.variation_label='';}stDraw();}
+async function stDraftPick(i,val){
+  const r=stDraft[i];if(!r)return;
+  const cat=document.getElementById('st-category').value;
+  if(val==='__new__'){
+    const label=(prompt('New property option (for example Bungalow):')||'').trim();
+    const value=stKey(label);
+    if(!value){stDraw();return;}
+    if(!stOpts('property',cat).some(o=>o.value===value)){
+      try{
+        await sb('service_attribute_options',{method:'POST',body:JSON.stringify({attribute:'property',category:cat,value,label,business_id:BUSINESS_ID,sort_order:((stOpts('property',cat).slice(-1)[0]||{}).sort_order||0)+10}),prefer:'return=minimal'});
+        stOptions=await sb(`service_attribute_options?business_id=eq.${BUSINESS_ID}&active=eq.true&order=sort_order.asc`)||[];
+      }catch(e){showToast(e.message,'error');stDraw();return;}
+    }
+    val=value;
+  }
+  const prev=stOpts('property',cat).find(x=>x.value===r.variation_key);
+  r.variation_key=val;
+  const o=stOpts('property',cat).find(x=>x.value===val);
+  if(o&&(!r.variation_label||(prev&&r.variation_label===prev.label)))r.variation_label=o.label;
+  stDraw();
+}
 function stDraftToggle(i){stDraft[i]._open=!stDraft[i]._open;stDraw();}
 function stDraftSet(i,f,v){
   const r=stDraft[i];if(!r)return;
@@ -6715,8 +6755,8 @@ function stDraw(){
   const opt=(v,l,cur)=>`<option value="${esc(v)}"${String(cur)===String(v)?' selected':''}>${esc(l)}</option>`;
   box.innerHTML=stDraft.length?stDraft.map((r,i)=>{
     const editor=r._open?`<div style="padding:0 11px 11px;display:flex;flex-direction:column;gap:10px">
-      <div class="form-row"><div class="field"><label>Varies by</label><select onchange="stDraftSet(${i},'dimension',this.value)">${opt('','Nothing (one price)',r.dimension)}${opt('bedrooms','Bedrooms',r.dimension)}${opt('size','Size',r.dimension)}${opt('area','Area',r.dimension)}</select></div>
-        <div class="field"><label>Option</label><input value="${esc(r.variation_key)}" placeholder="e.g. 3_bed, small" autocomplete="off" oninput="stDraftSet(${i},'variation_key',this.value)"></div></div>
+      <div class="form-row"><div class="field"><label>Varies by</label><select onchange="stDraftDim(${i},this.value)">${opt('','Nothing (one price)',r.dimension)}${opt('property','Property',r.dimension)}${opt('bedrooms','Bedrooms',r.dimension)}${opt('size','Size',r.dimension)}${opt('area','Area',r.dimension)}</select></div>
+        <div class="field"><label>Option</label>${stOptionField(i,r,opt)}</div></div>
       <div class="field"><label>Label (optional)</label><input value="${esc(r.variation_label)}" placeholder="e.g. 3 bedrooms" oninput="stDraftSet(${i},'variation_label',this.value)"></div>
       <div class="form-row"><div class="field"><label>Price (£)</label><input type="number" inputmode="decimal" step="0.01" min="0" value="${esc(r.price)}" placeholder="Not set" oninput="stDraftSet(${i},'price',this.value)"></div>
         <div class="field"><label>Charged</label><select onchange="stDraftSet(${i},'unit',this.value)">${Object.keys(ST_UNIT).map(k=>opt(k,ST_UNIT[k].replace(/^per /,'Per '),r.unit)).join('')}</select></div></div>
