@@ -823,6 +823,15 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 /* With the panel open the page makes room for it (instead of hiding the right edge, e.g. the Send button) */
 @media(min-width:1500px){body.dan-open .main.wide{padding-right:412px;}}
 @media(min-width:1400px){body.dan-open.pg-messaging .main.wide{padding-right:412px;}body.dan-open.pg-messaging .ib-split{grid-template-columns:minmax(290px,330px) minmax(0,1fr);gap:18px;}}
+
+/* Round assignee filter: one compact scrollable row (v1.0.237) */
+.af-row{display:flex;flex-wrap:nowrap;gap:5px;overflow-x:auto;padding:0 0 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.af-row::-webkit-scrollbar{display:none;}
+.af-pill{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:3px 10px 3px 3px;font-size:13px;white-space:nowrap;}
+.af-pill.af-all{padding:3px 12px;}
+.af-dot{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font:700 10px 'DM Mono',monospace;color:#0a1420;}
+.af-dot-un{background:var(--navy-600);color:var(--text-soft);}
+.af-n{font:500 11px 'DM Mono',monospace;opacity:.65;}
 </style>
 </head>
 <body>
@@ -1398,8 +1407,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='236';
-const BUILD_DATE='12 Nov 2026 15:42';
+const BUILD_VERSION='237';
+const BUILD_DATE='12 Nov 2026 15:44';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3140,10 +3149,17 @@ async function renderRound(){
       ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:56px"></div>'}
       <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
-    ${isAdmin&&wcUsers.length?`<div class="assignee-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 0 14px">
-      ${wcUsers.map(u=>`<button class="assignee-pill${roundAssignees.has(u.id)?' selected':''}" onclick="toggleRoundAssignee('${u.id}')">${esc(u.name)}</button>`).join('')}
-      <button class="assignee-pill${roundAssignees.has('unassigned')?' selected':''}" onclick="toggleRoundAssignee('unassigned')">Unassigned</button>
-    </div>`:''}
+    ${isAdmin&&wcUsers.length?(()=>{
+      const allKeys=[...wcUsers.map(u=>u.id),'unassigned'];
+      const allSel=allKeys.every(k=>roundAssignees.has(k));
+      const cnt=k=>jobs.filter(j=>(j.assigned_to||'unassigned')===k).length;
+      const pill=(k,label,dot)=>`<button type="button" class="assignee-pill af-pill${!allSel&&roundAssignees.has(k)?' selected':''}" onclick="toggleRoundAssignee('${k}')">${dot}${esc(label)}<span class="af-n">${cnt(k)}</span></button>`;
+      return `<div class="assignee-filter-bar af-row" role="group" aria-label="Filter by assignee">
+        <button type="button" class="assignee-pill af-pill af-all${allSel?' selected':''}" onclick="resetRoundAssignees()">All<span class="af-n">${jobs.length}</span></button>
+        ${wcUsers.map(u=>pill(u.id,String(u.name||'').split(' ')[0],`<span class="af-dot" style="background:${userColor(u.id)}">${initialsFor(u.name)}</span>`)).join('')}
+        ${jobs.some(j=>!j.assigned_to)||roundAssignees.has('unassigned')&&!allSel?pill('unassigned','Unassigned','<span class="af-dot af-dot-un">?</span>'):''}
+      </div>`;
+    })():''}
     <div class="round-summary"${hidePrices()?' style="grid-template-columns:repeat(3,1fr)"':''}>
       <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
@@ -5809,9 +5825,18 @@ function toggleJobsAssignee(key){
   renderJobs();
 }
 
+function resetRoundAssignees(){
+  roundAssignees=new Set([...wcUsers.map(u=>u.id),'unassigned']);
+  renderRound();
+}
 function toggleRoundAssignee(key){
-  if(roundAssignees.has(key))roundAssignees.delete(key);
-  else roundAssignees.add(key);
+  const all=new Set([...wcUsers.map(u=>u.id),'unassigned']);
+  const allSel=[...all].every(k=>roundAssignees.has(k));
+  if(allSel)roundAssignees=new Set([key]);            // everyone showing -> tap = just this person
+  else if(roundAssignees.has(key)){
+    roundAssignees.delete(key);
+    if(!roundAssignees.size)roundAssignees=all;       // nothing left -> back to everyone
+  }else roundAssignees.add(key);                      // partial -> add to the selection
   renderRound();
 }
 
