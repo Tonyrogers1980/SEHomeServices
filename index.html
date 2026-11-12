@@ -264,8 +264,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .loading{display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-muted);font-size:15px;gap:12px;}
 .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-.toast{position:fixed;bottom:calc(var(--bottom-nav) + var(--safe-bottom) + 12px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy-700);color:var(--white);border:1px solid var(--border);padding:12px 20px;border-radius:24px;font-size:14px;font-weight:500;z-index:999;transition:transform .25s ease;white-space:nowrap;max-width:90vw;}
-.toast.show{transform:translateX(-50%) translateY(0);}
+.toast{position:fixed;bottom:calc(var(--bottom-nav) + var(--safe-bottom) + 12px);left:50%;transform:translateX(-50%) translateY(calc(100% + var(--bottom-nav) + var(--safe-bottom) + 40px));opacity:0;visibility:hidden;pointer-events:none;background:var(--navy-700);color:var(--white);border:1px solid var(--border);padding:12px 20px;border-radius:24px;font-size:14px;font-weight:500;z-index:999;transition:transform .25s ease,opacity .25s ease,visibility 0s linear .25s;white-space:nowrap;max-width:90vw;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;pointer-events:auto;transition:transform .25s ease,opacity .25s ease,visibility 0s;}
 .toast.success{background:var(--done);}
 .toast.error{background:var(--danger);}
 .coming-soon{text-align:center;padding:80px 20px;}
@@ -1398,8 +1398,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='235';
-const BUILD_DATE='10 Nov 2026 15:34';
+const BUILD_VERSION='236';
+const BUILD_DATE='12 Nov 2026 15:42';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1528,8 +1528,10 @@ async function sb(path,opts={}){
 let toastTimer;
 function showToast(msg,type=''){
   const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type?' '+type:'');
+  clearTimeout(toastTimer);
   setTimeout(()=>t.classList.add('show'),10);
-  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),type==='error'?5000:3000);
+  t.onclick=()=>{clearTimeout(toastTimer);t.classList.remove('show');};
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='jobModal'||id==='quoteModal'){nearbyToken++;['j-nearby','q-nearby'].forEach(b=>{const e=document.getElementById(b);if(e){e.style.display='none';e.innerHTML='';}});}}
 
