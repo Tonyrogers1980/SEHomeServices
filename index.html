@@ -1425,8 +1425,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='238';
-const BUILD_DATE='12 Nov 2026 15:47';
+const BUILD_VERSION='239';
+const BUILD_DATE='12 Nov 2026 15:56';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3158,20 +3158,10 @@ async function renderRound(){
   el.innerHTML=`
     ${roundNavRow('changeRoundDate(-1)','changeRoundDate(1)',fmtDate(roundDate),fmtDayShort(roundDate),!isToday)}
     ${crewAlertBar(jobs)}
-    ${unassignedJobs.length?`<button type="button" class="sq-banner" onclick="navigate('jobs')"><span class="n">${unassignedJobs.length}</span><span style="flex:1;min-width:0"><b>${unassignedJobs.length===1?'job needs':'jobs need'} someone assigned</b><span class="s">Tap to review in Jobs</span></span>${ic('go')}</button>`:''}
+    ${unassignedJobs.length&&roundAssignees.has('unassigned')?`<button type="button" class="sq-banner" onclick="navigate('jobs')"><span class="n">${unassignedJobs.length}</span><span style="flex:1;min-width:0"><b>${unassignedJobs.length===1?'job needs':'jobs need'} someone assigned</b><span class="s">Tap to review in Jobs</span></span>${ic('go')}</button>`:''}
     <div class="rd-split"><div class="rd-left">
     <div class="rd-top">
-    ${isAdmin&&wcUsers.length?(()=>{
-      const allKeys=[...wcUsers.map(u=>u.id),'unassigned'];
-      const allSel=allKeys.every(k=>roundAssignees.has(k));
-      const cnt=k=>jobs.filter(j=>(j.assigned_to||'unassigned')===k).length;
-      const pill=(k,label,dot)=>`<button type="button" class="assignee-pill af-pill${!allSel&&roundAssignees.has(k)?' selected':''}" onclick="toggleRoundAssignee('${k}')">${dot}${esc(label)}<span class="af-n">${cnt(k)}</span></button>`;
-      return `<div class="assignee-filter-bar af-row" role="group" aria-label="Filter by assignee">
-        <button type="button" class="assignee-pill af-pill af-all${allSel?' selected':''}" onclick="resetRoundAssignees()">All<span class="af-n">${jobs.length}</span></button>
-        ${wcUsers.map(u=>pill(u.id,String(u.name||'').split(' ')[0],`<span class="af-dot" style="background:${userColor(u.id)}">${initialsFor(u.name)}</span>`)).join('')}
-        ${jobs.some(j=>!j.assigned_to)||roundAssignees.has('unassigned')&&!allSel?pill('unassigned','Unassigned','<span class="af-dot af-dot-un">?</span>'):''}
-      </div>`;
-    })():''}
+    ${roundAssigneeBar(jobs)}
     <div class="round-summary"${hidePrices()?' style="grid-template-columns:repeat(3,1fr)"':''}>
       <div class="round-stat"><div class="round-stat-val">${remaining}</div><div class="round-stat-label">To do</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--done)">${done}</div><div class="round-stat-label">Done</div></div>
@@ -3236,7 +3226,8 @@ async function roundCalPanelHtml(){
   const year=base.getFullYear(),month=base.getMonth();
   const first=new Date(year,month,1),last=new Date(year,month+1,0);
   const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-  const jobs=await sb(`wc_jobs?next_due=gte.${localDateStr(first)}&next_due=lte.${localDateStr(last)}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price`)||[];
+  const jobsAll=await sb(`wc_jobs?next_due=gte.${localDateStr(first)}&next_due=lte.${localDateStr(last)}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,assigned_to`)||[];
+  const jobs=roundFilterJobs(jobsAll);
   const byDate={};
   jobs.forEach(j=>{if(j.next_due)(byDate[j.next_due]=byDate[j.next_due]||[]).push(j);});
   const today=todayStr();
@@ -3590,6 +3581,24 @@ async function closeJobActions(jobId){
 }
 
 // ── ROUND (v1.0.167 aligned) ────────────────────────────────────────────────
+// Assignee filter shared by Day / Week / Month / calendar panel (v1.0.239)
+function roundIsAdmin(){return currentUser?.view_mode!=='round_only';}
+function roundFilterJobs(list){
+  if(currentUser?.view_mode==='round_only'||!roundAssignees)return list;
+  return list.filter(j=>roundAssignees.has(j.assigned_to||'unassigned'));
+}
+function roundAssigneeBar(jobs){
+  if(currentUser?.view_mode==='round_only'||!wcUsers.length)return'';
+  const allKeys=[...wcUsers.map(u=>u.id),'unassigned'];
+  const allSel=allKeys.every(k=>roundAssignees.has(k));
+  const cnt=k=>jobs.filter(j=>(j.assigned_to||'unassigned')===k).length;
+  const pill=(k,label,dot)=>`<button type="button" class="assignee-pill af-pill${!allSel&&roundAssignees.has(k)?' selected':''}" onclick="toggleRoundAssignee('${k}')">${dot}${esc(label)}<span class="af-n">${cnt(k)}</span></button>`;
+  return `<div class="assignee-filter-bar af-row" role="group" aria-label="Filter by assignee">
+    <button type="button" class="assignee-pill af-pill af-all${allSel?' selected':''}" onclick="resetRoundAssignees()">All<span class="af-n">${jobs.length}</span></button>
+    ${wcUsers.map(u=>pill(u.id,String(u.name||'').split(' ')[0],`<span class="af-dot" style="background:${userColor(u.id)}">${initialsFor(u.name)}</span>`)).join('')}
+    ${jobs.some(j=>!j.assigned_to)||(roundAssignees.has('unassigned')&&!allSel)?pill('unassigned','Unassigned','<span class="af-dot af-dot-un">?</span>'):''}
+  </div>`;
+}
 function roundViewBar(){
   return`<div class="sq-seg fit">${['Day','Week','Month'].map(v=>`<button type="button" class="${roundView===v.toLowerCase()?'on':''}" onclick="roundView='${v.toLowerCase()}';renderRound()">${v}</button>`).join('')}</div>`;
 }
@@ -3670,6 +3679,7 @@ async function renderRoundWeek(el){
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
     jobs=await sb(`wc_jobs?next_due=gte.${weekStart}&next_due=lte.${weekEnd}&business_id=eq.${BUSINESS_ID}${af}&order=next_due.asc,round_order.asc&select=*,wc_customers(id,name,address,postcode,notes,email,phone,whatsapp_number,stripe_customer_id,balance,cash_payer,payer_type),${SVC_EMBED}`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  const allJobs=jobs;jobs=roundFilterJobs(jobs);
   const prevWeek=shiftDay(weekStart,-7),nextWeek=shiftDay(weekStart,7);
   const today=todayStr();
   const weekTotal=jobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
@@ -3677,6 +3687,7 @@ async function renderRoundWeek(el){
   const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   el.innerHTML=`
     ${roundNavRow(`roundDate='${prevWeek}';renderRound()`,`roundDate='${nextWeek}';renderRound()`,`${fmtShort(weekStart)} \u2013 ${fmtShort(weekEnd)}`,fmtWeekShort(weekStart,weekEnd),false)}
+    ${roundAssigneeBar(allJobs)}
     <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this week</span>${hidePrices()?'':`<i class="sq-vr"></i><b style="color:var(--done)">£${weekDone.toFixed(0)}</b><span>done</span><i class="sq-vr"></i><b>£${weekTotal.toFixed(0)}</b><span>total</span>`}</span></div>
     <div class="sq-list wk-list">${days.map((date,i)=>{
         const dayJobs=jobs.filter(j=>j.next_due===date);
@@ -3690,7 +3701,7 @@ async function renderRoundWeek(el){
           <div class="sq-right">${dayJobs.length?`${hidePrices()?'':sqMoney(dayTotal)}<span class="sq-lbl">${dayDone}/${dayJobs.length} done</span>`:''}</div>
         </div></div>`;
       }).join('')}</div>
-    <div class="wk-legend">${wcUsers.map(u=>`<span><i class="wk-dot" style="background:${userColor(String(u.id))}"></i>${esc(u.name)}</span>`).join('')}<span><i class="wk-dot" style="background:#d6455d"></i>Unassigned</span></div>
+    <div class="wk-legend">${wcUsers.filter(u=>roundIsAdmin()?roundAssignees.has(u.id):true).map(u=>`<span><i class="wk-dot" style="background:${userColor(String(u.id))}"></i>${esc(u.name)}</span>`).join('')}${roundIsAdmin()&&!roundAssignees.has('unassigned')?'':'<span><i class="wk-dot" style="background:#d6455d"></i>Unassigned</span>'}</div>
     <div class="wk-board">${days.map((date,i)=>{
         const dj=jobs.filter(j=>j.next_due===date).sort(roundCmp);
         const tot=dj.reduce((a,j)=>a+parseFloat(j.price||0),0);
@@ -3711,8 +3722,9 @@ async function renderRoundMonth(el){
   let jobs=[];
   try{
     const af=currentUser?.view_mode==='round_only'?`&assigned_to=eq.${currentUser.id}`:'';
-    jobs=await sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price`);
+    jobs=await sb(`wc_jobs?next_due=gte.${monthStart}&next_due=lte.${monthEnd}&business_id=eq.${BUSINESS_ID}${af}&select=id,next_due,status,price,assigned_to`);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  const allJobs=jobs;jobs=roundFilterJobs(jobs);
   const byDate={};
   jobs.forEach(j=>{if(j.next_due){if(!byDate[j.next_due])byDate[j.next_due]=[];byDate[j.next_due].push(j);}});
   const prevMonth=localDateStr(new Date(year,month-1,1));
@@ -3744,6 +3756,7 @@ async function renderRoundMonth(el){
   }
   el.innerHTML=`
     ${roundNavRow(`roundDate='${prevMonth}';renderRound()`,`roundDate='${nextMonth}';renderRound()`,monthName,`${MON3[firstDay.getMonth()]} ${firstDay.getFullYear()}`,false)}
+    ${roundAssigneeBar(allJobs)}
     <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this month</span>${hidePrices()?'':`<i class="sq-vr"></i><b>£${monthTotal.toFixed(0)}</b>`}</span></div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
       ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${x}</div>`).join('')}
