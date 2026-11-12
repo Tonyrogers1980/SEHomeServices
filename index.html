@@ -832,6 +832,24 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 .af-dot{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font:700 10px 'DM Mono',monospace;color:#0a1420;}
 .af-dot-un{background:var(--navy-600);color:var(--text-soft);}
 .af-n{font:500 11px 'DM Mono',monospace;opacity:.65;}
+/* Round: selector + date stepper on one row (v1.0.238) */
+.rn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+.rn-row .sq-seg.fit{margin:0;flex:0 0 auto;}
+.rn-row .sq-seg.fit button{padding:8px 10px;font-size:13px;}
+.rn-nav{display:flex;align-items:center;gap:2px;min-width:0;flex:1 1 auto;}
+.rn-nav .date-nav-btn{width:34px;height:34px;flex:0 0 34px;}
+.rn-date{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;flex:1 1 auto;text-align:center;line-height:1.15;}
+.rn-lbl{font-size:14px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.rn-long{display:none;}
+.rn-today{font-size:11px;padding:0;line-height:1.3;}
+@media(min-width:700px){
+  .rn-row{justify-content:flex-start;gap:24px;}
+  .rn-nav{flex:0 1 auto;gap:8px;}
+  .rn-nav .date-nav-btn{width:42px;height:42px;flex-basis:42px;}
+  .rn-date{min-width:200px;}
+  .rn-lbl{font-size:16px;}
+  .rn-long{display:inline;}.rn-short{display:none;}
+}
 </style>
 </head>
 <body>
@@ -1407,8 +1425,8 @@ const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='237';
-const BUILD_DATE='12 Nov 2026 15:44';
+const BUILD_VERSION='238';
+const BUILD_DATE='12 Nov 2026 15:47';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3138,17 +3156,11 @@ async function renderRound(){
   }
 
   el.innerHTML=`
-    ${roundViewBar()}
+    ${roundNavRow('changeRoundDate(-1)','changeRoundDate(1)',fmtDate(roundDate),fmtDayShort(roundDate),!isToday)}
     ${crewAlertBar(jobs)}
     ${unassignedJobs.length?`<button type="button" class="sq-banner" onclick="navigate('jobs')"><span class="n">${unassignedJobs.length}</span><span style="flex:1;min-width:0"><b>${unassignedJobs.length===1?'job needs':'jobs need'} someone assigned</b><span class="s">Tap to review in Jobs</span></span>${ic('go')}</button>`:''}
     <div class="rd-split"><div class="rd-left">
     <div class="rd-top">
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="changeRoundDate(-1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <div class="date-display">${fmtDate(roundDate)}</div>
-      ${!isToday?`<button class="date-today-btn" onclick="roundDate=todayStr();renderRound()">Today</button>`:'<div style="width:56px"></div>'}
-      <button class="date-nav-btn" onclick="changeRoundDate(1)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
-    </div>
     ${isAdmin&&wcUsers.length?(()=>{
       const allKeys=[...wcUsers.map(u=>u.id),'unassigned'];
       const allSel=allKeys.every(k=>roundAssignees.has(k));
@@ -3581,6 +3593,15 @@ async function closeJobActions(jobId){
 function roundViewBar(){
   return`<div class="sq-seg fit">${['Day','Week','Month'].map(v=>`<button type="button" class="${roundView===v.toLowerCase()?'on':''}" onclick="roundView='${v.toLowerCase()}';renderRound()">${v}</button>`).join('')}</div>`;
 }
+const MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDayShort(s){const d=new Date(s+'T12:00:00');return d.toLocaleDateString('en-GB',{weekday:'short'})+' '+d.getDate()+' '+MON3[d.getMonth()];}
+function fmtWeekShort(a,b){const x=new Date(a+'T12:00:00'),y=new Date(b+'T12:00:00');return x.getMonth()===y.getMonth()?`${x.getDate()}\u2013${y.getDate()} ${MON3[y.getMonth()]}`:`${x.getDate()} ${MON3[x.getMonth()]}\u2013${y.getDate()} ${MON3[y.getMonth()]}`;}
+// One row: Day/Week/Month selector + date stepper (v1.0.238)
+function roundNavRow(prevJs,nextJs,longLbl,shortLbl,showToday){
+  const L='<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>';
+  const R='<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
+  return `<div class="rn-row">${roundViewBar()}<div class="rn-nav"><button type="button" class="date-nav-btn" aria-label="Previous" onclick="${prevJs}">${L}</button><div class="rn-date"><span class="rn-lbl"><span class="rn-long">${longLbl}</span><span class="rn-short">${shortLbl}</span></span>${showToday?'<button type="button" class="date-today-btn rn-today" onclick="roundDate=todayStr();renderRound()">Today</button>':''}</div><button type="button" class="date-nav-btn" aria-label="Next" onclick="${nextJs}">${R}</button></div></div>`;
+}
 function jobCard(j,num){
   const c=j.wc_customers||{};
   const isDone=j.status==='done',isSkip=j.status==='skipped',isCant=j.status==='cant-access',isSched=j.status==='scheduled';
@@ -3655,12 +3676,7 @@ async function renderRoundWeek(el){
   const weekDone=jobs.filter(j=>j.status==='done').reduce((s,j)=>s+parseFloat(j.price||0),0);
   const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   el.innerHTML=`
-    ${roundViewBar()}
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="roundDate='${prevWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <div class="date-display" style="font-size:13px">${fmtShort(weekStart)} – ${fmtShort(weekEnd)}</div>
-      <button class="date-nav-btn" onclick="roundDate='${nextWeek}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
-    </div>
+    ${roundNavRow(`roundDate='${prevWeek}';renderRound()`,`roundDate='${nextWeek}';renderRound()`,`${fmtShort(weekStart)} \u2013 ${fmtShort(weekEnd)}`,fmtWeekShort(weekStart,weekEnd),false)}
     <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this week</span>${hidePrices()?'':`<i class="sq-vr"></i><b style="color:var(--done)">£${weekDone.toFixed(0)}</b><span>done</span><i class="sq-vr"></i><b>£${weekTotal.toFixed(0)}</b><span>total</span>`}</span></div>
     <div class="sq-list wk-list">${days.map((date,i)=>{
         const dayJobs=jobs.filter(j=>j.next_due===date);
@@ -3727,12 +3743,7 @@ async function renderRoundMonth(el){
     </div>`;
   }
   el.innerHTML=`
-    ${roundViewBar()}
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="roundDate='${prevMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-      <div class="date-display">${monthName}</div>
-      <button class="date-nav-btn" onclick="roundDate='${nextMonth}';renderRound()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
-    </div>
+    ${roundNavRow(`roundDate='${prevMonth}';renderRound()`,`roundDate='${nextMonth}';renderRound()`,monthName,`${MON3[firstDay.getMonth()]} ${firstDay.getFullYear()}`,false)}
     <div class="sq-top"><span class="sq-pill"><b>${jobs.length}</b><span>jobs this month</span>${hidePrices()?'':`<i class="sq-vr"></i><b>£${monthTotal.toFixed(0)}</b>`}</span></div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
       ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0">${x}</div>`).join('')}
