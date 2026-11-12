@@ -1426,8 +1426,8 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='240';
-const BUILD_DATE='12 Nov 2026 18:05';
+const BUILD_VERSION='241';
+const BUILD_DATE='12 Nov 2026 18:20';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3641,6 +3641,7 @@ function jobCard(j,num){
   const noteText=[c.notes,j.notes].filter(Boolean).join(' · ');
   const banners=[];
   if(balanceNum>0)banners.push(`<span class="sq-flag owe">${hidePrices()?'⚠ Payment owing':'⚠ Owes £'+balanceNum.toFixed(2)}</span>`);
+  if(j.cant_attend_at&&isSched)banners.push(`<span class="sq-flag owe" style="background:rgba(217,116,26,.16);color:#d9741a">⚠ Customer told we can't make it — needs rescheduling</span>`);
   if(noteText)banners.push(`<span class="sq-flag note">📝 ${esc(noteText)}</span>`);
   const chg=jobChangeBlock(j.id);
   const svc=svcBlock(j);
@@ -3849,6 +3850,7 @@ async function cantAttendJob(jobId,btn){
     if(!r.ok)throw new Error('Could not send ('+r.status+')');
     showToast('Customer messaged','success');
     if(btn)btn.textContent='✓ Customer messaged';
+    setTimeout(()=>{try{refreshRoundish();}catch(_){}},1500);
   }catch(e){
     showToast(e.message||'Could not send','error');
     if(btn){btn.disabled=false;btn.textContent="✉️ Can't make it";}
@@ -3907,7 +3909,7 @@ async function confirmReschedule(){
       // Move just this job
       await sb(`wc_jobs?id=eq.${rescheduleJobId}`,{
         method:'PATCH',
-        body:JSON.stringify({next_due:newDate,scheduled_date:newDate,...extraMain}),
+        body:JSON.stringify({next_due:newDate,scheduled_date:newDate,cant_attend_at:null,...extraMain}),
         prefer:'return=minimal'
       });
       showToast(reassigned?'Job rescheduled and reassigned':'Job rescheduled','success');
@@ -3925,7 +3927,7 @@ async function confirmReschedule(){
         const shifted=new Date(fj.next_due+'T12:00:00');
         shifted.setDate(shifted.getDate()+offsetDays);
         const d=shifted.toISOString().split('T')[0];
-        return sb(`wc_jobs?id=eq.${fj.id}`,{method:'PATCH',body:JSON.stringify({next_due:d,scheduled_date:d,...extra}),prefer:'return=minimal'});
+        return sb(`wc_jobs?id=eq.${fj.id}`,{method:'PATCH',body:JSON.stringify({next_due:d,scheduled_date:d,cant_attend_at:null,...extra}),prefer:'return=minimal'});
       }));
       showToast(`${futureJobs.length} jobs rescheduled${reassigned?' and reassigned':''}`,'success');
     }
