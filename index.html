@@ -1424,9 +1424,10 @@ const N8N_PAYMENT_SETUP_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/cl
 const N8N_STRIPE_SEARCH_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-search';
 const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-stripe-payment-method';
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
+const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='239';
-const BUILD_DATE='12 Nov 2026 15:56';
+const BUILD_VERSION='240';
+const BUILD_DATE='12 Nov 2026 18:05';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -3625,8 +3626,9 @@ function jobCard(j,num){
   const chargeBtn=isAdmin?`<button type="button" class="sq-jbtn" style="background:var(--gold);border-color:var(--gold);color:var(--navy-900)" onclick="event.stopPropagation();chargeJobStripe('${j.id}','${jsq(c.name||'')}','${j.price}','${jsq(j.service_type||'')}','${jsq(c.email||'')}','${jsq(c.whatsapp_number||c.phone||'')}','${jsq(c.stripe_customer_id||'')}')">💳 Charge card</button>`:'';
   const rescheduleBtn=`<button type="button" class="sq-jbtn" style="border-color:var(--violet);color:var(--violet)" onclick="event.stopPropagation();openReschedule('${j.id}','${j.series_id||''}')">📅 Reschedule</button>`;
   const skipBtn=`<button type="button" class="sq-jbtn" onclick="event.stopPropagation();openSkip('${j.id}','skipped')">Skip</button>`;
+  const cantAttendBtn=`<button type="button" class="sq-jbtn" style="border-color:var(--warn);color:var(--warn)" onclick="event.stopPropagation();cantAttendJob('${j.id}',this)">✉️ Can't make it</button>`;
   const undoBtn=`<button type="button" class="sq-jbtn" onclick="event.stopPropagation();undoStatus('${j.id}')">↩ Undo — ${statusLabel(j.status)}</button>`;
-  const overflowItems=(isSched?[skipBtn,chargeBtn,rescheduleBtn]:[undoBtn,chargeBtn]).filter(Boolean);
+  const overflowItems=(isSched?[cantAttendBtn,skipBtn,chargeBtn,rescheduleBtn]:[undoBtn,chargeBtn]).filter(Boolean);
   const actions=`<div class="sq-jacts">
     ${isSched?doneBtn:''}${navBtn}
     ${overflowItems.length?`<details class="job-actions-more"><summary aria-label="More actions" onclick="event.stopPropagation()">⋯</summary><div class="job-actions-more-list" onclick="event.stopPropagation()">${overflowItems.join('')}</div></details>`:''}
@@ -3836,6 +3838,21 @@ async function undoStatus(id){
     await sb(`wc_jobs?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'scheduled',last_done:null,notes:null}),prefer:'return=minimal'});
     showToast('Reset','success');refreshRoundish();
   }catch(e){showToast(e.message,'error');}
+}
+
+// ── CAN'T MAKE IT (message customer: sorry, we'll be in touch to reschedule) ──
+async function cantAttendJob(jobId,btn){
+  if(!confirm("Message this customer to say sorry, we can't make the appointment and we'll be in touch to reschedule?"))return;
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    const r=await fetch(N8N_CANT_ATTEND_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:jobId})});
+    if(!r.ok)throw new Error('Could not send ('+r.status+')');
+    showToast('Customer messaged','success');
+    if(btn)btn.textContent='✓ Customer messaged';
+  }catch(e){
+    showToast(e.message||'Could not send','error');
+    if(btn){btn.disabled=false;btn.textContent="✉️ Can't make it";}
+  }
 }
 
 // ── RESCHEDULE ────────────────────────────────────────────────────────────────
