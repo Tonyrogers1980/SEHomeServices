@@ -1470,8 +1470,8 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='245';
-const BUILD_DATE='13 Nov 2026 10:05';
+const BUILD_VERSION='246';
+const BUILD_DATE='13 Nov 2026 15:10';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -1860,7 +1860,6 @@ async function danSend(textOverride){
   danLastCtx=ctxId;
   const hist=danMsgs.filter(m=>(m.role==='user'||m.role==='assistant')&&!m.err).slice(-12).map(m=>({role:m.role,content:m.content+(m.action&&m.action.payload?' [draft quote data: '+JSON.stringify(m.action.payload)+']':'')}));
   const imgs=danImgs.slice();
-  const useAct=danWantsActions(text);
   danMsgs.push({role:'user',content:text,imgn:imgs.length||undefined});danImgs=[];danStripRender();danBusy=true;danSave();danRender();
   let reply=null;
   async function post(url,body){
@@ -1869,14 +1868,12 @@ async function danSend(textOverride){
     finally{clearTimeout(to);}
   }
   try{
-    let r=null;
-    if(useAct){
-      r=await post(DAN_ACT_URL,{message:text,history:hist,images:imgs});
-      if(r.res.status===404){
-        if(imgs.length){reply={content:'The screenshot quote tool is not switched on yet. Switch on the Danielle Actions workflow in n8n, then try again.',err:true};r=null;}
-        else r=await post(DAN_URL,{message:text,history:hist,conversation_id:ctxId});
-      }
-    }else r=await post(DAN_URL,{message:text,history:hist,conversation_id:ctxId});
+    let r=await post(DAN_ACT_URL,{message:text,history:hist,images:imgs,conversation_id:ctxId});
+    // v1.0.246: one assistant. Only if the new endpoint is down (not a login problem) fall back to the old read-only one.
+    if(r.res.status!==401&&(r.res.status===404||r.res.status>=500||!r.data||typeof r.data.ok==='undefined')){
+      if(imgs.length){reply={content:'The assistant is not responding right now, so I could not read the screenshot. Please try again in a moment.',err:true};r=null;}
+      else r=await post(DAN_URL,{message:text,history:hist,conversation_id:ctxId});
+    }
     if(r){
       const {res,data}=r;
       if(res.status===401)reply={content:'Your login has expired. Please log out and back in, then ask me again.',err:true};
