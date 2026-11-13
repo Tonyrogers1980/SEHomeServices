@@ -1444,8 +1444,8 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='242';
-const BUILD_DATE='13 Nov 2026 07:32';
+const BUILD_VERSION='243';
+const BUILD_DATE='13 Nov 2026 07:39';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -6360,15 +6360,18 @@ function bucketByPeriod(jobs,dateField,period){
 }
 
 // ── PROFITABILITY ──────────────────────────────────────────────────────────────
-// Per-day profit: revenue from that day's jobs, less team pay under each person's pay plan.
-// Percentage workers (Danny) cost their % of their own jobs that day; day-rate workers (Phil) cost a full or
-// half day depending on whether their jobs that day reach the plan's threshold. The owner's own jobs cost nothing.
-// Done jobs are actual (last_done), scheduled jobs are projected (next_due). Skipped jobs are ignored.
-// Cash handling is a settlement detail, not a cost, so it is ignored here.
-let profitMonth=null;
-function profitShift(d){profitMonth=pyShiftMonth(profitMonth,d);renderProfitability();}
+// Profit = revenue less team pay. Always worked out per day first (Danny: his % of his own jobs that day;
+// Phil: full or half day depending on whether his jobs that day reach the plan threshold; owner jobs cost nothing),
+// then grouped into Day, Week (Mon-Sun) or Month views. Done jobs are actual (last_done), scheduled jobs are
+// projected (next_due). Skipped jobs are ignored. Cash handling is a settlement detail, not a cost.
+let profitView='day',profitMonth=null,profitYear=null;
+function profitSetView(v){profitView=v;renderProfitability();}
+function profitShift(d){
+  if(profitView==='month'){profitYear=(profitYear||new Date().getFullYear())+d;}
+  else profitMonth=pyShiftMonth(profitMonth,d);
+  renderProfitability();
+}
 function profitDayCost(plan,jobs){
-  // jobs: that person's jobs on one day -> {cost, label}
   if(!plan)return{cost:0,label:'no pay plan',missing:true};
   const gross=jobs.reduce((t,j)=>t+j.price,0);
   if(plan.pay_type==='percentage'){
@@ -6380,29 +6383,56 @@ function profitDayCost(plan,jobs){
   const thr=plan.full_day_threshold==null?200:parseFloat(plan.full_day_threshold);
   return gross>=thr?{cost:full,label:'full day'}:{cost:half,label:'half day'};
 }
+// Fetch every row (PostgREST caps a response at 1000)
+async function profitFetchAll(path){
+  const out=[];
+  for(let off=0;off<20000;off+=1000){
+    const page=await sb(`${path}&order=id.asc&limit=1000&offset=${off}`);
+    out.push(...(page||[]));
+    if(!page||page.length<1000)break;
+  }
+  return out;
+}
 async function renderProfitability(){
   document.getElementById('topbarPage').textContent='Profitability';
   const el=document.getElementById('mainContent');
   el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
   if(!profitMonth)profitMonth=pyMonthStart(new Date());
-  const m=profitMonth,next=pyShiftMonth(m,1);
+  if(!profitYear)profitYear=new Date().getFullYear();
+  const view=profitView;
+  // Date range to load, by view
+  let from,to,periodLabel;
+  if(view==='month'){
+    from=profitYear+'-01-01';to=(profitYear+1)+'-01-01';periodLabel=String(profitYear);
+  }else{
+    const m=profitMonth,next=pyShiftMonth(m,1);
+    periodLabel=pyMonthLabel(m);
+    if(view==='week'){ // whole Mon-Sun weeks that touch the month, so a split week is never half-counted
+      from=weekKey(m);
+      const last=new Date(next+'T12:00:00');last.setDate(last.getDate()-1);
+      const endMon=new Date(weekKey(localDateStr(last))+'T12:00:00');endMon.setDate(endMon.getDate()+7);
+      to=localDateStr(endMon);
+    }else{from=m;to=next;}
+  }
   let done,sched,plans;
   try{
     await loadUsers();
     [done,sched,plans]=await Promise.all([
-      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${m}&last_done=lt.${next}&select=last_done,price,assigned_to`),
-      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&next_due=gte.${m}&next_due=lt.${next}&select=next_due,price,assigned_to`),
+      profitFetchAll(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${from}&last_done=lt.${to}&select=last_done,price,assigned_to`),
+      profitFetchAll(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&next_due=gte.${from}&next_due=lt.${to}&select=next_due,price,assigned_to`),
       sb(`wc_pay_plans?business_id=eq.${BUSINESS_ID}&order=effective_from.asc`)
     ]);
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load profitability</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
-  done=done||[];sched=sched||[];plans=plans||[];
+  plans=plans||[];
   const today=localDateStr(new Date());
   const jobs=[];
   done.forEach(j=>{if(j.last_done)jobs.push({d:j.last_done,price:parseFloat(j.price||0),uid:j.assigned_to,actual:true});});
   sched.forEach(j=>{if(j.next_due&&j.next_due>=today)jobs.push({d:j.next_due,price:parseFloat(j.price||0),uid:j.assigned_to,actual:false});});
   const byDay={};
   jobs.forEach(j=>{(byDay[j.d]=byDay[j.d]||[]).push(j);});
-  const nameOf=uid=>{const u=wcUsers.find(x=>x.id===uid);return u?u.name.split(' ')[0]:'Unassigned';};
+  const firstName=uid=>{const u=wcUsers.find(x=>x.id===uid);return u?u.name.split(' ')[0]:'Unassigned';};
+
+  // 1) Per-day maths (the pay rules only make sense a day at a time)
   const days=Object.keys(byDay).sort().map(d=>{
     const js=byDay[d];
     const revenue=js.reduce((t,j)=>t+j.price,0);
@@ -6412,34 +6442,67 @@ async function renderProfitability(){
       const mine=js.filter(j=>(j.uid||'none')===uid);
       const u=wcUsers.find(x=>x.id===uid);
       const mineRev=mine.reduce((t,j)=>t+j.price,0);
-      if(!u||u.role==='owner')return{name:u?u.name.split(' ')[0]:'Unassigned',rev:mineRev,cost:0,label:u?'owner, no pay cost':'unassigned',n:mine.length};
+      if(!u||u.role==='owner')return{key:uid,name:u?u.name.split(' ')[0]:'Unassigned',rev:mineRev,cost:0,label:u?'owner, no pay cost':'unassigned',n:mine.length,days:1};
       const c=profitDayCost(pyPlanFor(plans,uid,d),mine);
       cost+=c.cost;if(c.missing)anyMissing=true;
-      return{name:u.name.split(' ')[0],rev:mineRev,cost:c.cost,label:c.label,n:mine.length};
+      return{key:uid,name:u.name.split(' ')[0],rev:mineRev,cost:c.cost,label:c.label,n:mine.length,days:1};
     });
-    const profit=revenue-cost;
-    const allActual=js.every(j=>j.actual);
-    return{d,revenue,cost,profit,margin:revenue>0?profit/revenue*100:0,staff,jobs:js.length,allActual,anyMissing};
+    return{d,revenue,cost,profit:revenue-cost,staff,jobs:js.length,actual:js.every(j=>j.actual),anyActual:js.some(j=>j.actual),anyMissing};
   });
-  const tot=days.reduce((a,x)=>({r:a.r+x.revenue,c:a.c+x.cost,p:a.p+x.profit,j:a.j+x.jobs}),{r:0,c:0,p:0,j:0});
+
+  // 2) Group into the chosen view
+  const keyOf=d=>view==='week'?weekKey(d):view==='month'?d.slice(0,7):d;
+  const groups={};
+  days.forEach(x=>{
+    const k=keyOf(x.d);
+    const g=groups[k]=groups[k]||{k,revenue:0,cost:0,jobs:0,workDays:0,actual:true,anyActual:false,anyMissing:false,staffMap:{}};
+    g.revenue+=x.revenue;g.cost+=x.cost;g.jobs+=x.jobs;g.workDays++;
+    g.actual=g.actual&&x.actual;g.anyActual=g.anyActual||x.anyActual;g.anyMissing=g.anyMissing||x.anyMissing;
+    x.staff.forEach(sf=>{
+      const a=g.staffMap[sf.key]=g.staffMap[sf.key]||{name:sf.name,rev:0,cost:0,n:0,days:0,labels:{}};
+      a.rev+=sf.rev;a.cost+=sf.cost;a.n+=sf.n;a.days++;a.labels[sf.label]=(a.labels[sf.label]||0)+1;
+    });
+  });
+  const rows=Object.values(groups).sort((a,b)=>a.k<b.k?-1:1).map(g=>{
+    g.profit=g.revenue-g.cost;g.margin=g.revenue>0?g.profit/g.revenue*100:0;
+    g.staff=Object.values(g.staffMap);
+    return g;
+  });
+  const tot=rows.reduce((a,x)=>({r:a.r+x.revenue,c:a.c+x.cost,p:a.p+x.profit,j:a.j+x.jobs,d:a.d+x.workDays}),{r:0,c:0,p:0,j:0,d:0});
   const totMargin=tot.r>0?tot.p/tot.r*100:0;
-  const best=days.length?Math.max(...days.map(x=>x.profit),1):1;
+  const best=rows.length?Math.max(...rows.map(x=>x.profit),1):1;
+  // Colour by margin. Day rows use the margin directly; weeks and months the same bands.
   const col=x=>x.profit<=0?'#d6455d':x.margin>=50?'var(--done)':x.margin>=35?'var(--gold)':'#d9741a';
-  const dayLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  const fmtDay=d=>new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  const rowLabel=x=>{
+    if(view==='day')return fmtDay(x.k);
+    if(view==='week'){const e=new Date(x.k+'T12:00:00');e.setDate(e.getDate()+6);
+      const f=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});return f(new Date(x.k+'T12:00:00'))+' – '+f(e);}
+    return new Date(x.k+'-01T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  };
+  const tag=x=>{
+    const state=x.actual?'Actual':x.anyActual?'Part actual, part projected':'Projected';
+    const t=view==='day'?(x.actual?'Actual':x.k===today?'Done + scheduled':'Projected'):state;
+    return view==='day'?`${t} · ${x.jobs} job${x.jobs===1?'':'s'}`:`${t} · ${x.jobs} jobs over ${x.workDays} day${x.workDays===1?'':'s'}`;
+  };
+  const staffTxt=x=>x.staff.map(sf=>{
+    const lab=view==='day'?sf.label:Object.keys(sf.labels).length===1&&/%|owner|unassigned|no pay/.test(Object.keys(sf.labels)[0])?Object.keys(sf.labels)[0]:
+      Object.entries(sf.labels).map(([l,n])=>n+'× '+l).join(', ');
+    const days=view==='day'?'':`, ${sf.days} day${sf.days===1?'':'s'}`;
+    return `${esc(sf.name)}: ${sf.n} job${sf.n===1?'':'s'}${days}, ${pyMoney(sf.rev)} (${lab}${sf.cost?`, -${pyMoney(sf.cost)}`:''})`;
+  }).join(' · ');
+  const bar=x=>`<div style="height:4px;border-radius:2px;background:var(--navy-700);margin:6px 0 4px;overflow:hidden"><div style="height:100%;width:${Math.max(2,Math.round(Math.max(x.profit,0)/best*100))}%;background:${col(x)}"></div></div>`;
+  const colHead={day:'Day',week:'Week',month:'Month'}[view];
   const grid='display:grid;grid-template-columns:1.5fr .6fr 1fr 1fr 1fr .7fr;gap:6px;align-items:center;';
   const hdr=(t,left)=>`<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);text-align:${left?'left':'right'}">${t}</div>`;
-  const tag=x=>x.allActual?'Actual':x.d===today?'Done + scheduled':'Projected';
-  const staffTxt=x=>x.staff.map(s=>`${esc(s.name)}: ${s.n} job${s.n===1?'':'s'}, ${pyMoney(s.rev)} (${s.label}${s.cost?`, -${pyMoney(s.cost)}`:''})`).join(' · ');
-  const bar=x=>`<div style="height:4px;border-radius:2px;background:var(--navy-700);margin:6px 0 4px;overflow:hidden"><div style="height:100%;width:${Math.max(2,Math.round(Math.max(x.profit,0)/best*100))}%;background:${col(x)}"></div></div>`;
-  const missingNote=days.some(x=>x.anyMissing)?`<div style="font-size:11px;color:#d9741a;margin-top:8px;padding:0 4px">Some days have an assignee with no pay plan or rate set, so their pay shows as £0.</div>`:'';
-  const footnote=`<div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;padding:0 4px">Profit is revenue less team pay: Danny's percentage of his jobs that day, Phil's full or half day rate (full day when his jobs that day reach the plan threshold). Your own jobs are pure profit. Fuel, van and software costs are not included. Skipped jobs are left out.</div>`;
+  const missingNote=rows.some(x=>x.anyMissing)?`<div style="font-size:11px;color:#d9741a;margin-top:8px;padding:0 4px">Some days have an assignee with no pay plan or rate set, so their pay shows as £0.</div>`:'';
+  const footnote=`<div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;padding:0 4px">Profit is revenue less team pay, worked out day by day: Danny's percentage of his jobs that day, Phil's full or half day rate (full day when his jobs that day reach the plan threshold). Your own jobs are pure profit. Weeks run Monday to Sunday. Fuel, van and software costs are not included. Skipped jobs are left out.</div>`;
 
-  // Desktop / tablet: table
   const tableView=`<div class="pf-table"><div style="background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;margin-bottom:20px">
-      <div style="${grid}padding:0 4px 4px">${hdr('Day',true)}${hdr('Jobs')}${hdr('Revenue')}${hdr('Team pay')}${hdr('Profit')}${hdr('Margin')}</div>
-      ${days.map(x=>`<div style="padding:8px 4px;border-top:1px solid var(--border)">
+      <div style="${grid}padding:0 4px 4px">${hdr(colHead,true)}${hdr('Jobs')}${hdr('Revenue')}${hdr('Team pay')}${hdr('Profit')}${hdr('Margin')}</div>
+      ${rows.map(x=>`<div style="padding:8px 4px;border-top:1px solid var(--border)">
         <div style="${grid}">
-          <div><div style="font-size:13px;color:var(--text);font-weight:500">${dayLabel(x.d)}</div><div style="font-size:10.5px;color:var(--text-muted)">${tag(x)}</div></div>
+          <div><div style="font-size:13px;color:var(--text);font-weight:500">${rowLabel(x)}</div><div style="font-size:10.5px;color:var(--text-muted)">${tag(x)}</div></div>
           <div style="font-size:13px;text-align:right;color:var(--text-soft)">${x.jobs}</div>
           <div style="font-size:13px;text-align:right;color:var(--text)">${pyMoney(x.revenue)}</div>
           <div style="font-size:13px;text-align:right;color:var(--text-muted)">-${pyMoney(x.cost)}</div>
@@ -6452,11 +6515,10 @@ async function renderProfitability(){
       ${missingNote}${footnote}
     </div></div>`;
 
-  // Mobile: one card per day, profit up front
   const cardView=`<div class="pf-cards">
-    ${days.map(x=>`<div class="pf-card" style="border-left:3px solid ${col(x)}">
+    ${rows.map(x=>`<div class="pf-card" style="border-left:3px solid ${col(x)}">
       <div class="pf-card-top">
-        <div><div style="font-size:14px;color:var(--text);font-weight:600">${dayLabel(x.d)}</div><div style="font-size:10.5px;color:var(--text-muted)">${tag(x)} · ${x.jobs} job${x.jobs===1?'':'s'}</div></div>
+        <div><div style="font-size:14px;color:var(--text);font-weight:600">${rowLabel(x)}</div><div style="font-size:10.5px;color:var(--text-muted)">${tag(x)}</div></div>
         <div style="text-align:right"><div style="font-size:17px;font-weight:700;color:${col(x)};line-height:1.1">${pyMoney(x.profit)}</div><div style="font-size:11px;color:${col(x)}">${x.margin.toFixed(0)}% margin</div></div>
       </div>
       <div class="pf-card-nums"><span>Revenue <b style="color:var(--text)">${pyMoney(x.revenue)}</b></span><span>Team pay <b style="color:var(--text)">-${pyMoney(x.cost)}</b></span></div>
@@ -6466,25 +6528,29 @@ async function renderProfitability(){
     ${missingNote}${footnote}
   </div>`;
 
-  // Wide desktop side panel: profit by day bar chart
-  const maxP=Math.max(...days.map(x=>Math.abs(x.profit)),1);
-  const sideChart=`<div class="pf-side"><div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">Profit by day</div>
+  const maxP=Math.max(...rows.map(x=>Math.abs(x.profit)),1);
+  const barLabel=x=>view==='day'?String(new Date(x.k+'T12:00:00').getDate()):view==='week'?new Date(x.k+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):new Date(x.k+'-01T12:00:00').toLocaleDateString('en-GB',{month:'short'});
+  const sideChart=`<div class="pf-side"><div style="font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:8px">Profit by ${view}</div>
     <div style="display:flex;align-items:flex-end;gap:4px;height:170px;padding:12px 10px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);overflow-x:auto">
-      ${days.map(x=>{const h=Math.max(4,Math.round(Math.max(x.profit,0)/maxP*120));
-        return`<div style="flex:1;min-width:22px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%" title="${dayLabel(x.d)}: ${pyMoney(x.profit)}">
+      ${rows.map(x=>{const h=Math.max(4,Math.round(Math.max(x.profit,0)/maxP*120));
+        return`<div style="flex:1;min-width:${view==='day'?22:34}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%" title="${rowLabel(x)}: ${pyMoney(x.profit)}">
           <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;white-space:nowrap">£${x.profit.toFixed(0)}</div>
-          <div style="width:100%;max-width:24px;height:${h}px;background:${col(x)};border-radius:3px 3px 0 0;${x.allActual?'':'opacity:.55'}"></div>
-          <div style="font-size:9px;color:var(--text-muted);margin-top:4px">${new Date(x.d+'T12:00:00').getDate()}</div>
+          <div style="width:100%;max-width:${view==='day'?24:34}px;height:${h}px;background:${col(x)};border-radius:3px 3px 0 0;${x.actual?'':'opacity:.55'}"></div>
+          <div style="font-size:9px;color:var(--text-muted);margin-top:4px;white-space:nowrap">${barLabel(x)}</div>
         </div>`;}).join('')}
     </div>
-    <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px">Faded bars are projected (scheduled) days. Green is a 50%+ margin, gold 35%+, orange below that, red a loss.</div>
+    <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px">Faded bars include projected (scheduled) work. Green is a 50%+ margin, gold 35%+, orange below that, red a loss.</div>
   </div>`;
 
+  const seg=(id,label)=>`<button onclick="profitSetView('${id}')" style="padding:5px 16px;border-radius:6px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:${view===id?'var(--gold)':'transparent'};color:${view===id?'var(--navy-900)':'var(--text-soft)'}">${label}</button>`;
   el.innerHTML=`
-    <div class="sq-note">Daily profitability</div>
+    <div class="sq-note">Profitability</div>
+    <div style="display:flex;justify-content:center;margin-bottom:12px">
+      <div style="display:flex;gap:2px;background:var(--navy-800);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px">${seg('day','Day')}${seg('week','Week')}${seg('month','Month')}</div>
+    </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px">
       <button class="btn btn-ghost btn-sm" onclick="profitShift(-1)">‹</button>
-      <div style="font-size:15px;font-weight:600;color:var(--text);min-width:140px;text-align:center">${pyMonthLabel(m)}</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);min-width:140px;text-align:center">${periodLabel}</div>
       <button class="btn btn-ghost btn-sm" onclick="profitShift(1)">›</button>
     </div>
     <div class="pf-summary">
@@ -6492,7 +6558,8 @@ async function renderProfitability(){
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--text-muted)">-${pyMoney(tot.c)}</div><div class="round-stat-label">Team pay</div></div>
       <div class="round-stat"><div class="round-stat-val" style="font-size:15px;color:var(--gold)">${pyMoney(tot.p)}</div><div class="round-stat-label">Profit · ${totMargin.toFixed(0)}%</div></div>
     </div>
-    ${days.length?`<div class="pf-grid"><div class="pf-main">${cardView}${tableView}</div>${sideChart}</div>`:`<div class="empty" style="padding:24px 0"><div class="empty-sub">No jobs in ${pyMonthLabel(m)}</div></div>`}
+    ${tot.d?`<div style="font-size:11px;color:var(--text-muted);text-align:center;margin:-8px 0 14px">${tot.j} jobs over ${tot.d} working day${tot.d===1?'':'s'}${tot.d?` · average profit ${pyMoney(tot.p/tot.d)} a day`:''}</div>`:''}
+    ${rows.length?`<div class="pf-grid"><div class="pf-main">${cardView}${tableView}</div>${sideChart}</div>`:`<div class="empty" style="padding:24px 0"><div class="empty-sub">No jobs in ${periodLabel}</div></div>`}
   `;
 }
 
