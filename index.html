@@ -1470,8 +1470,8 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='246';
-const BUILD_DATE='13 Nov 2026 15:10';
+const BUILD_VERSION='247';
+const BUILD_DATE='13 Nov 2026 16:21';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -5509,6 +5509,7 @@ function sqHash(s){let h=0;for(const ch of String(s||''))h=(h*31+ch.charCodeAt(0
 function sqColor(s){const k=String(s||'').toLowerCase();return SQ_ROUND_COLORS[k]||SQ_PALETTE[sqHash(k)%SQ_PALETTE.length];}
 function sqInitials(n){const p=String(n||'?').trim().split(/\s+/).filter(Boolean);const a=((p[0]||'?')[0]||'?')+(p.length>1?((p[p.length-1][0])||''):'');return a.replace(/[^A-Za-z0-9]/g,'').toUpperCase()||'?';}
 function sqAv(name,color,inner,cls){return`<div class="sq-av${cls?' '+cls:''}" style="background:${color||'#33475f'}">${inner||esc(sqInitials(name))}</div>`;}
+function invRef(id){return id?'SEHS-'+String(id).replace(/-/g,'').slice(0,8).toUpperCase():'';}
 function sqChip(text,color,cls){return`<span class="sq-chip${cls?' '+cls:''}" style="background:${color||'#52667d'}">${esc(text)}</span>`;}
 function sqRoundChip(r){return r?sqChip(r,sqColor(r)):'';}
 function sqMoney(n,cls){const v=Math.abs(parseFloat(n)||0);const [w,p]=v.toFixed(2).split('.');return`<span class="sq-amt${cls?' '+cls:''}"><span class="sq-cur">£</span>${Number(w).toLocaleString('en-GB')}<span class="sq-pence">.${p}</span></span>`;}
@@ -5717,7 +5718,7 @@ function owingRow(j){
   return`<div class="sq-block"><div class="sq-row" style="--accent:${days>=30?'#d6455d':days>=14?'#d9741a':'transparent'}" onclick="showCustomer('${c.id}')">
     ${sqAv(c.name,color)}
     <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      <div class="sq-chips">${payerBadge(c)}${cardIcon(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqBadge('Invoice sent','info'):''}</div></div>
+      <div class="sq-chips">${payerBadge(c)}${cardIcon(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqChip(invRef(inv.id),'#0d1f35','mono')+sqBadge('Invoice sent','info'):''}</div></div>
     <div class="sq-right">${sqMoney(j.price)}${days!=null?sqBadge(days===0?'Done today':`Owed (${days} day${days!==1?'s':''})`,days===0?'info':ageKind):sqBadge('Owed','age')}</div>
   </div>${acts}</div>`;
 }
