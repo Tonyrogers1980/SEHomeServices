@@ -1531,15 +1531,15 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='249';
-const BUILD_DATE='13 Nov 2026 16:33';
+const BUILD_VERSION='250';
+const BUILD_DATE='13 Nov 2026 16:37';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
 let wcUsers=[],wcRounds=[],wcServiceTypes=[],wcAliasNames=[],customers=[],pricingConfigData=null;
 let roundDate=todayStr(),roundAssignees=null;
 let editingCustomerId=null,jobCustomerId=null,skipJobId=null,skipStatus=null,editingTeamMemberId=null,editingJobId=null,editingJobOriginalDate=null,editingJobSeriesId=null;
-let editingQuoteId=null,quotes=[],quoteFilter='all',editingQuoteOriginalDate=null;
+let editingQuoteId=null,quotes=[],quoteFilter='active',editingQuoteOriginalDate=null;
 let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 
 // ── UTILS ──────────────────────────────────────────────────────────────────────
@@ -4929,13 +4929,14 @@ async function renderQuotes(){
   catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div></div>`;return;}
   const counts={all:quotes.length,draft:0,sent:0,accepted:0,declined:0};
   quotes.forEach(q=>{if(counts[q.status]!==undefined)counts[q.status]++;});
-  const filtered=quoteFilter==='all'?quotes:quotes.filter(q=>q.status===quoteFilter);
+  counts.active=counts.all-counts.accepted;
+  const filtered=quoteFilter==='all'?quotes:quoteFilter==='active'?quotes.filter(q=>q.status!=='accepted'):quotes.filter(q=>q.status===quoteFilter);
   const open=quotes.filter(q=>q.status==='sent').reduce((s,q)=>s+parseFloat(q.price||0),0);
   const groups=[];const idx={};
   filtered.forEach(q=>{const k=String(q.created_at).slice(0,7);if(!(k in idx)){idx[k]=groups.length;groups.push({k,items:[]});}groups[idx[k]].items.push(q);});
   el.innerHTML=`
     <div class="sq-top"><span class="sq-pill"><b>${counts.all}</b><span>quotes</span>${open>0?`<i class="sq-vr"></i><b>£${open.toFixed(2)}</b><span>awaiting reply</span>`:''}</span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openNewQuote()" aria-label="New quote">${ic('plus')}</button></div>
-    <div class="sq-filters">${['all','draft','sent','accepted','declined'].map(f=>`<button class="sq-fchip${quoteFilter===f?' on':''}" onclick="quoteFilter='${f}';renderQuotes()">${f.charAt(0).toUpperCase()+f.slice(1)}<span class="n">${counts[f]||0}</span></button>`).join('')}</div>
+    <div class="sq-filters">${['active','all','draft','sent','accepted','declined'].map(f=>`<button class="sq-fchip${quoteFilter===f?' on':''}" onclick="quoteFilter='${f}';renderQuotes()">${f.charAt(0).toUpperCase()+f.slice(1)}<span class="n">${counts[f]||0}</span></button>`).join('')}</div>
     ${groups.length?groups.map(g=>sqGroupHeader(g.items.length,sqMonthLabel(g.items[0].created_at),g.items.reduce((s,q)=>s+parseFloat(q.price||0),0))+`<div class="sq-list">${g.items.map(quoteCard).join('')}</div>`).join(''):sqEmpty('No quotes')}`;
 }
 function quoteCard(q){
