@@ -892,6 +892,66 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .pf-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:0 32px;align-items:start;max-width:1700px;}
   .pf-side{display:block;position:sticky;top:12px;}
 }
+
+/* ═══ v1.0.249 — desktop layouts for list, data and settings pages ═══ */
+.dw-cards{display:block;}
+@media(min-width:768px){
+  body.pg-owing .main.wide,
+  body.pg-invoices .main.wide,
+  body.pg-quotes .main.wide,
+  body.pg-jobs .main.wide,
+  body.pg-overdue .main.wide,
+  body.pg-skippers .main.wide{max-width:1500px;margin:0 auto;}
+/* detail screens (no filter bar) stay a readable column */
+  body.pg-owing .main.wide:not(:has(>.sq-filters)),
+  body.pg-invoices .main.wide:not(:has(>.sq-filters)),
+  body.pg-quotes .main.wide:not(:has(>.sq-filters)),
+  body.pg-jobs .main.wide:not(:has(>.sq-filters)),
+  body.pg-overdue .main.wide:not(:has(>.sq-filters)),
+  body.pg-skippers .main.wide:not(:has(>.sq-filters)){max-width:820px;}
+  body.pg-owing .main.wide>.sq-filters,
+  body.pg-invoices .main.wide>.sq-filters,
+  body.pg-quotes .main.wide>.sq-filters,
+  body.pg-jobs .main.wide>.sq-filters,
+  body.pg-overdue .main.wide>.sq-filters,
+  body.pg-skippers .main.wide>.sq-filters{flex-wrap:wrap;overflow:visible;margin:0 0 12px;padding:2px 0;}
+  body.pg-owing .main.wide>.sq-search,
+  body.pg-invoices .main.wide>.sq-search,
+  body.pg-quotes .main.wide>.sq-search,
+  body.pg-jobs .main.wide>.sq-search,
+  body.pg-overdue .main.wide>.sq-search,
+  body.pg-skippers .main.wide>.sq-search{max-width:520px;}
+/* lists become a multi-column grid of rows */
+  body.pg-owing .main.wide:has(>.sq-filters)>.sq-list,
+  body.pg-invoices .main.wide:has(>.sq-filters)>.sq-list,
+  body.pg-quotes .main.wide:has(>.sq-filters)>.sq-list,
+  body.pg-jobs .main.wide:has(>.sq-filters)>.sq-list,
+  body.pg-overdue .main.wide:has(>.sq-filters)>.sq-list,
+  body.pg-skippers .main.wide:has(>.sq-filters)>.sq-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));}
+  body.pg-owing .main.wide:has(>.sq-filters)>.sq-list>.sq-block,
+  body.pg-invoices .main.wide:has(>.sq-filters)>.sq-list>.sq-block,
+  body.pg-quotes .main.wide:has(>.sq-filters)>.sq-list>.sq-block,
+  body.pg-jobs .main.wide:has(>.sq-filters)>.sq-list>.sq-block,
+  body.pg-overdue .main.wide:has(>.sq-filters)>.sq-list>.sq-block,
+  body.pg-skippers .main.wide:has(>.sq-filters)>.sq-list>.sq-block{box-shadow:inset -1px -1px 0 rgba(44,74,110,.75);}
+  body.pg-owing .main.wide:has(>.sq-filters)>.sq-list>.sq-block+.sq-block,
+  body.pg-invoices .main.wide:has(>.sq-filters)>.sq-list>.sq-block+.sq-block,
+  body.pg-quotes .main.wide:has(>.sq-filters)>.sq-list>.sq-block+.sq-block,
+  body.pg-jobs .main.wide:has(>.sq-filters)>.sq-list>.sq-block+.sq-block,
+  body.pg-overdue .main.wide:has(>.sq-filters)>.sq-list>.sq-block+.sq-block,
+  body.pg-skippers .main.wide:has(>.sq-filters)>.sq-list>.sq-block+.sq-block{border-top:none;}
+  .dw-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:0 16px;align-items:start;}
+  .dw-cards>.sq-sec{grid-column:1/-1;}
+  .dw-2col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;align-items:start;}
+  .dw-col{min-width:0;}
+  body.pg-data .main.wide,body.pg-optimizer .main.wide{max-width:1400px;margin:0 auto;}
+  body.pg-data .sq-grid2{grid-template-columns:repeat(4,minmax(0,1fr));}
+  /* settings + availability: section cards side by side */
+  body.pg-settings .main.wide,body.pg-availability-config .main.wide{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:0 20px;align-items:start;}
+  body.pg-settings .main.wide>.loading,body.pg-availability-config .main.wide>.loading,body.pg-availability-config .main.wide>.sq-note,body.pg-availability-config .main.wide>.empty{grid-column:1/-1;}
+  /* single-list config pages: keep the card a sensible width */
+  body.pg-rounds-config .main.wide,body.pg-team-config .main.wide{max-width:760px;margin:0 auto;}
+}
 </style>
 </head>
 <body>
@@ -1471,8 +1531,8 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='248';
-const BUILD_DATE='13 Nov 2026 16:23';
+const BUILD_VERSION='249';
+const BUILD_DATE='13 Nov 2026 16:33';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2078,7 +2138,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue','profitability','payroll','service-types-config','pricing-config'];
+const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue','profitability','payroll','service-types-config','pricing-config','owing','invoices','quotes','jobs','overdue','skippers','data','optimizer','rounds-config','availability-config','team-config','settings'];
 function navigate(page){
   if(typeof stReleaseEditor==='function')stReleaseEditor();
   const pages=getPages();
@@ -2090,7 +2150,8 @@ function navigate(page){
   document.getElementById('topbarPage').textContent='';
   document.getElementById('topbarAction').innerHTML='';
   document.getElementById('mainContent').classList.toggle('wide',DESKTOP_WIDE_PAGES.includes(page));
-  document.body.classList.toggle('pg-messaging',page==='messaging');
+  [...document.body.classList].filter(c=>c.startsWith('pg-')).forEach(c=>document.body.classList.remove(c));
+  document.body.classList.add('pg-'+page);
   if(typeof danCtxRefresh==='function')danCtxRefresh();
   if(page==='dashboard')renderDashboard();
   else if(page==='round')renderRound();
@@ -3630,7 +3691,7 @@ async function renderOverdue(){
       ${wcUsers.map(u=>`<button class="sq-fchip${overdueAssignees.has(u.id)?' on':''}" onclick="toggleOverdueAssignee('${u.id}')">${esc(u.name.split(' ')[0])}</button>`).join('')}
       <button class="sq-fchip${overdueAssignees.has('unassigned')?' on':''}" onclick="toggleOverdueAssignee('unassigned')">Unassigned</button>
     </div>
-    ${filtered.length?body:sqEmpty('Nothing overdue','All scheduled jobs are on or after today.')}`;
+    ${filtered.length?`<div class="dw-cards">${body}</div>`:sqEmpty('Nothing overdue','All scheduled jobs are on or after today.')}`;
 }
 function toggleOverdueAssignee(key){
   if(overdueAssignees.has(key))overdueAssignees.delete(key);else overdueAssignees.add(key);
@@ -6832,11 +6893,14 @@ async function renderDataTab(){
       ${dTile('Regular',cur.regular,'serviced on a cycle',{color:'var(--teal)'})}
       ${dTile('One-off',cur.one_off,'single jobs this month',{color:'var(--gold)'})}
     </div>
+    <div class="dw-2col"><div class="dw-col">
     ${dSec('Active customers per month')}
     ${dataBarChart(act,(r,max)=>`<div style="height:${Math.round(r.one_off/max*118)}px;background:var(--gold)"></div><div style="height:${Math.round(r.regular/max*118)}px;background:var(--teal)"></div>`,r=>r.active)}
     <div class="sq-legend"><span><i style="background:var(--teal)"></i>Regular</span><span><i style="background:var(--gold)"></i>One-off</span></div>
+    </div><div class="dw-col">
     ${dSec('New customers per month')}
     ${dataBarChart(newRows,(r,max)=>`<div style="height:${Math.max(r.n?4:0,Math.round(r.n/max*118))}px;background:var(--violet)"></div>`,r=>r.n)}
+    </div></div>
     <div class="sq-note" style="margin-top:14px">A customer counts in a month if a job was completed for them that month. Regular customers (jobs completed no more than 13 weeks apart, or with a recurring job still booked) also count in the months in between, so a customer on a 12-weekly cycle shows every month. A one-off, like a single gutter clean, counts only in the month it was done. “New” is the month of a customer’s first completed job, not when they were added. Test accounts are excluded.</div>`;
   document.querySelectorAll('.sq-chart').forEach(c=>{c.scrollLeft=c.scrollWidth;});
 }
@@ -6904,7 +6968,7 @@ async function renderOptimizer(){
       <div class="round-stat"><div class="round-stat-val">${optimizerClusters.length}</div><div class="round-stat-label">Split areas</div></div>
       <div class="round-stat"><div class="round-stat-val" style="color:var(--warn)">${affectedJobs}</div><div class="round-stat-label">Jobs involved</div></div>
     </div>
-    ${optimizerClusters.length?optimizerClusters.map((c,i)=>optimizerClusterCard(c,i)).join(''):`<div class="empty"><div class="empty-sub" style="color:var(--done)">✓ Every postcode area is already on a single day with a single person</div></div>`}
+    <div class="dw-cards">${optimizerClusters.length?optimizerClusters.map((c,i)=>optimizerClusterCard(c,i)).join(''):`<div class="empty"><div class="empty-sub" style="color:var(--done)">✓ Every postcode area is already on a single day with a single person</div></div>`}</div>
   `;
 }
 
