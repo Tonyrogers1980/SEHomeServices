@@ -1531,8 +1531,8 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='250';
-const BUILD_DATE='13 Nov 2026 16:37';
+const BUILD_VERSION='251';
+const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let currentUser=null; // {id, name, role, view_mode}
@@ -2027,6 +2027,142 @@ function logout(){
   if(allUsers.length)renderUserPick();else loadLoginUsers();
 }
 
+// ── EMAIL OVERVIEW ───────────────────────────────────────────────────────────
+// Inbound mail for support@ is synced into email_messages by the `email-sync` edge function (pg_cron, every 5 min).
+// Customer mail is linked to wc_customers by email address; everything else is triaged into enquiry / admin / noise / unsorted.
+let emailRows=[],emailTab='customers',emailShowHandled=false,emailShowNoise=false,emailSync=null;
+const emailUrl={};
+const EMAIL_TABS=[['customers','Customers','user',['customer']],['enquiries','Enquiries','chat',['enquiry']],['other','Other','list',['admin','unsorted','noise']]];
+function emailAgo(ts){
+  const s=Math.max(0,(Date.now()-new Date(ts).getTime())/1000);
+  if(s<60)return'just now';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  if(s<604800)return Math.floor(s/86400)+'d ago';
+  return new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+function emailOpenById(id){const u=emailUrl[id];if(u)window.open(u,'_blank','noopener');else showToast('No Outlook link for this email','error');}
+async function renderEmail(){
+  document.getElementById('topbarPage').textContent='Email';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try{
+    const [rows,st]=await Promise.all([
+      sb('email_messages?order=received_at.desc&limit=400&select=*,wc_customers(id,name,address,postcode)'),
+      sb('email_sync_state?id=eq.inbox&select=*')
+    ]);
+    emailRows=rows||[];emailSync=(st||[])[0]||null;
+    emailRows.forEach(r=>{emailUrl[r.id]=r.web_link;});
+  }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+  drawEmail();
+}
+function emailSyncLine(){
+  const s=emailSync;
+  if(!s||!s.last_run_at)return'<div class="sq-sub">Not synced yet</div>';
+  if(s.last_status==='not_configured')return'<div class="sq-sub" style="white-space:normal;color:#ff9a9a">Email is not connected yet — the Microsoft credentials still need adding.</div>';
+  if(s.last_status==='error')return`<div class="sq-sub" style="white-space:normal;color:#ff9a9a">Last sync failed: ${esc(s.last_error||'unknown error')}</div>`;
+  return`<div class="sq-sub">Synced ${emailAgo(s.last_run_at)}${s.last_synced_count?` · ${s.last_synced_count} new or changed`:''}</div>`;
+}
+function emailRow(r){
+  const c=r.wc_customers;
+  const nm=c?c.name:(r.from_name||r.from_email);
+  const badge=r.bucket==='customer'?sqBadge('Customer','sent'):r.bucket==='enquiry'?sqBadge('Enquiry','follow'):r.bucket==='admin'?sqBadge('Admin','draft'):r.bucket==='noise'?sqBadge('Noise','void'):sqBadge('Unsorted','unset');
+  const unread=!r.is_read&&!r.handled;
+  const moves=[['enquiry','Enquiry'],['admin','Admin'],['unsorted','Other']].filter(m=>m[0]!==r.bucket);
+  return`<div class="sq-block"><div class="sq-row" style="--accent:${unread?'var(--gold)':'transparent'}" onclick="emailOpenById('${r.id}')">
+    ${sqAv(nm,c?sqColor(c.name):'#33475f')}
+    <div class="sq-body"><div class="sq-name" style="${r.is_read?'font-weight:600':''}">${esc(nm)}</div>
+      <div class="sq-sub" style="color:var(--text-soft)${unread?';font-weight:700':''}">${esc(r.subject||'(no subject)')}</div>
+      <div class="sq-sub">${esc(r.snippet||'')}</div>
+      <div class="sq-chips">${badge}${c?'':sqChip(r.from_email,'','mono')}${r.has_attachments?sqChip('📎 attachment','#52667d','ghost'):''}${r.handled?sqChip('handled','#52667d','ghost'):''}</div></div>
+    <div class="sq-right"><span class="sq-lbl">${emailAgo(r.received_at)}</span></div>
+  </div>
+  <div class="sq-acts"><button class="sq-act${r.handled?'':' green'}" onclick="emailHandled('${r.id}',${!r.handled})">${r.handled?'Undo':'✓ Handled'}</button>${c?`<button class="sq-act" onclick="showCustomer('${c.id}','messages')">Open customer</button>`:`${moves.map(m=>`<button class="sq-act" onclick="emailSetBucket('${r.id}','${m[0]}')">→ ${m[1]}</button>`).join('')}${r.bucket!=='noise'?`<button class="sq-act danger" onclick="emailBlock('${r.id}')">Block</button>`:''}`}</div></div>`;
+}
+function drawEmail(){
+  const el=document.getElementById('mainContent');
+  const tab=EMAIL_TABS.find(t=>t[0]===emailTab)||EMAIL_TABS[0];
+  const open=r=>!r.handled&&r.bucket!=='noise';
+  const counts=Object.fromEntries(EMAIL_TABS.map(t=>[t[0],emailRows.filter(r=>t[3].includes(r.bucket)&&open(r)).length]));
+  let list=emailRows.filter(r=>tab[3].includes(r.bucket));
+  if(!emailShowHandled)list=list.filter(r=>!r.handled);
+  if(tab[0]==='other'&&!emailShowNoise)list=list.filter(r=>r.bucket!=='noise');
+  const pending=list.filter(open).length;
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+      <div style="min-width:0">${emailSyncLine()}</div>
+      <button class="sq-act" onclick="emailSyncNow()">↻ Sync now</button>
+    </div>
+    <div class="sq-tabs">${EMAIL_TABS.map(t=>`<button class="sq-tab${emailTab===t[0]?' on':''}" onclick="emailTab='${t[0]}';drawEmail()">${ic(t[2])}${t[1]}${counts[t[0]]?` (${counts[t[0]]})`:''}</button>`).join('')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      <button class="sq-act${emailShowHandled?' primary':''}" onclick="emailShowHandled=!emailShowHandled;drawEmail()">${emailShowHandled?'Hide handled':'Show handled'}</button>
+      ${tab[0]==='other'?`<button class="sq-act${emailShowNoise?' primary':''}" onclick="emailShowNoise=!emailShowNoise;drawEmail()">${emailShowNoise?'Hide noise':'Show noise'}</button>`:''}
+      ${pending>1?`<button class="sq-act" onclick="emailMarkAllHandled()">✓ Mark all handled</button>`:''}
+    </div>
+    ${list.length?`<div class="sq-list">${list.map(emailRow).join('')}</div>`:`<div class="empty"><div class="empty-title">${emailRows.length?'Nothing here':'No emails yet'}</div><div class="empty-sub">${emailRows.length?'All caught up.':'Mail appears here once the inbox has synced.'}</div></div>`}`;
+}
+async function emailPatch(filter,body){
+  await sb(`email_messages?${filter}`,{method:'PATCH',body:JSON.stringify(body),prefer:'return=minimal'});
+}
+async function emailHandled(id,val){
+  const patch={handled:val,handled_at:val?new Date().toISOString():null};
+  try{await emailPatch(`id=eq.${id}`,patch);}catch(e){showToast(e.message,'error');return;}
+  const r=emailRows.find(x=>x.id===id);if(r)Object.assign(r,patch);
+  drawEmail();
+}
+async function emailMarkAllHandled(){
+  const tab=EMAIL_TABS.find(t=>t[0]===emailTab)||EMAIL_TABS[0];
+  const patch={handled:true,handled_at:new Date().toISOString()};
+  try{await emailPatch(`bucket=in.(${tab[3].join(',')})&handled=eq.false`,patch);}catch(e){showToast(e.message,'error');return;}
+  emailRows.forEach(r=>{if(tab[3].includes(r.bucket)&&!r.handled)Object.assign(r,patch);});
+  drawEmail();showToast('Marked handled');
+}
+// Moves every non-customer email from this sender (existing mail only; use Block to also sort future mail as noise)
+async function emailSetBucket(id,bucket){
+  const r=emailRows.find(x=>x.id===id);if(!r)return;
+  const patch={bucket,bucket_source:'manual'};
+  try{await emailPatch(`from_email=eq.${encodeURIComponent(r.from_email)}&wc_customer_id=is.null`,patch);}catch(e){showToast(e.message,'error');return;}
+  emailRows.forEach(x=>{if(x.from_email===r.from_email&&!x.wc_customer_id)Object.assign(x,patch);});
+  drawEmail();showToast('Moved to '+(bucket==='unsorted'?'Other':bucket));
+}
+async function emailBlock(id){
+  const r=emailRows.find(x=>x.id===id);if(!r)return;
+  try{
+    await sb('email_blocked_senders',{method:'POST',body:JSON.stringify({email:r.from_email,reason:'Blocked from ClearRound'}),prefer:'resolution=ignore-duplicates,return=minimal'});
+    await emailPatch(`from_email=eq.${encodeURIComponent(r.from_email)}&wc_customer_id=is.null`,{bucket:'noise',bucket_source:'manual'});
+  }catch(e){showToast(e.message,'error');return;}
+  emailRows.forEach(x=>{if(x.from_email===r.from_email&&!x.wc_customer_id){x.bucket='noise';x.bucket_source='manual';}});
+  drawEmail();showToast('Blocked '+r.from_email);
+}
+async function emailSyncNow(){
+  try{await sb('rpc/email_sync_now',{method:'POST',body:'{}'});}catch(e){showToast(e.message,'error');return;}
+  showToast('Sync started');
+  setTimeout(()=>{if(currentPageId==='email')renderEmail();},6000);
+}
+// Customer record: recent emails on the Messages tab + an "emails" chip in the header
+async function loadCustomerEmails(cid){
+  const el=document.getElementById('customerEmails');if(!el)return;
+  try{
+    const rs=await sb(`email_messages?wc_customer_id=eq.${cid}&order=received_at.desc&limit=10&select=id,subject,snippet,received_at,web_link,is_read,handled`)||[];
+    if(!rs.length){el.innerHTML='';return;}
+    rs.forEach(r=>{emailUrl[r.id]=r.web_link;});
+    el.innerHTML=`<div class="sq-sec"><span>Emails received<span class="n">${rs.length}</span></span></div>
+      <div class="sq-list" style="margin-bottom:16px">${rs.map(r=>`<div class="sq-block"><div class="sq-row" style="--accent:${!r.is_read&&!r.handled?'var(--gold)':'transparent'}" onclick="emailOpenById('${r.id}')">
+        <div class="sq-body"><div class="sq-name" style="${r.is_read?'font-weight:600':''}">${esc(r.subject||'(no subject)')}</div><div class="sq-sub">${esc(r.snippet||'')}</div></div>
+        <div class="sq-right"><span class="sq-lbl">${emailAgo(r.received_at)}</span></div></div></div>`).join('')}</div>`;
+  }catch(e){el.innerHTML='';}
+}
+async function emailHeroChip(id){
+  try{
+    const rs=await sb(`email_messages?wc_customer_id=eq.${id}&handled=eq.false&select=id`)||[];
+    if(!rs.length)return;
+    const box=document.querySelector('.sq-hero .sq-chips');
+    const hero=document.getElementById('custHeroId');
+    if(!box||!hero||hero.dataset.id!==id||box.querySelector('.em-chip'))return;
+    box.insertAdjacentHTML('beforeend',`<span class="em-chip" style="cursor:pointer" onclick="showCustomer('${id}','messages')">${sqBadge('✉ '+rs.length+' email'+(rs.length>1?'s':''),'follow')}</span>`);
+  }catch(e){}
+}
+
 // ── NAV ────────────────────────────────────────────────────────────────────────
 const ICON_ROUND='<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>';
 const ICON_DASHBOARD='<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>';
@@ -2042,6 +2178,7 @@ const NAV_SECTIONS=[
   ]},
   {section:'Messaging',items:[
     {id:'messaging',label:'Conversations',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-6l-4 4v-4z"/></svg>'},
+    {id:'email',label:'Email',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>'},
   ]},
   {section:'Customers',items:[
     {id:'customers',label:'Customers',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'},
@@ -2138,7 +2275,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','customers','revenue','profitability','payroll','service-types-config','pricing-config','owing','invoices','quotes','jobs','overdue','skippers','data','optimizer','rounds-config','availability-config','team-config','settings'];
+const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','email','customers','revenue','profitability','payroll','service-types-config','pricing-config','owing','invoices','quotes','jobs','overdue','skippers','data','optimizer','rounds-config','availability-config','team-config','settings'];
 function navigate(page){
   if(typeof stReleaseEditor==='function')stReleaseEditor();
   const pages=getPages();
@@ -2156,6 +2293,7 @@ function navigate(page){
   if(page==='dashboard')renderDashboard();
   else if(page==='round')renderRound();
   else if(page==='messaging')renderMessaging();
+  else if(page==='email')renderEmail();
   else if(page==='jobs')renderJobs();
   else if(page==='customers')renderCustomers();
   else if(page==='quotes')renderQuotes();
@@ -4235,6 +4373,7 @@ async function showCustomer(id,tab){
   if(custTab==='customer')renderCustomerTab(c);
   else if(custTab==='finance')renderFinanceTab(c);
   else renderMessagesTab(c);
+  emailHeroChip(id);
 }
 function renderCustomerTab(c){
   const body=document.getElementById('custTabBody');
@@ -4290,8 +4429,9 @@ async function renderFinanceTab(c){
 function renderMessagesTab(c){
   emailCust=c;
   const _first=esc(String(c.name||'').trim().split(/\s+/)[0]||'customer');
-  document.getElementById('custTabBody').innerHTML=`<button class="sq-btn" style="width:100%;margin-bottom:12px" onclick="openCustomerEmail()">✉ Email ${_first}</button><div class="sq-list"><div id="customerConvos"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Loading…</div></div></div></div></div>`;
+  document.getElementById('custTabBody').innerHTML=`<button class="sq-btn" style="width:100%;margin-bottom:12px" onclick="openCustomerEmail()">✉ Email ${_first}</button><div id="customerEmails"></div><div class="sq-list"><div id="customerConvos"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Loading…</div></div></div></div></div>`;
   loadCustomerConversations(c);
+  loadCustomerEmails(c.id);
 }
 async function loadCustomerQuotes(customerId){
   const el=document.getElementById('customerQuotes');if(!el)return;
