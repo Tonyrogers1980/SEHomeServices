@@ -584,6 +584,30 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .dash-grid .sq-grid2.kpi4{grid-template-columns:repeat(4,minmax(0,1fr));}
 }
 
+/* ═══ v1.0.255 — Control room ═══ */
+.cr-wrap{display:flex;flex-direction:column;gap:18px;max-width:1280px;margin:0 auto;color:#e6ecf3;}
+.cr-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+.cr-head h1{margin:0;font-size:26px;font-weight:700;}
+.cr-sub{color:#8a9bb0;font-size:13px;margin-top:2px;}
+.cr-pills{display:flex;gap:8px;flex-wrap:wrap;}
+.cr-pill{padding:6px 12px;border-radius:999px;font-size:13px;}
+.cr-pill.g{background:rgba(91,229,132,.12);color:#5be584;}.cr-pill.a{background:rgba(240,180,41,.14);color:#f0b429;}.cr-pill.r{background:rgba(239,100,97,.14);color:#ef6461;}.cr-pill.n{background:rgba(138,155,176,.14);color:#8a9bb0;}
+.cr-tile{background:#0e1722;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;gap:8px;min-width:0;}
+.cr-th{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.cr-th h2{margin:0;font-size:15px;font-weight:600;}.cr-th span{font-size:12.5px;color:#8a9bb0;}
+.cr-svg{width:100%;height:auto;display:block;}
+.cr-ping{animation:crping 2.2s ease-out infinite;transform-box:fill-box;transform-origin:center;}
+@keyframes crping{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.2);opacity:0}}
+.cr-row{display:flex;flex-wrap:wrap;gap:18px;align-items:stretch;}.cr-row>.cr-tile{flex:1 1 320px;}
+.cr-need{padding:8px 0;border-top:1px solid rgba(255,255,255,.06);}.cr-need-t{font-weight:500;}.cr-need-s{color:#8a9bb0;font-size:13px;}
+.cr-btn{align-self:flex-start;margin-top:6px;background:transparent;color:#e6ecf3;border:1px solid rgba(255,255,255,.22);border-radius:10px;min-height:44px;padding:0 18px;font-size:14px;cursor:pointer;}
+.cr-crew{padding:8px 0;}.cr-crew-h{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px;}.cr-crew-h small{color:#8a9bb0;font-weight:400;}
+.cr-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;}.cr-bar i{display:block;height:100%;background:#00e0cf;}
+.cr-hb{display:flex;align-items:center;gap:12px;padding:4px 0;}.cr-hb-n{flex:0 0 110px;font-size:13px;}.cr-hb svg{flex:1 1 auto;min-width:0;height:34px;}
+.cr-hb-s{flex:0 0 120px;text-align:right;font-size:12px;color:#8a9bb0;white-space:nowrap;}.cr-hb-s.ok{color:#5be584;}
+.cr-feed{display:flex;align-items:baseline;gap:14px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06);flex-wrap:wrap;}
+.cr-f-t{flex:0 0 52px;font-size:13px;color:#8a9bb0;}.cr-f-a{flex:0 0 108px;font-size:13px;font-weight:500;}.cr-f-x{flex:1 1 260px;font-size:14.5px;}.cr-f-tag{font-size:12px;padding:3px 10px;border-radius:999px;}
+@media (prefers-reduced-motion:reduce){.cr-ping{animation:none}}
 /* ═══ v1.0.254 — dashboard redesign ═══ */
 .dx-box{background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.35);}
 .dx-lbl{font-size:12px;color:var(--text-muted);}
@@ -1566,7 +1590,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='254';
+const BUILD_VERSION='255';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -2204,6 +2228,7 @@ const ICON_DASHBOARD='<svg fill="none" stroke="currentColor" stroke-width="1.8" 
 const NAV_SECTIONS=[
   {section:'Overview',items:[
     {id:'dashboard',label:'Dashboard',icon:ICON_DASHBOARD},
+    {id:'control-room',label:'Control room',icon:'<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-6 4 12 2-6h6"/></svg>'},
   ]},
   {section:'Work & Planning',items:[
     {id:'round',label:'Round',icon:ICON_ROUND},
@@ -2310,7 +2335,7 @@ function openMoreMenu(){
 
 let currentPageId='dashboard';
 // Pages that have a full-width desktop layout (others stay in a centred column on desktop)
-const DESKTOP_WIDE_PAGES=['dashboard','round','messaging','email','customers','revenue','profitability','payroll','service-types-config','pricing-config','owing','invoices','quotes','jobs','overdue','skippers','data','optimizer','rounds-config','availability-config','team-config','settings'];
+const DESKTOP_WIDE_PAGES=['dashboard','control-room','round','messaging','email','customers','revenue','profitability','payroll','service-types-config','pricing-config','owing','invoices','quotes','jobs','overdue','skippers','data','optimizer','rounds-config','availability-config','team-config','settings'];
 function navigate(page){
   if(typeof stReleaseEditor==='function')stReleaseEditor();
   const pages=getPages();
@@ -2326,6 +2351,7 @@ function navigate(page){
   document.body.classList.add('pg-'+page);
   if(typeof danCtxRefresh==='function')danCtxRefresh();
   if(page==='dashboard')renderDashboard();
+  else if(page==='control-room')renderControlRoom();
   else if(page==='round')renderRound();
   else if(page==='messaging')renderMessaging();
   else if(page==='email')renderEmail();
@@ -3346,6 +3372,141 @@ function opsTodayHtml(o){
     <div class="sq-list" style="${needsCount||o.crewUnacked.length?'border-color:var(--danger)':''}">${rows.length?shown.join(''):`<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v" style="color:var(--done)">✓ Nothing waiting. Every handoff has been dealt with.</div></div></div>`}</div>${more>0?`<button type="button" class="sq-act" style="margin-top:8px" onclick="navigate('messaging')">+${more} more →</button>`:''}</div>`,jarvis};
 }
 
+/* ═══ v1.0.255 — Control room ═══ */
+function crRel(ts){
+  const m=Math.round((Date.now()-new Date(ts).getTime())/60000);
+  if(m<1)return'just now';if(m<60)return m+'m ago';
+  const h=Math.round(m/60);if(h<24)return h+'h ago';
+  return Math.round(h/24)+'d ago';
+}
+function crPulse(bins,color){
+  const n=bins.length,w=300,step=w/n;let p='M0 20';
+  bins.forEach((c,i)=>{
+    const x=i*step;
+    if(!c){p+=` L${(x+step).toFixed(1)} 20`;return;}
+    const a=Math.min(17,4+c*3);
+    p+=` L${x.toFixed(1)} 20 L${(x+step*.3).toFixed(1)} ${20-a} L${(x+step*.6).toFixed(1)} ${(20+a*.6).toFixed(1)} L${(x+step).toFixed(1)} 20`;
+  });
+  return `<svg viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path d="${p}" fill="none" stroke="${color}" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function crMetrics(events){
+  // Of the actions agents logged in the last 7 days, the share that did not need a person.
+  const cut=Date.now()-7*86400000;
+  const w=events.filter(e=>new Date(e.ts).getTime()>=cut);
+  if(!w.length)return null;
+  return Math.round(w.filter(e=>e.outcome!=='needs_you').length/w.length*100);
+}
+async function renderControlRoom(){
+  document.getElementById('topbarPage').textContent='Control room';
+  document.getElementById('topbarAction').innerHTML='';
+  const el=document.getElementById('mainContent');
+  el.innerHTML='<div class="loading"><div class="spinner"></div> Loading…</div>';
+  await loadUsers();
+  const today=todayStr(),tomorrow=addDays(today,1);
+  const sod=new Date();sod.setHours(0,0,0,0);
+  const since=encodeURIComponent(new Date(Date.now()-14*86400000).toISOString());
+  const soft=p=>p.catch(e=>{console.warn('control room',e);return null;});
+  const [agents,events,quotes,openJobs,todayJobs,owing,esc5,convsToday]=await Promise.all([
+    soft(sb('agents?select=*&order=sort_order.asc')),
+    soft(sb(`agent_events?ts=gte.${since}&select=id,ts,agent,summary,outcome&order=ts.desc&limit=1000`)),
+    soft(sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=eq.sent&select=price,sent_at`)),
+    soft(sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&select=id,assigned_to,next_due,scheduled_date`)),
+    soft(sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&or=(next_due.eq.${today},and(scheduled_date.eq.${today},next_due.is.null))&select=id,status,price,assigned_to`)),
+    soft(fetchOwingJobs()),
+    soft(sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversations(customer_name)&order=created_at.asc&limit=5`)),
+    soft(sb(`conversations?business_id=eq.${BUSINESS_ID}&created_at=gte.${encodeURIComponent(sod.toISOString())}&select=id`)),
+  ]);
+  if(!agents||!events){el.innerHTML='<div class="empty"><div class="empty-title">Could not load the activity log</div></div>';return;}
+
+  const byAgent={};agents.forEach(a=>byAgent[a.code]={a,ev:[],today:0});
+  events.forEach(e=>{const g=byAgent[e.agent];if(!g)return;g.ev.push(e);if(new Date(e.ts)>=sod)g.today++;});
+  const last=code=>byAgent[code]&&byAgent[code].ev[0];
+  const working=code=>{const l=last(code);return !!l&&Date.now()-new Date(l.ts).getTime()<30*60000;};
+  const handled=crMetrics(events);
+  const needsN=(esc5||[]).length;
+  const silent=agents.filter(a=>a.enabled&&a.expected_every_minutes&&last(a.code)&&Date.now()-new Date(last(a.code).ts).getTime()>a.expected_every_minutes*60000*1.5).length;
+  const notReporting=agents.filter(a=>!last(a.code)).length;
+
+  const qs=quotes||[];const qSum=qs.reduce((t,q)=>t+(parseFloat(q.price)||0),0);
+  const oldest=qs.length?Math.max(...qs.map(q=>q.sent_at?daysBetween(q.sent_at.slice(0,10),today):0)):0;
+  const oj=openJobs||[];
+  const noSlot=oj.filter(j=>!j.assigned_to||(!j.next_due&&!j.scheduled_date)).length;
+  const tmr=oj.filter(j=>j.next_due===tomorrow).length;
+  const tj=todayJobs||[];const doneToday=tj.filter(j=>j.status==='done').length;
+  const owedSum=(owing||[]).reduce((t,j)=>t+(parseFloat(j.price)||0),0);
+  const enq=(convsToday||[]).length;
+
+  const cap=(code)=>{const g=byAgent[code];if(!g)return'';const l=g.ev[0];return l?`${g.today} today · last ${crRel(l.ts)}`:'not reporting yet';};
+  const ring=(code,x,y)=>working(code)?`<circle cx="${x}" cy="${y}" r="11" fill="none" stroke="${esc(byAgent[code].a.colour)}" class="cr-ping"/>`:'';
+  const dot=(code,x,y)=>`<circle cx="${x}" cy="${y}" r="11" fill="#0b141e" stroke="${esc((byAgent[code]&&byAgent[code].a.colour)||'#8a9bb0')}" stroke-width="2.5"/>${ring(code,x,y)}`;
+  const nodes=[
+    {x:110,y:120,v:String(enq),l:'Enquiries today',s:'',c:'#b18bff',ag:'front_desk'},
+    {x:270,y:90,v:String(qs.length),l:'Quotes out',s:qs.length?`£${Math.round(qSum)} · oldest ${oldest}d`:'',c:'#7aa2ff',ag:'quotes'},
+    {x:430,y:150,v:String(noSlot),l:'Needs a slot',s:'',c:noSlot?'#ffb200':'#00e0cf',ag:'dispatcher'},
+    {x:590,y:90,v:String(tmr),l:'Tomorrow',s:'',c:'#00e0cf',ag:'crew'},
+    {x:750,y:150,v:`${doneToday}/${tj.length}`,l:'Today done',s:'',c:'#00e0cf',ag:'crew'},
+    {x:910,y:120,v:'£'+Math.round(owedSum),l:'Done, unpaid',s:'',c:'#5be584',ag:'money'},
+  ];
+  const nodeSvg=nodes.map(n=>{
+    const fs=n.v.length>4?17:n.v.length>2?21:24;
+    return `<circle cx="${n.x}" cy="${n.y}" r="34" fill="#0b141e" stroke="${n.c}" stroke-width="2.5"/>`+
+    `<text x="${n.x}" y="${n.y+8}" fill="#fff" font-family="Space Grotesk,Inter,sans-serif" font-weight="600" font-size="${fs}" text-anchor="middle">${esc(n.v)}</text>`+
+    `<text x="${n.x}" y="${n.y+58}" fill="#e6ecf3" font-size="13" text-anchor="middle">${esc(n.l)}</text>`+
+    (n.s?`<text x="${n.x}" y="${n.y+74}" fill="#8a9bb0" font-size="11" text-anchor="middle">${esc(n.s)}</text>`:'')+
+    `<line x1="${n.x}" y1="${n.y+84}" x2="${n.x}" y2="262" stroke="rgba(255,255,255,.14)"/>`+
+    dot(n.ag,n.x,276)+
+    `<text x="${n.x}" y="308" fill="#e6ecf3" font-size="12" text-anchor="middle">${esc(byAgent[n.ag]?byAgent[n.ag].a.name:'')}</text>`+
+    `<text x="${n.x}" y="326" fill="#8a9bb0" font-size="11" text-anchor="middle">${esc(cap(n.ag))}</text>`;
+  }).join('');
+  const pathIds=['M110 120 C190 120 190 90 270 90','M270 90 C350 90 350 150 430 150','M430 150 C510 150 510 90 590 90','M590 90 C670 90 670 150 750 150','M750 150 C830 150 830 120 910 120'];
+  const paths=pathIds.map((d,i)=>`<path id="crp${i}" d="${d}" fill="none" stroke="${i===2&&noSlot?'rgba(240,180,41,.6)':'rgba(255,255,255,.16)'}" stroke-width="2" ${i===2&&noSlot?'stroke-dasharray="5 5"':''}/>`).join('');
+  const dots=pathIds.map((_,i)=>(i===2&&noSlot)?'':`<circle r="4" fill="#4dd6c8"><animateMotion dur="4.${i}s" begin="${i*.6}s" repeatCount="indefinite"><mpath href="#crp${i}"/></animateMotion></circle>`).join('');
+
+  // Needs you
+  const reasonText=c=>String(c||'needs a decision').replace(/_/g,' ');
+  const needs=(esc5||[]).map(e=>`<div class="cr-need"><div class="cr-need-t">${esc(((e.conversations&&e.conversations.customer_name)||'A customer'))}</div><div class="cr-need-s">${esc(reasonText(e.reason_code))} · waiting ${esc(crRel(e.created_at).replace(' ago',''))}</div></div>`).join('')||'<div class="cr-need-s">Nothing is waiting on you.</div>';
+
+  // Crew today
+  const crew=(wcUsers||[]).filter(u=>tj.some(j=>j.assigned_to===u.id)).map(u=>{
+    const mine=tj.filter(j=>j.assigned_to===u.id),d=mine.filter(j=>j.status==='done').length;
+    const pct=mine.length?Math.round(d/mine.length*100):0;
+    return `<div class="cr-crew"><div class="cr-crew-h"><span>${esc(u.name)}</span><b>${d}<small> / ${mine.length}</small></b></div><div class="cr-bar"><i style="width:${pct}%"></i></div></div>`;
+  }).join('')||'<div class="cr-need-s">No jobs on the round today.</div>';
+
+  // Heartbeat (14 days, 12-hour bins) and live feed
+  const start=Date.now()-14*86400000,N=28;
+  const hb=agents.map(a=>{
+    const g=byAgent[a.code],bins=new Array(N).fill(0);
+    g.ev.forEach(e=>{const i=Math.min(N-1,Math.floor((new Date(e.ts).getTime()-start)/(43200000)));if(i>=0)bins[i]++;});
+    const none=!g.ev.length;
+    return `<div class="cr-hb"><div class="cr-hb-n">${esc(a.name)}</div>${crPulse(bins,none?'#566377':a.colour)}<div class="cr-hb-s ${none?'':'ok'}">${none?'not reporting yet':g.ev.length+' actions'}</div></div>`;
+  }).join('');
+  const tag={done:['rgba(91,229,132,.14)','#5be584','done'],proposed:['rgba(0,224,207,.14)','#00e0cf','proposed'],needs_you:['rgba(255,107,107,.16)','#ff8a8a','needs you'],retried:['rgba(255,178,0,.14)','#ffb200','retried'],failed:['rgba(255,107,107,.16)','#ff8a8a','failed'],skipped:['rgba(138,155,176,.16)','#8a9bb0','skipped']};
+  const feed=events.slice(0,14).map(e=>{
+    const t=tag[e.outcome]||tag.done,g=byAgent[e.agent],d=new Date(e.ts);
+    const when=d>=sod?d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    return `<div class="cr-feed"><span class="cr-f-t">${esc(when)}</span><span class="cr-f-a" style="color:${esc(g?g.a.colour:'#fff')}">${esc(g?g.a.name:e.agent)}</span><span class="cr-f-x">${esc(e.summary)}</span><span class="cr-f-tag" style="background:${t[0]};color:${t[1]}">${t[2]}</span></div>`;
+  }).join('')||'<div class="cr-need-s">No activity logged yet.</div>';
+
+  const now=new Date();
+  el.innerHTML=`<div class="cr-wrap">
+  <div class="cr-head"><div><h1>Control room</h1><div class="cr-sub">${esc(now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))}</div></div>
+  <div class="cr-pills">
+   <span class="cr-pill g">${handled==null?'No actions logged yet':handled+'% handled without you (7 days)'}</span>
+   <span class="cr-pill ${needsN?'a':'g'}">${needsN?needsN+' need you':'Nothing needs you'}</span>
+   ${silent?`<span class="cr-pill r">${silent} agent${silent>1?'s':''} silent</span>`:''}
+   ${notReporting?`<span class="cr-pill n">${notReporting} not reporting yet</span>`:''}
+  </div></div>
+  <section class="cr-tile"><div class="cr-th"><h2>Where the work is, and who has it</h2><span>Dots are work moving. Rings are agents working in the last 30 minutes.</span></div>
+   <svg viewBox="0 40 1000 300" class="cr-svg" role="img" aria-label="Pipeline of stages with the agent responsible under each" font-family="Inter,sans-serif">${paths}<g>${dots}</g>${nodeSvg}</svg></section>
+  <div class="cr-row">
+   <section class="cr-tile cr-need-tile"><div class="cr-th"><h2 style="color:#f0b429">Needs you</h2><span>${needsN?needsN+(needsN===5?'+':'')+' open':''}</span></div>${needs}<button class="cr-btn" onclick="navigate('messaging')">Open conversations</button></section>
+   <section class="cr-tile"><div class="cr-th"><h2>Crew today</h2><span>${tj.length} jobs on the round</span></div>${crew}</section>
+  </div>
+  <section class="cr-tile"><div class="cr-th"><h2>Heartbeat, last 14 days</h2><span>Silence stands out. Backfilled from existing records.</span></div>${hb}</section>
+  <section class="cr-tile"><div class="cr-th"><h2>Live activity</h2><span>Latest ${Math.min(14,events.length)}</span></div>${feed}</section>
+  </div>`;
+}
 async function renderDashboard(){
   document.getElementById('topbarPage').textContent='Dashboard';
   document.getElementById('topbarAction').innerHTML='';
