@@ -1531,7 +1531,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='251';
+const BUILD_VERSION='252';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3211,7 +3211,12 @@ async function loadOpsToday(allConvs){
   }
   const crewUnacked=live.filter(a=>a.owner==='crew'&&!a.crew_ack_at);
   const mine=live.filter(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at));
-  return {live,mine,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById};
+  // "Needs you" conversations = exactly the Conversations page's "Needs you" bucket (convBucket==='action'),
+  // longest waiting first. convBucket reads actionsByConv, so fill it from the open actions loaded above.
+  actionsByConv={};
+  live.forEach(a=>{if(a.conversation_id)(actionsByConv[a.conversation_id]=actionsByConv[a.conversation_id]||[]).push(a);});
+  const needsConvs=allConvs.filter(c=>convBucket(c)==='action').sort((a,b)=>String(a.last_message_at||'').localeCompare(String(b.last_message_at||'')));
+  return {live,mine,needsConvs,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById};
 }
 async function doneAction(id){
   try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:currentUser?.name||'tony'}),prefer:'return=minimal'});showToast('Done','success');renderDashboard();}
@@ -3229,12 +3234,17 @@ function opsTodayHtml(o){
   if(!o)return {today:'',needs:'',quotes:''};
   const ans=o.answered.service+o.answered.sales+o.answered.other;
   const rows=[];
-  o.mine.forEach(a=>{
-    const c=o.convById[a.conversation_id]||{};
-    const needsOk=a.requires_approval&&!a.approved_at;
-    const label=needsOk?'Approve price':(ACTION_LABELS[a.action_type]||a.action_type);
-    rows.push(dRow(`<div class="sq-item-body" onclick="openConversationFromDashboard('${a.conversation_id}')" style="cursor:pointer"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${sqBadge(esc(label),needsOk?'age':'warn')}<span class="sq-item-t">${esc(c.customer_name||'Customer')}</span></div><div class="sq-item-v">${esc((a.summary||'').slice(0,140))}</div></div>
-      ${needsOk?`<button type="button" class="sq-act primary" onclick="approveActionDash('${a.id}')">OK</button>`:`<button type="button" class="sq-act" onclick="doneAction('${a.id}')">Done</button>`}`));
+  o.needsConvs.forEach(c=>{
+    const acts=(actionsByConv[c.id]||[]).filter(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at));
+    const apr=acts.find(a=>a.requires_approval&&!a.approved_at);
+    const a=apr||acts[0];
+    const e=openEscalationByConv[c.id];
+    let label,sub,tone='warn';
+    if(a){label=apr?'Approve price':(ACTION_LABELS[a.action_type]||a.action_type);sub=(a.summary||'').slice(0,140);tone=apr?'age':'warn';if(acts.length>1)sub+=` · +${acts.length-1} more`;}
+    else if(e){label=escalationReasonLabel(e.reason_code);sub=`Escalated · ${escTimeAgo(e.created_at)}`;}
+    else{label='Reply needed';sub=`Messaged ${escTimeAgo(c.last_message_at)} · waiting for your reply`;}
+    const body=`<div class="sq-item-body" onclick="openConversationFromDashboard('${c.id}')" style="cursor:pointer"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${sqBadge(esc(label),tone)}<span class="sq-item-t">${esc(c.customer_name||c.customer_phone||'Customer')}</span></div><div class="sq-item-v">${esc(sub)}</div></div>`;
+    rows.push(dRow(body+(a?(apr?`<button type="button" class="sq-act primary" onclick="approveActionDash('${a.id}')">OK</button>`:`<button type="button" class="sq-act" onclick="doneAction('${a.id}')">Done</button>`):ic('go','sq-go'))));
   });
   if(o.crewUnacked.length){
     const names=[...new Set(o.crewUnacked.map(a=>(o.convById[a.conversation_id]||{}).customer_name).filter(Boolean))].slice(0,3).join(', ');
@@ -3243,7 +3253,7 @@ function opsTodayHtml(o){
   o.needSlot.forEach(q=>{
     rows.push(dRow(`${sqBadge('Needs a slot','info')}<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[q.customer_id]||'Customer')}</div><div class="sq-item-v">£${parseFloat(q.price||0).toFixed(0)} · accepted ${ageDays(q.accepted_at)===0?'today':ageDays(q.accepted_at)+'d ago'}</div></div>${ic('go','sq-go')}`,"navigate('jobs')"));
   });
-  const needsCount=o.mine.length+o.needSlot.length;
+  const needsCount=o.needsConvs.length+o.needSlot.length;
   const pend=o.pending.slice(0,4).map(q=>{const d=ageDays(q.sent_at||q.created_at);return dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[q.customer_id]||'Customer')}</div></div>${sqMoney(q.price)}${sqBadge(d===0?'today':d+'d',d>=7?'due':'age')}`,"navigate('quotes')",'align-items:center;');}).join('');
   return {today:`<div class="dash-card dash-o1">
     ${dSec('Today')}
