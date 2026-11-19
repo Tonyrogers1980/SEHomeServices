@@ -584,6 +584,41 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
   .dash-grid .sq-grid2.kpi4{grid-template-columns:repeat(4,minmax(0,1fr));}
 }
 
+/* ═══ v1.0.254 — dashboard redesign ═══ */
+.dx-box{background:var(--navy-800);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.35);}
+.dx-lbl{font-size:12px;color:var(--text-muted);}
+.dx-sub{font-size:12.5px;color:var(--text-soft);margin-top:4px;}
+.dx-big{font-size:32px;font-weight:700;color:var(--white);line-height:1.1;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px;}
+.dx-big span{font-size:19px;color:var(--text-muted);font-weight:600;}
+.dx-big em{font-style:normal;font-size:13px;font-weight:500;color:var(--text-soft);}
+.dx-num{font-size:24px;font-weight:700;color:var(--white);line-height:1.15;}
+.dx-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.dx-track{height:8px;border-radius:4px;background:var(--navy-900);margin:10px 0 6px;overflow:hidden;}
+.dx-track.sm{height:6px;margin:5px 0 0;}
+.dx-track i{display:block;height:100%;border-radius:inherit;}
+.dx-people{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+.dx-prow{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:600;color:var(--text);}
+.dx-prow span:last-child{font-weight:500;color:var(--text-soft);font-size:13px;}
+.dx-lnk{display:block;width:100%;text-align:left;background:none;border:none;padding:0;color:inherit;font-family:inherit;cursor:pointer;}
+.dx-stack{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin:10px 0 8px;}
+.dx-stack i{display:block;height:100%;}
+.dx-ages{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:12px;color:var(--text-soft);}
+.dx-ages b{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
+.dx-rule{height:1px;background:var(--border);opacity:.5;margin:14px 0;}
+.dx-diary{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:5px;height:150px;}
+.dx-diary .c{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;height:100%;}
+.dx-diary .v{font-size:10.5px;margin-bottom:4px;}
+.dx-diary .bar{width:100%;flex:1;display:flex;align-items:flex-end;}
+.dx-diary .bar i{display:block;width:100%;border-radius:4px 4px 2px 2px;}
+.dx-diary .d{font-size:9.5px;color:var(--text-muted);text-align:center;margin-top:5px;line-height:1.25;white-space:nowrap;}
+.dx-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+.dx-tile{background:var(--navy-900);border:1px solid transparent;border-radius:10px;padding:12px 14px;text-align:left;font-family:inherit;color:inherit;cursor:pointer;}
+.dx-tile.alert{border-color:var(--danger);}
+.dx-tile .l{font-size:12px;color:var(--text-muted);}
+.dx-tile .n{font-size:26px;font-weight:700;line-height:1.2;margin-top:2px;}
+.dx-tile .s{font-size:12px;color:var(--text-soft);margin-top:2px;}
+@media(max-width:520px){.dx-diary{gap:3px}.dx-diary .v{font-size:9px}.dx-diary .d{font-size:8.5px}.dx-tiles{grid-template-columns:1fr 1fr}}
+
 /* ── Round: desktop ── */
 .rd-top,.rd-cols,.rd-col,.rd-single{display:block;}
 .wk-board,.wk-legend{display:none;}
@@ -1531,7 +1566,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='253';
+const BUILD_VERSION='254';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3209,7 +3244,7 @@ async function loadOpsToday(allConvs){
   actionsByConv={};
   live.forEach(a=>{if(a.conversation_id)(actionsByConv[a.conversation_id]=actionsByConv[a.conversation_id]||[]).push(a);});
   const needsConvs=allConvs.filter(c=>convBucket(c)==='action').sort((a,b)=>String(a.last_message_at||'').localeCompare(String(b.last_message_at||'')));
-  return {live,mine,needsConvs,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById};
+  return {live,mine,needsConvs,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById,quotes};
 }
 async function doneAction(id){
   try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:currentUser?.name||'tony'}),prefer:'return=minimal'});showToast('Done','success');renderDashboard();}
@@ -3223,9 +3258,57 @@ async function approveActionDash(id){
 function dTile(label,val,sub,o){o=o||{};return`<button type="button" class="sq-tile click${o.cls?' '+o.cls:''}" ${o.onclick?`onclick="${o.onclick}"`:''}><div class="t">${label}</div><div class="v"${o.color?` style="color:${o.color}"`:''}>${val}</div>${sub?`<div class="s">${sub}</div>`:''}</button>`;}
 function dSec(title,link){return`<div class="sq-dash-sec"><span>${title}</span>${link||''}</div>`;}
 function dRow(inner,onclick,extra){return`<div class="sq-block"><div class="sq-item" style="${onclick?'':'cursor:default;'}align-items:flex-start;${extra||''}" ${onclick?`onclick="${onclick}"`:''}>${inner}</div></div>`;}
+// ── DASHBOARD v1.0.254: decide first (Needs you), then today, money, diary, pipeline ──
+const gbp=n=>'£'+Math.round(Number(n)||0).toLocaleString('en-GB');
+function daysBetween(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
+function addDays(dateStr,n){const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+n);return localDateStr(d);}
+// Pure maths for the dashboard, so it can be tested without the app.
+// inp: {today:'YYYY-MM-DD', scheduled:[{next_due,price}], doneRecent:[{last_done,price}] (done jobs since the start of last month),
+//       owing:[{last_done,price}], quotes:[{sent_at,accepted_at,customer_id}], jobCustIds:Set of customer ids that have any job}
+function dashMetrics(inp){
+  const today=inp.today,price=x=>parseFloat(x&&x.price)||0;
+  const monthStart=today.slice(0,8)+'01';
+  const prevStart=pyShiftMonth(monthStart,-1),nextStart=pyShiftMonth(monthStart,1);
+  const pd=new Date(prevStart+'T12:00:00');
+  const daysInPrev=new Date(pd.getFullYear(),pd.getMonth()+1,0).getDate();
+  const dom=parseInt(today.slice(8),10);
+  const prevPoint=prevStart.slice(0,8)+String(Math.min(dom,daysInPrev)).padStart(2,'0');
+  const sum=a=>a.reduce((t,j)=>t+price(j),0);
+  const done=inp.doneRecent.filter(j=>j.last_done);
+  const monthSoFar=sum(done.filter(j=>j.last_done>=monthStart&&j.last_done<=today));
+  const prevToDate=sum(done.filter(j=>j.last_done>=prevStart&&j.last_done<=prevPoint));
+  const prevTotal=sum(done.filter(j=>j.last_done>=prevStart&&j.last_done<monthStart));
+  const sched=inp.scheduled.filter(j=>j.next_due);
+  const bookedToMonthEnd=sum(sched.filter(j=>j.next_due>=today&&j.next_due<nextStart));
+  const deltaPct=prevToDate>0?Math.round((monthSoFar-prevToDate)/prevToDate*100):null;
+  // Diary: the next 14 days after today
+  const diary=[];
+  for(let i=1;i<=14;i++){
+    const date=addDays(today,i),dow=new Date(date+'T12:00:00').getDay();
+    diary.push({date,dow,weekend:dow===0||dow===6,total:sum(sched.filter(j=>j.next_due===date))});
+  }
+  const wk=diary.filter(d=>!d.weekend),avg=wk.length?wk.reduce((t,d)=>t+d.total,0)/wk.length:0;
+  diary.forEach(d=>{d.light=!d.weekend&&avg>0&&d.total<avg*0.5;});
+  const overdueJobs=sched.filter(j=>j.next_due<today);
+  // Owing by age (days since the job was done)
+  const buckets=[{k:'0-7 days',n:0,sum:0},{k:'8-30 days',n:0,sum:0},{k:'30+ days',n:0,sum:0}];
+  inp.owing.forEach(j=>{
+    const age=j.last_done?daysBetween(j.last_done,today):999;
+    const b=age<=7?buckets[0]:age<=30?buckets[1]:buckets[2];
+    b.n++;b.sum+=price(j);
+  });
+  const owingTotal=buckets.reduce((t,b)=>t+b.sum,0);
+  // Quotes: sent in the last 30 days, and how many were accepted
+  const cut=addDays(today,-30);
+  const sent30=inp.quotes.filter(q=>q.sent_at&&q.sent_at.slice(0,10)>=cut);
+  const acc30=sent30.filter(q=>q.accepted_at).length;
+  const convPct=sent30.length?Math.round(acc30/sent30.length*100):null;
+  const acceptedNoJob=inp.quotes.filter(q=>q.accepted_at&&q.accepted_at.slice(0,10)>=cut&&q.customer_id&&!inp.jobCustIds.has(q.customer_id)).length;
+  return {monthSoFar,prevToDate,prevTotal,deltaPct,bookedToMonthEnd,diary,overdue:{n:overdueJobs.length,sum:sum(overdueJobs)},buckets,owingTotal,sent30:sent30.length,acc30,convPct,acceptedNoJob};
+}
+function dxBadge(txt,kind){return sqBadge(txt,kind);}
 function opsTodayHtml(o){
-  if(!o)return {today:'',needs:'',quotes:''};
-  const ans=o.answered.service+o.answered.sales+o.answered.other;
+  if(!o)return {needs:'',jarvis:''};
   const rows=[];
   o.needsConvs.forEach(c=>{
     const acts=(actionsByConv[c.id]||[]).filter(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at));
@@ -3239,29 +3322,29 @@ function opsTodayHtml(o){
     const body=`<div class="sq-item-body" onclick="openConversationFromDashboard('${c.id}')" style="cursor:pointer"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${sqBadge(esc(label),tone)}<span class="sq-item-t">${esc(c.customer_name||c.customer_phone||'Customer')}</span></div><div class="sq-item-v">${esc(sub)}</div></div>`;
     rows.push(dRow(body+(a?(apr?`<button type="button" class="sq-act primary" onclick="approveActionDash('${a.id}')">OK</button>`:`<button type="button" class="sq-act" onclick="doneAction('${a.id}')">Done</button>`):ic('go','sq-go'))));
   });
-  if(o.crewUnacked.length){
-    const names=[...new Set(o.crewUnacked.map(a=>(o.convById[a.conversation_id]||{}).customer_name).filter(Boolean))].slice(0,3).join(', ');
-    rows.push(dRow(`<div class="sq-item-body"><div class="sq-item-t" style="color:var(--danger)">⚠ ${o.crewUnacked.length} change${o.crewUnacked.length===1?'':'s'} not yet acknowledged by crew</div><div class="sq-item-v">${esc(names)}</div></div>${ic('go','sq-go')}`,"navigate('round')"));
+  const emails=o.emailsToSort||0;
+  if(emails){
+    rows.push(dRow(`${sqBadge('Email','info')}<div class="sq-item-body"><div class="sq-item-t">${emails} email${emails===1?'':'s'} to sort</div><div class="sq-item-v">Unsorted or new enquiries</div></div>${ic('go','sq-go')}`,"navigate('email')"));
   }
   o.needSlot.forEach(j=>{
     const why=[!j.assigned_to?'no assignee':'',(!j.scheduled_date&&!j.next_due)?'no date':''].filter(Boolean).join(' · ');
     rows.push(dRow(`${sqBadge('Needs a slot','info')}<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[j.customer_id]||'Customer')}</div><div class="sq-item-v">£${parseFloat(j.price||0).toFixed(0)} · ${why}</div></div>${ic('go','sq-go')}`,"navigate('jobs')"));
   });
-  const needsCount=o.needsConvs.length+o.needSlot.length;
-  const pend=o.pending.slice(0,4).map(q=>{const d=ageDays(q.sent_at||q.created_at);return dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[q.customer_id]||'Customer')}</div></div>${sqMoney(q.price)}${sqBadge(d===0?'today':d+'d',d>=7?'due':'age')}`,"navigate('quotes')",'align-items:center;');}).join('');
-  return {today:`<div class="dash-card dash-o1">
-    ${dSec('Today')}
-    <div class="sq-tiles" style="margin-bottom:6px">
-      ${dTile('Jarvis answered',ans,`${o.answered.service} service · ${o.answered.sales} sales${o.passed?` · ${o.passed} passed to you`:''}`,{color:'var(--violet)'})}
-      ${dTile('Quotes sent',o.sentToday.length,`${o.acceptedToday.length} booked · ${o.pending.length} pending`,{color:'var(--gold)',onclick:"navigate('quotes')"})}
-      ${dTile('Need a slot',o.needSlot.length,o.needSlot.length?'no assignee or date':'all placed',{color:o.needSlot.length?'var(--danger)':'var(--done)',cls:o.needSlot.length?'alert':'',onclick:"navigate('jobs')"})}
-    </div></div>`,
-  needs:`<div class="dash-card dash-o2">
+  if(o.crewUnacked.length){
+    const names=[...new Set(o.crewUnacked.map(a=>(o.convById[a.conversation_id]||{}).customer_name).filter(Boolean))].slice(0,3).join(', ');
+    rows.push(dRow(`<div class="sq-item-body"><div class="sq-item-t" style="color:var(--danger)">⚠ ${o.crewUnacked.length} change${o.crewUnacked.length===1?'':'s'} not yet acknowledged by crew</div><div class="sq-item-v">${esc(names)}</div></div>${ic('go','sq-go')}`,"navigate('round')"));
+  }
+  const needsCount=o.needsConvs.length+o.needSlot.length+(emails?1:0);
+  const shown=rows.slice(0,8),more=rows.length-shown.length;
+  const jarvis=`<div class="dash-card dash-o6">${dSec('Jarvis today')}
+    <div class="dx-box"><div class="dx-two">
+      <div><div class="dx-num" style="color:var(--violet)">${o.answered.service+o.answered.sales+o.answered.other}</div><div class="dx-sub">answered on its own</div></div>
+      <div><div class="dx-num" style="color:var(--gold)">${o.passed}</div><div class="dx-sub">passed to you</div></div>
+    </div></div></div>`;
+  return {needs:`<div class="dash-card dash-o1">
     ${dSec(`Needs you${needsCount?` <span class="sq-badge sb-due" style="margin-left:6px">${needsCount}</span>`:''}`)}
-    <div class="sq-list" style="${needsCount||o.crewUnacked.length?'border-color:var(--danger)':''}">${rows.length?rows.join(''):`<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Nothing waiting. Every handoff has been dealt with.</div></div></div>`}</div></div>`,
-  quotes:`${o.pending.length?`<div class="dash-card dash-o3">${dSec('Quotes waiting on a reply',`<button type="button" onclick="navigate('quotes')">${o.pending.length} total →</button>`)}<div class="sq-list">${pend}</div></div>`:''}`};
+    <div class="sq-list" style="${needsCount||o.crewUnacked.length?'border-color:var(--danger)':''}">${rows.length?shown.join(''):`<div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v" style="color:var(--done)">✓ Nothing waiting. Every handoff has been dealt with.</div></div></div>`}</div>${more>0?`<button type="button" class="sq-act" style="margin-top:8px" onclick="navigate('messaging')">+${more} more →</button>`:''}</div>`,jarvis};
 }
-
 
 async function renderDashboard(){
   document.getElementById('topbarPage').textContent='Dashboard';
@@ -3271,31 +3354,33 @@ async function renderDashboard(){
   await loadUsers();
   const today=todayStr();
   const weekAgoISO=new Date(Date.now()-6*86400000).toISOString();
+  const prevMonthStart=pyShiftMonth(today.slice(0,8)+'01',-1);
 
-  let byDue=[],byDate=[],respReq=[],openEsc=[],doneJobs=[],scheduled=[],allConvs=[],custForMatch=[],quotesPending=[],invByJob={};
+  let byDue=[],byDate=[],openEsc=[],scheduled=[],allConvs=[],custForMatch=[];
   try{
-    [byDue,byDate,respReq,openEsc,doneJobs,scheduled,allConvs,custForMatch,quotesPending]=await Promise.all([
+    [byDue,byDate,openEsc,scheduled,allConvs,custForMatch]=await Promise.all([
       sb(`wc_jobs?next_due=eq.${today}&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
       sb(`wc_jobs?scheduled_date=eq.${today}&next_due=is.null&business_id=eq.${BUSINESS_ID}&select=id,price,status,assigned_to`),
-      sb(`conversations?business_id=eq.${BUSINESS_ID}&last_message_direction=eq.inbound&controlled_by=eq.human&stage=not.in.(BOOKED,FAILED_TO_CONVERT,TIME_WASTER,CLOSED)&deleted_at=is.null&select=id,customer_name,last_message_at`),
       sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversation_id,conversations!inner(customer_name,last_message_at,stage)&conversations.deleted_at=is.null&order=created_at.desc`),
-      sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false&select=id,price`),
       sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.scheduled&select=next_due,price`),
       sb(`conversations?business_id=eq.${BUSINESS_ID}&deleted_at=is.null&order=last_message_at.desc&select=id,customer_name,customer_phone,topic,wc_customer_id,stage,controlled_by,last_message_direction,last_message_at,created_at,last_outbound_at,last_outbound_source`),
       sb(`wc_customers?business_id=eq.${BUSINESS_ID}&select=id,phone,whatsapp_number,alt_phone`),
-      sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=eq.sent&accepted_at=is.null&declined_at=is.null&select=id,price`),
     ]);
-    const jobIds=doneJobs.map(j=>j.id);
-    if(jobIds.length){
-      const existingInvs=[];for(let i=0;i<jobIds.length;i+=40){existingInvs.push(...(await sb(`wc_invoices?business_id=eq.${BUSINESS_ID}&job_id=in.(${jobIds.slice(i,i+40).join(',')})&select=job_id,status&order=created_at.desc`)||[]));}
-      existingInvs.forEach(inv=>{if(inv.job_id&&!invByJob[inv.job_id])invByJob[inv.job_id]=inv;if(inv.job_id&&inv.status==='paid')invByJob[inv.job_id]={...invByJob[inv.job_id],status:'paid'};});
-    }
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
+
+  // Secondary data: if one of these fails the rest of the dashboard still shows.
+  const soft=p=>p.catch(e=>{console.warn('dashboard',e);return [];});
+  const [doneRecent,emailRows]=await Promise.all([
+    soft(profitFetchAll(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&last_done=gte.${prevMonthStart}&select=last_done,price`)),
+    soft(sb(`email_messages?handled=eq.false&or=(bucket.eq.unsorted,and(bucket.eq.enquiry,is_read.eq.false))&select=id`)),
+  ]);
 
   // Today's jobs by assignee
   const todayJobs=[...byDue,...byDate];
   const todayTotal=todayJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
-  const todayDone=todayJobs.filter(j=>j.status==='done').length;
+  const todayDoneJobs=todayJobs.filter(j=>j.status==='done');
+  const todayDone=todayDoneJobs.length;
+  const todayDoneTotal=todayDoneJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
   const byAssignee=new Map();
   wcUsers.forEach(u=>byAssignee.set(u.id,{name:u.name,jobs:[],total:0,done:0}));
   todayJobs.forEach(j=>{
@@ -3306,95 +3391,92 @@ async function renderDashboard(){
   });
   const assigneeGroups=[...byAssignee.entries()].filter(([,g])=>g.jobs.length);
 
-  // Needs attention — union of "response required" and open escalations, deduped by conversation
-  const attentionMap=new Map();
-  respReq.forEach(c=>attentionMap.set(c.id,{id:c.id,name:c.customer_name||'Unknown',reasonLabel:'Reply needed',at:c.last_message_at}));
-  openEsc.forEach(e=>{
-    const conv=e.conversations||{};
-    attentionMap.set(e.conversation_id,{id:e.conversation_id,name:conv.customer_name||'Unknown',reasonLabel:escalationReasonLabel(e.reason_code),at:e.created_at});
-  });
-  const attentionList=[...attentionMap.values()].sort((a,b)=>new Date(b.at)-new Date(a.at));
-
-  // Conversations split into Customer service vs Sales — same rules as the Conversations page (convKind / convNeedsReply)
+  // Conversation rules shared with the Conversations page (convKind / convNeedsReply / convBucket)
   customerIdByPhone={};
   custForMatch.forEach(c=>{[c.whatsapp_number,c.phone,c.alt_phone].forEach(p=>{const k=phoneKey(p);if(k&&!/^0+$/.test(k))customerIdByPhone[k]=c.id;});});
   await loadQuoteStateByCustomer();
   openEscalationByConv={};
   openEsc.forEach(e=>{if(e.conversation_id&&!openEscalationByConv[e.conversation_id])openEscalationByConv[e.conversation_id]=e;});
-  const convSection=kind=>{
-    const live=allConvs.filter(c=>!isTerminalConv(c)&&convKind(c)===kind);
-    const waiting=live.filter(convNeedsReply).map(c=>{
-      const e=openEscalationByConv[c.id];
-      return {id:c.id,name:c.customer_name||'Unknown',reasonLabel:e?escalationReasonLabel(e.reason_code):'Reply needed',at:e?e.created_at:c.last_message_at};
-    }).sort((a,b)=>new Date(b.at)-new Date(a.at));
-    const weekCount=allConvs.filter(c=>convKind(c)===kind&&c.created_at>=weekAgoISO).length;
-    return {live:live.length,waiting,weekCount};
-  };
-  const svcSec=convSection('service');
-  const salesSec=convSection('sales');
+  const newSales=allConvs.filter(c=>convKind(c)==='sales'&&c.created_at>=weekAgoISO).length;
+  const newService=allConvs.filter(c=>convKind(c)==='service'&&c.created_at>=weekAgoISO).length;
   let ops=null;try{ops=await loadOpsToday(allConvs);}catch(e){console.warn('loadOpsToday',e);}
+  if(ops)ops.emailsToSort=(emailRows||[]).length;
 
-  // Outstanding — done jobs not yet paid (same definition as the Owing tab)
   await loadOwing();
-  const unpaidJobs=owingJobsCache||[];
-  const outstandingTotal=unpaidJobs.reduce((s,j)=>s+parseFloat(j.price||0),0);
+  // Accepted quotes whose customer has no job at all
+  const quotes=(ops&&ops.quotes)||[];
+  const accIds=[...new Set(quotes.filter(q=>q.accepted_at&&q.customer_id).map(q=>q.customer_id))];
+  let jobCustIds=new Set();
+  if(accIds.length){const js=await soft(sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&customer_id=in.(${accIds.join(',')})&select=customer_id`));jobCustIds=new Set(js.map(j=>j.customer_id));}
 
-  // Forecast — 7 and 31 days from today, scheduled jobs
-  const in7=localDateStr(new Date(Date.now()+6*86400000));
-  const in31=localDateStr(new Date(Date.now()+30*86400000));
-  const forecast7=scheduled.filter(j=>j.next_due>=today&&j.next_due<=in7);
-  const forecast31=scheduled.filter(j=>j.next_due>=today&&j.next_due<=in31);
-  const forecast7Total=forecast7.reduce((s,j)=>s+parseFloat(j.price||0),0);
-  const forecast31Total=forecast31.reduce((s,j)=>s+parseFloat(j.price||0),0);
-
-  // Quotes awaiting reply
-  const quotesPendingTotal=quotesPending.reduce((s,q)=>s+parseFloat(q.price||0),0);
-
+  const M=dashMetrics({today,scheduled,doneRecent,owing:owingJobsCache||[],quotes,jobCustIds});
   const opsH=opsTodayHtml(ops);
+  const pending=ops?ops.pending:[];
+  const pendingTotal=pending.reduce((s,q)=>s+parseFloat(q.price||0),0);
+  const oldestQ=pending.length?ageDays(pending[0].sent_at||pending[0].created_at):0;
+
+  // ── Today
+  const todayPct=todayJobs.length?Math.round(todayDone/todayJobs.length*100):0;
+  const todayCard=`<div class="dash-card dash-o2">${dSec('Today',`<button type="button" onclick="navigate('round')">View round →</button>`)}
+    <div class="dx-box">
+      <div class="dx-big">${todayDone}<span> / ${todayJobs.length}</span><em>jobs done</em></div>
+      <div class="dx-track"><i style="width:${todayPct}%;background:var(--done)"></i></div>
+      <div class="dx-sub">${gbp(todayDoneTotal)} done of ${gbp(todayTotal)} booked</div>
+      ${assigneeGroups.length?`<div class="dx-people">${assigneeGroups.map(([key,g])=>{
+        const un=key==='unassigned',p=Math.round(g.done/g.jobs.length*100);
+        return`<div><div class="dx-prow"><span style="${un?'color:var(--danger)':''}">${esc(g.name)}</span><span>${g.done} of ${g.jobs.length} · ${gbp(g.total)}</span></div><div class="dx-track sm"><i style="width:${Math.max(p,2)}%;background:${g.done===0?'var(--warn)':'var(--teal)'}"></i></div></div>`;}).join('')}</div>`:`<div class="dx-sub" style="margin-top:12px">No jobs scheduled today</div>`}
+    </div></div>`;
+
+  // ── Money
+  const bt=M.owingTotal||1,bcol=['var(--done)','var(--warn)','var(--danger)'];
+  const delta=M.deltaPct==null?'':`<span style="color:${M.deltaPct>=0?'var(--done)':'var(--danger)'}">${M.deltaPct>=0?'up':'down'} ${Math.abs(M.deltaPct)}%</span> on the same point last month`;
+  const moneyCard=`<div class="dash-card dash-o3">${dSec('Money',`<button type="button" onclick="navigate('profitability')">Profitability →</button>`)}
+    <div class="dx-box">
+      <button type="button" class="dx-lnk" onclick="navigate('owing')"><div class="dx-lbl">Owing</div><div class="dx-big">${gbp(M.owingTotal)}<em>${(owingJobsCache||[]).length} unpaid job${(owingJobsCache||[]).length===1?'':'s'}</em></div></button>
+      ${M.owingTotal>0?`<div class="dx-stack">${M.buckets.map((b,i)=>b.sum>0?`<i style="flex:${b.sum};background:${bcol[i]}"></i>`:'').join('')}</div>
+      <div class="dx-ages">${M.buckets.map((b,i)=>`<span><b style="background:${bcol[i]}"></b>${b.k} ${gbp(b.sum)}</span>`).join('')}</div>`:`<div class="dx-sub" style="color:var(--done)">✓ Nothing owing</div>`}
+      <div class="dx-rule"></div>
+      <div class="dx-two">
+        <div><div class="dx-lbl">Done this month</div><div class="dx-num">${gbp(M.monthSoFar)}</div><div class="dx-sub">${delta||'&nbsp;'}</div></div>
+        <div><div class="dx-lbl">Booked to month end</div><div class="dx-num">${gbp(M.bookedToMonthEnd)}</div><div class="dx-sub">${gbp(M.monthSoFar+M.bookedToMonthEnd)} if all happens</div></div>
+      </div>
+    </div></div>`;
+
+  // ── Diary, next 14 days
+  const maxD=Math.max(...M.diary.map(d=>d.total),1);
+  const wkd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const diaryCard=`<div class="dash-card dash-o4">${dSec('Diary, next 14 days',M.overdue.n?`<button type="button" onclick="navigate('overdue')" style="color:var(--warn)">${M.overdue.n} overdue · ${gbp(M.overdue.sum)} →</button>`:`<button type="button" onclick="navigate('revenue')">Revenue →</button>`)}
+    <div class="dx-box">
+      <div class="dx-sub" style="margin:0 0 12px">£ booked per day. Amber weekdays are light: room to sell, or to use the van.</div>
+      <div class="dx-diary">${M.diary.map(d=>{
+        const col=d.light?'var(--warn)':d.weekend?'var(--border)':'var(--teal)';
+        const v=d.total>=1000?(d.total/1000).toFixed(1)+'k':String(Math.round(d.total));
+        return`<div class="c"><span class="v" style="color:${d.light?'var(--warn)':'var(--text-soft)'}">${d.total?v:'0'}</span><div class="bar"><i style="height:${d.total?Math.max(4,Math.round(d.total/maxD*100)):3}%;background:${col}"></i></div><span class="d">${wkd[d.dow]}<br>${parseInt(d.date.slice(8),10)}</span></div>`;}).join('')}</div>
+    </div></div>`;
+
+  // ── Pipeline
+  const pip=(label,val,sub,color,onclick,alert)=>`<button type="button" class="dx-tile${alert?' alert':''}" ${onclick?`onclick="${onclick}"`:''}><div class="l">${label}</div><div class="n" style="color:${color}">${val}</div><div class="s">${sub}</div></button>`;
+  const pipeCard=`<div class="dash-card dash-o5">${dSec('Pipeline')}
+    <div class="dx-box"><div class="dx-tiles">
+      ${pip('New leads this week',newSales,`${newService} customer service`,'var(--teal)',"openConvTabFromDashboard('sales')")}
+      ${pip('Quotes out',gbp(pendingTotal),pending.length?`${pending.length} waiting · oldest ${oldestQ}d`:'none waiting','var(--gold)',"navigate('quotes')")}
+      ${pip('Quote to booked',M.convPct==null?'n/a':M.convPct+'%',`${M.acc30} of ${M.sent30} · last 30 days`,'var(--done)',"navigate('quotes')")}
+      ${pip('Accepted, no job',M.acceptedNoJob,M.acceptedNoJob?'quote agreed, nothing booked':'all have a job',M.acceptedNoJob?'var(--danger)':'var(--done)',"navigate('quotes')",M.acceptedNoJob>0)}
+    </div></div></div>`;
+
   el.innerHTML=`
     <div style="font-size:22px;font-weight:700;color:var(--white)">Good ${new Date().getHours()<12?'morning':new Date().getHours()<17?'afternoon':'evening'}, ${esc((currentUser?.name||'').split(' ')[0]||'')}</div>
     <div class="sq-note" style="margin:2px 0 0">${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
     <div class="dash-grid">
     <div class="dash-col dash-main">
-    <div class="dash-card dash-o4">
-    ${dSec('Overview')}
-    <div class="sq-grid2 kpi4">
-      ${dTile("Today's jobs",todayJobs.length,`£${todayTotal.toFixed(2)} · ${todayDone} done`,{onclick:"navigate('round')"})}
-      ${dTile('Needs attention',attentionList.length,'open conversations',{color:attentionList.length?'var(--danger)':'',cls:attentionList.length?'alert':'',onclick:"navigate('messaging')"})}
-      ${dTile('Outstanding','£'+outstandingTotal.toFixed(0),`${unpaidJobs.length} unpaid job${unpaidJobs.length!==1?'s':''}`,{onclick:"navigate('owing')"})}
-      ${dTile('Next 7 days','£'+forecast7Total.toFixed(0),`${forecast7.length} jobs booked`,{color:'var(--done)',onclick:"navigate('revenue')"})}
-    </div>
-    </div>
     ${opsH.needs}
-    ${[['Customer service','service',svcSec,'this week'],['Sales','sales',salesSec,'new this week']].map(([title,tab,sec,weekLabel])=>`<div class="dash-card dash-o${tab==='service'?6:7}">
-      ${dSec(title,`<button type="button" onclick="openConvTabFromDashboard('${tab}')">${sec.live} live · ${sec.weekCount} ${weekLabel} →</button>`)}
-      ${sec.waiting.length?`<div class="sq-list">${sec.waiting.slice(0,3).map(a=>dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(a.name)}</div></div>${sqBadge(esc(a.reasonLabel),a.reasonLabel==='Billing'?'due':'warn')}`,`openConversationFromDashboard('${a.id}')`,'align-items:center;')).join('')}</div>${sec.waiting.length>3?`<button type="button" class="sq-act" style="margin-top:8px" onclick="openConvTabFromDashboard('${tab}')">+${sec.waiting.length-3} more waiting →</button>`:''}`
-      :`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v" style="color:var(--done)">✓ All caught up</div></div></div></div>`}</div>`).join('')}
+    ${diaryCard}
+    ${pipeCard}
     </div>
     <div class="dash-col dash-side">
-    ${opsH.today}
-    <div class="dash-card dash-o5">
-    ${dSec('Today, by assignee',`<button type="button" onclick="navigate('round')">View round →</button>`)}
-    ${assigneeGroups.length?`<div class="sq-list">${assigneeGroups.map(([key,g])=>{
-      const un=key==='unassigned';
-      return`<div class="sq-block"><div class="sq-row" style="cursor:default;align-items:center">${sqAv(g.name,un?'#d6455d':sqColor(g.name),un?'?':esc(initialsFor(g.name)))}<div class="sq-body"><div class="sq-name">${esc(g.name)}</div><div class="sq-sub">${g.jobs.length} job${g.jobs.length!==1?'s':''} · ${g.done} done</div></div><div class="sq-right">${sqMoney(g.total)}</div></div></div>`;}).join('')}</div>`
-      :`<div class="sq-list"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">No jobs scheduled today</div></div></div></div>`}
-    </div>
-    ${opsH.quotes}
-    <div class="dash-card dash-o8">
-    ${dSec('Forecast')}
-    <div class="sq-grid2">
-      ${dTile('Next 31 days','£'+forecast31Total.toFixed(0),`${forecast31.length} jobs`,{color:'var(--done)',onclick:"navigate('revenue')"})}
-      ${dTile('Quotes awaiting reply',quotesPending.length,'£'+quotesPendingTotal.toFixed(0),{color:'var(--violet)',onclick:"navigate('quotes')"})}
-    </div>
-    </div>
-    <div class="dash-card dash-o9">
-    <div class="sq-qa" style="margin-top:18px">
-      <button type="button" onclick="navigate('quotes');setTimeout(openNewQuote,100)">${ic('doc')}New quote</button>
-      <button type="button" onclick="navigate('customers');setTimeout(openAddCustomer,100)">${ic('plus')}Customer</button>
-      <button type="button" onclick="navigate('owing')">${ic('card')}Owing</button>
-    </div>
-    </div>
+    ${todayCard}
+    ${moneyCard}
+    ${opsH.jarvis}
     </div>
     </div>
   `;
