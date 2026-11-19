@@ -1531,7 +1531,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='252';
+const BUILD_VERSION='253';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3194,20 +3194,13 @@ async function loadOpsToday(allConvs){
   const sentToday=quotes.filter(q=>q.sent_at&&new Date(q.sent_at).getTime()>=sodMs);
   const acceptedToday=quotes.filter(q=>q.accepted_at&&new Date(q.accepted_at).getTime()>=sodMs);
   const pending=quotes.filter(q=>q.status==='sent'&&!q.accepted_at&&!q.declined_at).sort((a,b)=>new Date(a.sent_at||a.created_at)-new Date(b.sent_at||b.created_at));
-  // Accepted quotes whose job still has no assignee or no date = a booking that needs a slot.
-  const recentAccepted=quotes.filter(q=>q.accepted_at&&ageDays(q.accepted_at)<=30);
-  const custIds=[...new Set([...recentAccepted,...pending].map(q=>q.customer_id).filter(Boolean))];
-  const nameById={};let needSlot=[];
+  // "Needs a slot" = open jobs with no assignee or no date (not based on quotes).
+  const nameById={};
+  const needSlot=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=in.(scheduled,pending_assignment)&or=(assigned_to.is.null,and(scheduled_date.is.null,next_due.is.null))&order=created_at.asc&select=id,customer_id,price,status,assigned_to,scheduled_date,next_due`);
+  const custIds=[...new Set([...needSlot,...pending].map(x=>x.customer_id).filter(Boolean))];
   if(custIds.length){
-    const [custs,jobs]=await Promise.all([
-      sb(`wc_customers?id=in.(${custIds.join(',')})&select=id,name`),
-      sb(`wc_jobs?customer_id=in.(${custIds.join(',')})&status=in.(scheduled,pending_assignment)&select=id,customer_id,assigned_to,scheduled_date,next_due`)
-    ]);
+    const custs=await sb(`wc_customers?id=in.(${custIds.join(',')})&select=id,name`);
     custs.forEach(c=>nameById[c.id]=c.name);
-    needSlot=recentAccepted.filter(q=>{
-      const js=jobs.filter(j=>j.customer_id===q.customer_id);
-      return !js.length||js.some(j=>!j.assigned_to||(!j.scheduled_date&&!j.next_due));
-    });
   }
   const crewUnacked=live.filter(a=>a.owner==='crew'&&!a.crew_ack_at);
   const mine=live.filter(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at));
@@ -3250,8 +3243,9 @@ function opsTodayHtml(o){
     const names=[...new Set(o.crewUnacked.map(a=>(o.convById[a.conversation_id]||{}).customer_name).filter(Boolean))].slice(0,3).join(', ');
     rows.push(dRow(`<div class="sq-item-body"><div class="sq-item-t" style="color:var(--danger)">⚠ ${o.crewUnacked.length} change${o.crewUnacked.length===1?'':'s'} not yet acknowledged by crew</div><div class="sq-item-v">${esc(names)}</div></div>${ic('go','sq-go')}`,"navigate('round')"));
   }
-  o.needSlot.forEach(q=>{
-    rows.push(dRow(`${sqBadge('Needs a slot','info')}<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[q.customer_id]||'Customer')}</div><div class="sq-item-v">£${parseFloat(q.price||0).toFixed(0)} · accepted ${ageDays(q.accepted_at)===0?'today':ageDays(q.accepted_at)+'d ago'}</div></div>${ic('go','sq-go')}`,"navigate('jobs')"));
+  o.needSlot.forEach(j=>{
+    const why=[!j.assigned_to?'no assignee':'',(!j.scheduled_date&&!j.next_due)?'no date':''].filter(Boolean).join(' · ');
+    rows.push(dRow(`${sqBadge('Needs a slot','info')}<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[j.customer_id]||'Customer')}</div><div class="sq-item-v">£${parseFloat(j.price||0).toFixed(0)} · ${why}</div></div>${ic('go','sq-go')}`,"navigate('jobs')"));
   });
   const needsCount=o.needsConvs.length+o.needSlot.length;
   const pend=o.pending.slice(0,4).map(q=>{const d=ageDays(q.sent_at||q.created_at);return dRow(`<div class="sq-item-body"><div class="sq-item-t">${esc(o.nameById[q.customer_id]||'Customer')}</div></div>${sqMoney(q.price)}${sqBadge(d===0?'today':d+'d',d>=7?'due':'age')}`,"navigate('quotes')",'align-items:center;');}).join('');
@@ -3260,7 +3254,7 @@ function opsTodayHtml(o){
     <div class="sq-tiles" style="margin-bottom:6px">
       ${dTile('Jarvis answered',ans,`${o.answered.service} service · ${o.answered.sales} sales${o.passed?` · ${o.passed} passed to you`:''}`,{color:'var(--violet)'})}
       ${dTile('Quotes sent',o.sentToday.length,`${o.acceptedToday.length} booked · ${o.pending.length} pending`,{color:'var(--gold)',onclick:"navigate('quotes')"})}
-      ${dTile('Need a slot',o.needSlot.length,o.needSlot.length?'accepted, no date':'all placed',{color:o.needSlot.length?'var(--danger)':'var(--done)',cls:o.needSlot.length?'alert':'',onclick:"navigate('jobs')"})}
+      ${dTile('Need a slot',o.needSlot.length,o.needSlot.length?'no assignee or date':'all placed',{color:o.needSlot.length?'var(--danger)':'var(--done)',cls:o.needSlot.length?'alert':'',onclick:"navigate('jobs')"})}
     </div></div>`,
   needs:`<div class="dash-card dash-o2">
     ${dSec(`Needs you${needsCount?` <span class="sq-badge sb-due" style="margin-left:6px">${needsCount}</span>`:''}`)}
