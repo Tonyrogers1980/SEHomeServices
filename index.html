@@ -606,6 +606,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 .cr-hb{display:flex;align-items:center;gap:12px;padding:4px 0;}.cr-hb-n{flex:0 0 110px;font-size:13px;}.cr-hb svg{flex:1 1 auto;min-width:0;height:34px;}
 .cr-hb-s{flex:0 0 120px;text-align:right;font-size:12px;color:#8a9bb0;white-space:nowrap;}.cr-hb-s.ok{color:#5be584;}
 .cr-feed{display:flex;align-items:baseline;gap:14px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06);flex-wrap:wrap;}
+.cr-dr{padding:12px 0;border-top:1px solid rgba(255,255,255,.08)}.cr-dr-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.cr-dr-l{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8a9bb0;margin-top:6px}.cr-dr-b{font-size:14px;line-height:1.45;color:#e6ecf3;white-space:pre-wrap}
 .cr-f-t{flex:0 0 52px;font-size:13px;color:#8a9bb0;}.cr-f-a{flex:0 0 108px;font-size:13px;font-weight:500;}.cr-f-x{flex:1 1 260px;font-size:14.5px;}.cr-f-tag{font-size:12px;padding:3px 10px;border-radius:999px;}
 @media (prefers-reduced-motion:reduce){.cr-ping{animation:none}}
 /* ═══ v1.0.254 — dashboard redesign ═══ */
@@ -1591,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='256';
+const BUILD_VERSION='257';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3397,6 +3398,33 @@ function crMetrics(events){
   if(!w.length)return null;
   return Math.round(w.filter(e=>e.outcome!=='needs_you').length/w.length*100);
 }
+// v1.0.257: Front Desk drafts (shadow mode) next to what was actually sent
+async function frontDeskDraftsHtml(soft){
+  const drafts=await soft(sb('agent_proposals?agent=eq.front_desk&action_type=eq.draft_reply&order=created_at.desc&limit=12&select=id,created_at,summary,payload,customer_id'));
+  if(!drafts||!drafts.length)return `<section class="cr-tile"><div class="cr-th"><h2>Front Desk drafts (shadow)</h2><span>Nothing is sent to customers</span></div><div class="cr-need-s">No drafts yet. One is written about 2 minutes after each customer message.</div></section>`;
+  const convIds=[...new Set(drafts.map(d=>d.payload&&d.payload.conversation_id).filter(Boolean))];
+  const oldest=encodeURIComponent(new Date(new Date(drafts[drafts.length-1].created_at).getTime()-3*86400000).toISOString());
+  const inList=convIds.join(',');
+  const [msgs,convs]=await Promise.all([
+    soft(sb(`messages?conversation_id=in.(${inList})&created_at=gte.${oldest}&select=id,conversation_id,direction,sender_type,message_text,created_at&order=created_at.asc&limit=800`)),
+    soft(sb(`conversations?id=in.(${inList})&select=id,customer_name,customer_phone`))
+  ]);
+  const ms=msgs||[],cv={};(convs||[]).forEach(c=>cv[c.id]=c);
+  const clip=(t,n)=>{t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n)+'…':t;};
+  const rows=drafts.map(d=>{
+    const p=d.payload||{},inb=ms.find(m=>m.id===p.message_id);
+    const actual=inb?ms.find(m=>m.conversation_id===p.conversation_id&&m.direction==='outbound'&&new Date(m.created_at)>new Date(inb.created_at)):null;
+    const who=(cv[p.conversation_id]&&(cv[p.conversation_id].customer_name||cv[p.conversation_id].customer_phone))||'Customer';
+    const flag=p.no_reply_needed?'<span class="cr-f-tag" style="background:rgba(138,155,176,.16);color:#8a9bb0">no reply needed</span>':p.escalate?'<span class="cr-f-tag" style="background:rgba(255,178,0,.14);color:#ffb200">would hand to Tony</span>':'<span class="cr-f-tag" style="background:rgba(0,224,207,.14);color:#00e0cf">would reply</span>';
+    const sent=actual?`<div class="cr-dr-l">Actually sent by ${actual.sender_type==='human'?'Tony':'Jarvis'}</div><div class="cr-dr-b">${esc(clip(actual.message_text,300))}</div>`:'<div class="cr-dr-l">Actually sent</div><div class="cr-need-s">Nothing yet</div>';
+    return `<div class="cr-dr"><div class="cr-dr-h"><b>${esc(who)}</b>${flag}<span class="cr-need-s">${esc(crRel(d.created_at))}</span></div>
+      <div class="cr-dr-l">Customer said</div><div class="cr-dr-b">${esc(inb?clip(inb.message_text,300):'(message not found)')}</div>
+      <div class="cr-dr-l">Front Desk draft${p.confidence!=null?' · confidence '+Math.round(p.confidence*100)+'%':''}</div><div class="cr-dr-b">${p.no_reply_needed?'<i>No reply needed</i>':esc(p.reply||'')}</div>
+      ${p.escalate&&p.escalate_reason?`<div class="cr-need-s">Reason: ${esc(clip(p.escalate_reason,200))}</div>`:''}
+      ${sent}</div>`;
+  }).join('');
+  return `<section class="cr-tile"><div class="cr-th"><h2>Front Desk drafts (shadow)</h2><span>Latest ${drafts.length}. Nothing is sent to customers.</span></div>${rows}</section>`;
+}
 async function renderControlRoom(){
   document.getElementById('topbarPage').textContent='Control room';
   document.getElementById('topbarAction').innerHTML='';
@@ -3418,6 +3446,7 @@ async function renderControlRoom(){
     soft(sb(`conversations?business_id=eq.${BUSINESS_ID}&created_at=gte.${encodeURIComponent(sod.toISOString())}&select=id`)),
   ]);
   if(!agents||!events){el.innerHTML='<div class="empty"><div class="empty-title">Could not load the activity log</div></div>';return;}
+  const draftsHtml=await frontDeskDraftsHtml(soft);
 
   const byAgent={};agents.forEach(a=>byAgent[a.code]={a,ev:[],today:0});
   events.forEach(e=>{const g=byAgent[e.agent];if(!g)return;g.ev.push(e);if(new Date(e.ts)>=sod)g.today++;});
@@ -3506,6 +3535,7 @@ async function renderControlRoom(){
   </div>
   <section class="cr-tile"><div class="cr-th"><h2>Heartbeat, last 14 days</h2><span>Silence stands out. Backfilled from existing records.</span></div>${hb}</section>
   <section class="cr-tile"><div class="cr-th"><h2>Live activity</h2><span>Latest ${Math.min(14,events.length)}</span></div>${feed}</section>
+  ${draftsHtml}
   </div>`;
 }
 async function renderDashboard(){
