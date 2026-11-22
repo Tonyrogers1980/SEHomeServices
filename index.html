@@ -1123,6 +1123,7 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
         <div class="field"><label>Email *</label><input id="f-email" type="email" placeholder="email@example.com" autocomplete="email"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Access codes, dogs, gate codes…"></textarea></div>
+      <div id="f-access-fields" class="form-grid"></div>
       <div id="f-payment-fields" class="form-grid"></div>
     </div>
     <div class="form-actions">
@@ -1590,7 +1591,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='255';
+const BUILD_VERSION='256';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -4548,15 +4549,16 @@ function custMatches(c){
   if(custFilter==='active')return !!c.has_active_jobs;
   if(custFilter==='inactive')return !c.has_active_jobs;
   if(custFilter==='unset')return !c.payer_type;
+  if(custFilter==='noaccess')return accessMissing(c);
   return c.payer_type===custFilter;
 }
 function drawCustomers(){
   const base=customers.filter(c=>{const l=custQuery.toLowerCase();return !l||c.name.toLowerCase().includes(l)||(c.address||'').toLowerCase().includes(l)||(c.postcode||'').toLowerCase().includes(l)||(c.customer_reference||'').toLowerCase().includes(l);});
-  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>owedBy(c.id)>0).length:k==='active'?base.filter(c=>c.has_active_jobs).length:k==='inactive'?base.filter(c=>!c.has_active_jobs).length:k==='unset'?base.filter(c=>!c.payer_type).length:base.filter(c=>c.payer_type===k).length;
+  const cnt=k=>k==='all'?base.length:k==='owing'?base.filter(c=>owedBy(c.id)>0).length:k==='active'?base.filter(c=>c.has_active_jobs).length:k==='inactive'?base.filter(c=>!c.has_active_jobs).length:k==='unset'?base.filter(c=>!c.payer_type).length:k==='noaccess'?base.filter(accessMissing).length:base.filter(c=>c.payer_type===k).length;
   const list=customers.filter(custMatches);
   const owed=list.reduce((s,c)=>s+owedBy(c.id),0);
   document.getElementById('custPill').innerHTML=`<b>${list.length}</b><span>customers</span><i class="sq-vr"></i><b style="color:var(--done)">${list.filter(c=>c.has_active_jobs).length}</b><span>active</span>`;
-  document.getElementById('custChips').innerHTML=[['all','All'],['active','Active'],['inactive','No active jobs'],['owing','Owing'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set']].map(([k,l])=>`<button class="sq-fchip${custFilter===k?' on':''}${k==='owing'&&cnt('owing')?' danger':''}" onclick="custFilter='${k}';drawCustomers()">${l}<span class="n">${cnt(k)}</span></button>`).join('');
+  document.getElementById('custChips').innerHTML=[['all','All'],['active','Active'],['inactive','No active jobs'],['owing','Owing'],['stripe','Card'],['invoice','Invoice'],['cash','Cash'],['bank_transfer','Bank'],['unset','Not set'],['noaccess','No access info']].map(([k,l])=>`<button class="sq-fchip${custFilter===k?' on':''}${k==='owing'&&cnt('owing')?' danger':''}" onclick="custFilter='${k}';drawCustomers()">${l}<span class="n">${cnt(k)}</span></button>`).join('');
   document.getElementById('customerList').innerHTML=customerCards(list);
 }
 function customerCards(list){
@@ -4628,6 +4630,7 @@ function renderCustomerTab(c){
   body.innerHTML=`
     <div class="sq-list">
       ${item('Payment',esc(payerSummary(c)),`openEditCustomer('${c.id}')`)}
+      ${item('Access',esc(accessSummary(c)),`openEditCustomer('${c.id}')`,accessMissing(c))}
       ${c.notes?item('Notes',esc(c.notes),`openEditCustomer('${c.id}')`,true):''}
       <div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t">Stripe</div>
         ${c.stripe_customer_id
@@ -4756,6 +4759,64 @@ async function loadPaymentMethod(stripeCustomerId){
     el.innerHTML=`Could not check card${e.message==='timeout'?' (timed out)':''}`;
   }
 }
+// ── customer access (v1.0.256) ──────────────────────────────────────────────
+// Where the cleaner gets in, and whether the customer must be home. Commercial sites (shops etc.) are not
+// asked for side access. Database checks enforce: a code with gate_code/key_safe, and "through the house"
+// means the customer must be home. Agents read the same fields.
+const ACCESS_METHODS=[['gate_open','Gate left open'],['gate_code','Gate code'],['key_safe','Key safe'],['side_access_unlocked','Side access unlocked'],['through_house','Through the house'],['open_premises','Open premises (shop)'],['other','Other']];
+const ACCESS_LABEL=Object.fromEntries(ACCESS_METHODS);
+function accessMissing(c){return !!c&&c.customer_kind!=='commercial'&&!c.access_method;}
+function accessSummary(c){
+  if(!c)return '';
+  const kind=c.customer_kind==='commercial'?'Commercial':'Domestic';
+  if(!c.access_method)return c.customer_kind==='commercial'?'Commercial · no access details needed':'Not recorded yet';
+  const parts=[kind,ACCESS_LABEL[c.access_method]||c.access_method];
+  if(c.access_code)parts.push('code '+c.access_code);
+  parts.push(c.customer_home_required?'customer must be home':'OK to work when out');
+  if(c.access_instructions)parts.push(c.access_instructions);
+  return parts.join(' · ');
+}
+function renderAccessFields(c){
+  c=c||{};
+  const kind=c.customer_kind||'domestic';
+  const meth=c.access_method||'';
+  const opts=ACCESS_METHODS.filter(([v])=>kind==='commercial'||v!=='open_premises').map(([v,l])=>`<option value="${v}"${v===meth?' selected':''}>${l}</option>`).join('');
+  document.getElementById('f-access-fields').innerHTML=`
+    <div class="sq-form-sec">Access</div>
+    <div class="field"><label>Customer type</label>${sqSeg('f-cust-kind',[['domestic','🏠 Domestic'],['commercial','🏪 Commercial']],kind)}</div>
+    <div class="field"><label>How we get in</label><select id="f-access-method" onchange="updateAccessFields()"><option value="">${kind==='commercial'?'Not needed':'Choose…'}</option>${opts}</select></div>
+    <div class="field" id="f-access-code-wrap"><label>Code</label><input id="f-access-code" placeholder="Gate code or key safe code" value="${esc(c.access_code||'')}"></div>
+    <div class="field"><label>Access instructions</label><textarea id="f-access-instr" placeholder="Which gate, where the key safe is, dog in the garden…">${esc(c.access_instructions||'')}</textarea></div>
+    <div class="field" id="f-home-wrap"><label>Customer must be home</label>${sqSeg('f-home-required',[['no','No, OK to work when out'],['yes','Yes']],c.customer_home_required?'yes':'no')}<div class="sq-hint" id="f-access-hint"></div></div>
+    ${c.access_confirmed_at?`<div class="sq-hint">Access last confirmed ${fmtShort(String(c.access_confirmed_at).split('T')[0])}</div>`:''}`;
+  updateAccessFields();
+}
+function updateAccessFields(){
+  const kind=sqSegVal('f-cust-kind')||'domestic';
+  const sel=document.getElementById('f-access-method');if(!sel)return;
+  const m=sel.value;
+  const cw=document.getElementById('f-access-code-wrap');if(cw)cw.style.display=(m==='gate_code'||m==='key_safe')?'':'none';
+  const hw=document.getElementById('f-home-wrap');
+  if(hw){
+    if(m==='through_house'){const b=document.querySelector('#f-home-required button[data-v="yes"]');if(b)sqSegPick(b);}
+    hw.style.display=(kind==='commercial'&&m==='open_premises')?'none':'';
+    const h=document.getElementById('f-access-hint');if(h)h.textContent=m==='through_house'?'Going through the house always needs the customer home.':'';
+  }
+}
+function accessPayload(prev){
+  const kind=sqSegVal('f-cust-kind')||'domestic';
+  const method=document.getElementById('f-access-method').value||null;
+  const code=document.getElementById('f-access-code').value.trim()||null;
+  const instr=document.getElementById('f-access-instr').value.trim()||null;
+  const needsCode=method==='gate_code'||method==='key_safe';
+  if(needsCode&&!code)return{error:'Enter the code for '+(ACCESS_LABEL[method]||'this access method').toLowerCase()};
+  if(kind==='domestic'&&!method&&!prev)return{error:'Choose how we get in (domestic customers need access details)'};
+  const home=method==='through_house'?true:(kind==='commercial'&&method==='open_premises'?false:sqSegVal('f-home-required')==='yes');
+  const out={customer_kind:kind,access_method:method,access_code:needsCode?code:null,access_instructions:instr,customer_home_required:method?home:null};
+  const changed=!prev||prev.customer_kind!==kind||(prev.access_method||null)!==method||(prev.access_code||null)!==out.access_code||(prev.access_instructions||null)!==instr||!!prev.customer_home_required!==!!out.customer_home_required;
+  if(changed&&method)out.access_confirmed_at=new Date().toISOString();
+  return{payload:out,warn:kind==='domestic'&&!method};
+}
 // ── customer form: payment settings ─────────────────────────────────────────
 const PAYER_HINTS={stripe:'Charged from the Owing page (or automatically if you switch that on). No invoice is sent unless you choose.',cash:'Owing until you mark it paid. Nothing is sent.',bank_transfer:'Owing until you mark the transfer received. Nothing is sent.',invoice:'An invoice with pay link, bank details and PO goes out when a job is done.'};
 function renderPaymentFields(c){
@@ -4788,6 +4849,7 @@ function openAddCustomer(){
   document.getElementById('customerModalTitle').textContent='Add customer';
   ['name','address','postcode','phone','whatsapp','email','notes'].forEach(f=>document.getElementById('f-'+f).value='');
   getBillingSettings().then(updatePaymentFields);
+  renderAccessFields({});
   renderPaymentFields({});
   document.getElementById('customerModal').classList.add('open');
 }
@@ -4803,6 +4865,7 @@ function openEditCustomer(id){
   document.getElementById('f-email').value=c.email||'';
   document.getElementById('f-notes').value=c.notes||'';
   getBillingSettings().then(updatePaymentFields);
+  renderAccessFields(c);
   renderPaymentFields(c);
   document.getElementById('customerModal').classList.add('open');
 }
@@ -4928,6 +4991,9 @@ async function saveCustomer(){
   if(!isValidUKPhone(phone)){showToast('Enter a valid UK phone number, e.g. +447700900000','error');return;}
   if(!email){showToast('Email address is required','error');return;}
   const payer=sqSegVal('f-payer-type');
+  const prevForAccess=editingCustomerId?(customers||[]).find(x=>x.id===editingCustomerId):null;
+  const acc=accessPayload(prevForAccess);
+  if(acc.error){showToast(acc.error,'error');return;}
   const termsCustom=sqSegVal('f-terms-mode')==='custom';
   const terms=termsCustom?parseInt(document.getElementById('f-terms').value,10):null;
   if(termsCustom&&(isNaN(terms)||terms<0||terms>120)){showToast('Enter payment terms in days (0–120)','error');return;}
@@ -4940,6 +5006,7 @@ async function saveCustomer(){
   const payload={name,address,postcode,phone,email,
     whatsapp_number:whatsapp,
     notes:document.getElementById('f-notes').value.trim()||null,
+    ...acc.payload,
     payer_type:payer,
     cash_payer:payer==='cash',
     po_reference:document.getElementById('f-po').value.trim()||null,
@@ -6114,7 +6181,8 @@ function payerSummary(c){
 }
 // segmented controls (Default / No / Yes style, as on Squeegee's customer settings)
 function sqSeg(id,opts,val){const cur=val==null?'':String(val);return`<div class="sq-seg" id="${id}" data-val="${esc(cur)}">${opts.map(([v,l])=>`<button type="button" data-v="${esc(String(v))}" class="${String(v)===cur?'on':''}" onclick="sqSegPick(this)">${l}</button>`).join('')}</div>`;}
-function sqSegPick(btn){const el=btn.parentElement;el.dataset.val=btn.dataset.v;[...el.children].forEach(b=>b.classList.toggle('on',b===btn));if(el.id==='f-payer-type')updatePaymentFields();if(el.id==='f-terms-mode')updatePaymentFields();}
+function sqSegPick(btn){const el=btn.parentElement;el.dataset.val=btn.dataset.v;[...el.children].forEach(b=>b.classList.toggle('on',b===btn));if(el.id==='f-payer-type')updatePaymentFields();if(el.id==='f-terms-mode')updatePaymentFields();if(el.id==='f-cust-kind')renderAccessFields({...currentAccessDraft(),customer_kind:btn.dataset.v});}
+function currentAccessDraft(){const g=id=>document.getElementById(id);return{access_method:g('f-access-method')?.value||null,access_code:g('f-access-code')?.value||'',access_instructions:g('f-access-instr')?.value||'',customer_home_required:sqSegVal('f-home-required')==='yes'};}
 function sqSegVal(id){const v=document.getElementById(id)?.dataset.val;return v===''||v==null?null:v;}
 function sqTri(id,val,defLabel){const v=val===true?'yes':val===false?'no':'';return sqSeg(id,[['',`Default (${defLabel})`],['no','No'],['yes','Yes']],v);}
 function sqTriVal(id){const v=sqSegVal(id);return v==='yes'?true:v==='no'?false:null;}
