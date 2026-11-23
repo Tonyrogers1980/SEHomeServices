@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='257';
+const BUILD_VERSION='258';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -5790,8 +5790,17 @@ async function saveQuote(status){
       // Editing an existing quote (e.g. assigning a round) never touches status or re-sends
       // the original quote message — status only ever moves forward through its own flow
       // (accepted \u2192 job created), never backward via an edit save.
-      await sb(`wc_quotes?id=eq.${editingQuoteId}`,{method:'PATCH',body:JSON.stringify(basePayload),prefer:'return=minimal'});
+      // v1.0.258: "Save & send" on an edit used to just save and silently never send. If the user
+      // asked to send and the quote isn't already accepted/declined, stamp it sent and (re)fire the delivery webhook.
+      const existingQ=quotes.find(x=>x.id===editingQuoteId);
+      const resend=status==='sent'&&!(existingQ&&['accepted','declined'].includes(existingQ.status));
+      const editPayload=resend?{...basePayload,status:'sent',sent_at:new Date().toISOString()}:basePayload;
+      await sb(`wc_quotes?id=eq.${editingQuoteId}`,{method:'PATCH',body:JSON.stringify(editPayload),prefer:'return=minimal'});
       showToast('Quote updated','success');
+      if(resend){
+        const customerE=customers.find(c=>c.id===customerId)||existingQ?.wc_customers||{};
+        fireQuoteWebhook({quoteId:editingQuoteId,customer:customerE,price,service_type:basePayload.service_type,frequency:basePayload.frequency,notes:basePayload.notes,start_date:basePayload.start_date||null});
+      }
       // Fire-and-forget: if this quote is already accepted and now has a round+date, this creates the job and confirms the date to the customer. No-ops safely otherwise.
       fetch(N8N_CONFIRM_SCHEDULE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quote_id:editingQuoteId})}).catch(()=>{});
     }else{
