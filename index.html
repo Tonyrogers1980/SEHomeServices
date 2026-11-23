@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='259';
+const BUILD_VERSION='260';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -4666,7 +4666,7 @@ function renderCustomerTab(c){
         ${c.stripe_customer_id
           ?`<div class="sq-item-v" style="font-family:'DM Mono',monospace;color:var(--done)">${esc(c.stripe_customer_id)}</div><div id="stripePaymentMethod" class="sq-item-v">Checking card…</div>
              ${c.stripe_setup_sent_at?`<div class="sq-item-v">Setup link sent ${fmtShort(c.stripe_setup_sent_at.split('T')[0])}</div>`:''}
-             <div class="sq-acts" style="padding:10px 0 0"><button class="sq-act" onclick="sendPaymentSetup('${c.id}')">↻ Resend setup link</button><button class="sq-act" onclick="openStripeLink('${c.id}','${jsq(c.name)}','${jsq(c.email||'')}')">🔗 Relink</button></div>`
+             <div class="sq-acts" style="padding:10px 0 0">${c.stripe_card_attached?`<button class="sq-act primary" onclick="sendPaymentSetup('${c.id}','update')">💳 Send card update link</button>`:`<button class="sq-act" onclick="sendPaymentSetup('${c.id}')">↻ Resend setup link</button>`}<button class="sq-act" onclick="openStripeLink('${c.id}','${jsq(c.name)}','${jsq(c.email||'')}')">🔗 Relink</button></div>`
           :`<div class="sq-item-v">No Stripe account linked</div>
              <div class="sq-acts" style="padding:10px 0 0"><button class="sq-act primary" onclick="sendPaymentSetup('${c.id}')">💳 Send setup invite</button><button class="sq-act" onclick="openStripeLink('${c.id}','${jsq(c.name)}','${jsq(c.email||'')}')">🔗 Link existing</button></div>`}
       </div></div></div>
@@ -5196,7 +5196,7 @@ async function confirmStripeLink(stripeId, stripeName, stripeEmail){
   }catch(e){showToast(e.message,'error');}
 }
 
-async function sendPaymentSetup(customerId){
+async function sendPaymentSetup(customerId,purpose){
   let c=customers.find(x=>x.id===customerId);
   if(!c){
     try{[c]=await sb(`wc_customers?id=eq.${customerId}&select=*`);}catch(e){}
@@ -5214,7 +5214,8 @@ async function sendPaymentSetup(customerId){
         customer_name:c.name,
         customer_email:c.email,
         customer_phone:c.whatsapp_number||c.phone||'',
-        stripe_customer_id:c.stripe_customer_id||null
+        stripe_customer_id:c.stripe_customer_id||null,
+        purpose:purpose==='update'?'update':undefined
       })
     });
     if(res.ok){
@@ -5224,7 +5225,7 @@ async function sendPaymentSetup(customerId){
         c.stripe_customer_id=data.stripe_customer_id;
         c.stripe_setup_sent_at=new Date().toISOString();
       }
-      showToast('Payment setup link sent ✓','success');
+      showToast(purpose==='update'?'Card update link sent ✓':'Payment setup link sent ✓','success');
       // Refresh customer detail view
       setTimeout(()=>showCustomer(customerId),800);
     }else{
@@ -6466,15 +6467,15 @@ function openPaymentChoice(jobId,customerName,amount,reason){
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');sendOwingInvoice('${jobId}')">✉️ Send invoice (pay link + bank details)</button>
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordCash('${jobId}')">💵 Record as cash</button>
       <button class="btn btn-ghost btn-full" onclick="closeModal('paymentChoiceModal');recordBankTransfer('${jobId}')">🏦 Record as bank transfer</button>
-      <button class="btn btn-primary btn-full" onclick="closeModal('paymentChoiceModal');sendStripeSetupFromJob('${jobId}')">🔗 Send Stripe setup link</button>
+      <button class="btn btn-primary btn-full" onclick="closeModal('paymentChoiceModal');sendStripeSetupFromJob('${jobId}'${reason&&reason!=='No card on file'?",'update'":''})">${reason&&reason!=='No card on file'?'🔗 Send card update link':'🔗 Send Stripe setup link'}</button>
     </div>`;
   document.getElementById('paymentChoiceModal').classList.add('open');
 }
 
-async function sendStripeSetupFromJob(jobId){
+async function sendStripeSetupFromJob(jobId,purpose){
   try{
     const [job]=await sb(`wc_jobs?id=eq.${jobId}&select=customer_id`);
-    if(job?.customer_id)await sendPaymentSetup(job.customer_id);
+    if(job?.customer_id)await sendPaymentSetup(job.customer_id,purpose);
   }catch(e){showToast(e.message,'error');}
 }
 

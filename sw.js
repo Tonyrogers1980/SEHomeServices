@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v94';
+const CACHE = 'clearround-v95';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png', '/SEHomeServices/icon-192.png'];
 
 self.addEventListener('install', e => {
