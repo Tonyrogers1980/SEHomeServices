@@ -535,7 +535,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy-900);color:var(--tex
 .sq-jbtn.nav{border-color:var(--teal);color:var(--teal);}
 .sq-flag{display:block;padding:7px 14px;font-size:11.5px;font-weight:700;}
 .sq-flag.owe{background:rgba(255,92,114,.16);color:var(--danger);}
-.sq-flag.note{background:rgba(255,207,77,.14);color:var(--warn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sq-flag.note{background:rgba(255,207,77,.14);color:var(--warn);white-space:normal;overflow:visible;overflow-wrap:anywhere;line-height:1.4;}
 /* dashboard */
 .sq-dash-sec{display:flex;align-items:center;justify-content:space-between;margin:22px 2px 9px;font-size:12px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--text-muted);}
 .sq-dash-sec a,.sq-dash-sec button{font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--gold);background:none;border:none;cursor:pointer;font-family:inherit;}
@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='258';
+const BUILD_VERSION='259';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
