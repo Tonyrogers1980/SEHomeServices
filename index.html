@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='261';
+const BUILD_VERSION='262';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3749,7 +3749,7 @@ async function renderRound(){
         g.jobs.sort(roundCmp);
         const reord=roundReorderUser===key;
         const tools=`<span style="margin-left:auto;display:flex;gap:6px">${key!=='unassigned'&&!reord?`<button type="button" class="btn btn-ghost btn-sm" onclick="optimiseRoundGroup('${key}')">⚡ Optimise</button>`:''}<button type="button" class="btn btn-ghost btn-sm" onclick="toggleRoundReorder('${key}')">${reord?'Done':'↕ Reorder'}</button></span>`;
-        return '<div class="rd-col">'+`<div class="sq-sec" style="display:flex;align-items:center"><span>${esc(g.label)}<span class="n">${g.jobs.length}</span></span>${tools}</div>` + (reord?g.jobs.map((j,i)=>reorderRow(j,i,g.jobs.length,key)).join(''):g.jobs.map((j,i)=>jobCard(j,i+1)).join(''))+'</div>';
+        return '<div class="rd-col">'+`<div class="sq-sec" style="display:flex;align-items:center"><span>${esc(g.label)}<span class="n">${g.jobs.length}</span><span class="n" style="color:var(--gold)">${(()=>{const t=g.jobs.filter(j=>j.status!=='skipped'&&j.status!=='cant-access').reduce((a,j)=>a+(parseFloat(j.price)||0),0);return'£'+(Math.abs(t-Math.round(t))<0.005?String(Math.round(t)):t.toFixed(2));})()}</span></span>${tools}</div>` + (reord?g.jobs.map((j,i)=>reorderRow(j,i,g.jobs.length,key)).join(''):g.jobs.map((j,i)=>jobCard(j,i+1)).join(''))+'</div>';
       }).join('');
     }else{
       jobsHtml=filtered.map((j,i)=>jobCard(j,i+1)).join('');
