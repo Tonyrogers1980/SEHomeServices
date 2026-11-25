@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='264';
+const BUILD_VERSION='265';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3422,7 +3422,7 @@ async function frontDeskDraftsHtml(soft){
       <div class="cr-dr-l">Front Desk draft${p.confidence!=null?' · confidence '+Math.round(p.confidence*100)+'%':''}</div><div class="cr-dr-b">${p.no_reply_needed?'<i>No reply needed</i>':esc(p.reply||'')}</div>
       ${p.escalate&&p.escalate_reason?`<div class="cr-need-s">Reason: ${esc(clip(p.escalate_reason,200))}</div>`:''}
       ${p.action&&p.action.type==='reschedule_visit'?`<div class="cr-need-s">Proposed move: ${esc(p.action.new_date)}</div>`:''}
-      ${sent}</div>`;
+      ${sent}${draftLabelHtml(d)}</div>`;
   }).join('');
   return `<section class="cr-tile"><div class="cr-th"><h2>Front Desk drafts (shadow)</h2><span>Latest ${drafts.length}. Nothing is sent to customers.</span></div>${rows}</section>`;
 }
@@ -3453,9 +3453,23 @@ async function salesDraftsHtml(soft){
       <div class="cr-dr-l">Customer said</div><div class="cr-dr-b">${esc(inb?clip(inb.message_text,300):'(message not found)')}</div>
       <div class="cr-dr-l">Sales draft${p.confidence!=null?' · confidence '+Math.round(p.confidence*100)+'%':''}</div><div class="cr-dr-b">${p.no_reply_needed?'<i>No reply needed</i>':esc(p.reply||'')}</div>
       ${eng}${p.escalate&&p.escalate_reason?`<div class="cr-need-s">Reason: ${esc(clip(p.escalate_reason,200))}</div>`:''}
-      ${sent}</div>`;
+      ${sent}${draftLabelHtml(d)}</div>`;
   }).join('');
   return head+rows+'</section>';
+}
+function draftLabelHtml(d){
+  const cur=(d.payload||{}).tony_label;
+  const L=[['send_as_is','Send as is'],['minor_edit','Minor edit'],['rewritten','Rewrite'],['wrong','Wrong']];
+  if(cur){const n=(L.find(x=>x[0]===cur)||[0,cur])[1];return '<div class="cr-need-s">You marked this: <b>'+esc(n)+'</b> <a href="#" onclick="event.preventDefault();labelAgentDraft('+d.id+',null)">change</a></div>';}
+  return '<div class="cr-dr-l">Would you have sent it?</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+L.map(x=>'<button class="btn btn-ghost btn-sm" onclick="labelAgentDraft('+d.id+',\''+x[0]+'\')">'+x[1]+'</button>').join('')+'</div>';
+}
+async function labelAgentDraft(id,label){
+  if(!label){const v=prompt('send_as_is, minor_edit, rewritten or wrong');if(!v)return;label=v.trim();}
+  try{
+    const r=await sb('rpc/cr_label_agent_draft',{method:'POST',body:JSON.stringify({p_token:crToken(),p_proposal:id,p_label:label})});
+    if(r&&r.ok)showToast('Recorded','success');else showToast((r&&r.error)||'Could not record','error');
+  }catch(e){showToast(e.message,'error');}
+  renderControlRoom();
 }
 async function reschedProposalsHtml(soft){
   const rows=await soft(sb('agent_proposals?agent=eq.dispatcher&action_type=eq.reschedule_visit&order=created_at.desc&limit=8&select=id,created_at,summary,payload,status,decided_by'));
