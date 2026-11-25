@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='262';
+const BUILD_VERSION='263';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3421,9 +3421,30 @@ async function frontDeskDraftsHtml(soft){
       <div class="cr-dr-l">Customer said</div><div class="cr-dr-b">${esc(inb?clip(inb.message_text,300):'(message not found)')}</div>
       <div class="cr-dr-l">Front Desk draft${p.confidence!=null?' · confidence '+Math.round(p.confidence*100)+'%':''}</div><div class="cr-dr-b">${p.no_reply_needed?'<i>No reply needed</i>':esc(p.reply||'')}</div>
       ${p.escalate&&p.escalate_reason?`<div class="cr-need-s">Reason: ${esc(clip(p.escalate_reason,200))}</div>`:''}
+      ${p.action&&p.action.type==='reschedule_visit'?`<div class="cr-need-s">Proposed move: ${esc(p.action.new_date)}</div>`:''}
       ${sent}</div>`;
   }).join('');
   return `<section class="cr-tile"><div class="cr-th"><h2>Front Desk drafts (shadow)</h2><span>Latest ${drafts.length}. Nothing is sent to customers.</span></div>${rows}</section>`;
+}
+async function reschedProposalsHtml(soft){
+  const rows=await soft(sb('agent_proposals?agent=eq.dispatcher&action_type=eq.reschedule_visit&order=created_at.desc&limit=8&select=id,created_at,summary,payload,status,decided_by'));
+  const head='<section class="cr-tile"><div class="cr-th"><h2>Proposed visit moves (shadow)</h2><span>Nothing moves until you tap Apply</span></div>';
+  if(!rows||!rows.length)return head+'<div class="cr-need-s">None yet. When a customer asks to move or postpone a visit, the nearest date with room is proposed here.</div></section>';
+  const items=rows.map(r=>{
+    const p=r.payload||{};
+    const st=r.status==='approved'?'<span class="cr-f-tag" style="background:rgba(0,224,207,.14);color:#00e0cf">applied'+(r.decided_by?' by '+esc(r.decided_by):'')+'</span>':r.status==='shadow'?'<button class="btn btn-ghost btn-sm" onclick="applyAgentReschedule('+r.id+')">Apply</button>':'<span class="cr-f-tag" style="background:rgba(138,155,176,.16);color:#8a9bb0">'+esc(r.status)+'</span>';
+    return '<div class="cr-dr"><div class="cr-dr-h"><b>'+esc(p.customer_name||'Customer')+'</b>'+st+'<span class="cr-need-s">'+esc(crRel(r.created_at))+'</span></div><div class="cr-dr-b">'+esc(r.summary||'')+'</div>'+(p.reply?'<div class="cr-dr-l">Reply it would send</div><div class="cr-dr-b">'+esc(p.reply)+'</div>':'')+'</div>';
+  }).join('');
+  return head+items+'</section>';
+}
+async function applyAgentReschedule(id){
+  if(!confirm('Move this visit to the proposed date? The customer is not messaged automatically.'))return;
+  try{
+    const r=await sb('rpc/cr_apply_reschedule',{method:'POST',body:JSON.stringify({p_token:crToken(),p_proposal:id})});
+    if(r&&r.ok){showToast('Visit moved to '+r.to,'success');}
+    else{showToast((r&&r.error)||'Could not move the visit','error');}
+  }catch(e){showToast(e.message,'error');}
+  renderControlRoom();
 }
 async function renderControlRoom(){
   document.getElementById('topbarPage').textContent='Control room';
@@ -3447,6 +3468,7 @@ async function renderControlRoom(){
   ]);
   if(!agents||!events){el.innerHTML='<div class="empty"><div class="empty-title">Could not load the activity log</div></div>';return;}
   const draftsHtml=await frontDeskDraftsHtml(soft);
+  const reschedHtml=await reschedProposalsHtml(soft);
 
   const byAgent={};agents.forEach(a=>byAgent[a.code]={a,ev:[],today:0});
   events.forEach(e=>{const g=byAgent[e.agent];if(!g)return;g.ev.push(e);if(new Date(e.ts)>=sod)g.today++;});
@@ -3535,6 +3557,7 @@ async function renderControlRoom(){
   </div>
   <section class="cr-tile"><div class="cr-th"><h2>Heartbeat, last 14 days</h2><span>Silence stands out. Backfilled from existing records.</span></div>${hb}</section>
   <section class="cr-tile"><div class="cr-th"><h2>Live activity</h2><span>Latest ${Math.min(14,events.length)}</span></div>${feed}</section>
+  ${reschedHtml}
   ${draftsHtml}
   </div>`;
 }
