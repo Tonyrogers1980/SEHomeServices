@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='263';
+const BUILD_VERSION='264';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3426,6 +3426,37 @@ async function frontDeskDraftsHtml(soft){
   }).join('');
   return `<section class="cr-tile"><div class="cr-th"><h2>Front Desk drafts (shadow)</h2><span>Latest ${drafts.length}. Nothing is sent to customers.</span></div>${rows}</section>`;
 }
+// v1.0.264: Sales agent drafts (shadow) for new enquiries, next to what was actually sent
+async function salesDraftsHtml(soft){
+  const head='<section class="cr-tile"><div class="cr-th"><h2>Sales drafts (shadow)</h2><span>New enquiries. Nothing is sent to customers.</span></div>';
+  const drafts=await soft(sb('agent_proposals?agent=eq.sales&action_type=eq.sales_draft&order=created_at.desc&limit=12&select=id,created_at,summary,payload'));
+  if(!drafts||!drafts.length)return head+'<div class="cr-need-s">No drafts yet. One is written about 2 minutes after each message from a new enquiry.</div></section>';
+  const convIds=[...new Set(drafts.map(d=>d.payload&&d.payload.conversation_id).filter(Boolean))];
+  const oldest=encodeURIComponent(new Date(new Date(drafts[drafts.length-1].created_at).getTime()-3*86400000).toISOString());
+  const inList=convIds.join(',');
+  const [msgs,convs]=await Promise.all([
+    soft(sb(`messages?conversation_id=in.(${inList})&created_at=gte.${oldest}&select=id,conversation_id,direction,sender_type,message_text,created_at&order=created_at.asc&limit=800`)),
+    soft(sb(`conversations?id=in.(${inList})&select=id,customer_name,customer_phone`))
+  ]);
+  const ms=msgs||[],cv={};(convs||[]).forEach(c=>cv[c.id]=c);
+  const clip=(t,n)=>{t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n)+'…':t;};
+  const tag=(t,bg,fg)=>`<span class="cr-f-tag" style="background:${bg};color:${fg}">${t}</span>`;
+  const rows=drafts.map(d=>{
+    const p=d.payload||{},e=p.engine||{},c=p.checks||{},inb=ms.find(m=>m.id===p.message_id);
+    const actual=inb?ms.find(m=>m.conversation_id===p.conversation_id&&m.direction==='outbound'&&new Date(m.created_at)>new Date(inb.created_at)):null;
+    const who=(cv[p.conversation_id]&&(cv[p.conversation_id].customer_name||cv[p.conversation_id].customer_phone))||'New enquiry';
+    const flag=p.no_reply_needed?tag('no reply needed','rgba(138,155,176,.16)','#8a9bb0'):p.escalate?tag('would hand to Tony','rgba(255,178,0,.14)','#ffb200'):p.would_send_quote?tag('would send quote','rgba(0,224,207,.14)','#00e0cf'):tag('would reply','rgba(0,224,207,.14)','#00e0cf');
+    const bad=(c.prices_ok===false||c.frequencies_ok===false)?tag('check failed','rgba(255,90,90,.16)','#ff5a5a'):'';
+    const eng=e.status?`<div class="cr-need-s">Engine: ${esc(e.status)}${e.price!=null?' · £'+esc(e.price):''}${(e.missing&&e.missing.length)?' · still needs '+esc(e.missing.join(', ')):''}</div>`:'';
+    const sent=actual?`<div class="cr-dr-l">Actually sent by ${actual.sender_type==='human'?'Tony':'Jarvis'}</div><div class="cr-dr-b">${esc(clip(actual.message_text,300))}</div>`:'<div class="cr-dr-l">Actually sent</div><div class="cr-need-s">Nothing yet</div>';
+    return `<div class="cr-dr"><div class="cr-dr-h"><b>${esc(who)}</b>${flag}${bad}<span class="cr-need-s">${esc(crRel(d.created_at))}</span></div>
+      <div class="cr-dr-l">Customer said</div><div class="cr-dr-b">${esc(inb?clip(inb.message_text,300):'(message not found)')}</div>
+      <div class="cr-dr-l">Sales draft${p.confidence!=null?' · confidence '+Math.round(p.confidence*100)+'%':''}</div><div class="cr-dr-b">${p.no_reply_needed?'<i>No reply needed</i>':esc(p.reply||'')}</div>
+      ${eng}${p.escalate&&p.escalate_reason?`<div class="cr-need-s">Reason: ${esc(clip(p.escalate_reason,200))}</div>`:''}
+      ${sent}</div>`;
+  }).join('');
+  return head+rows+'</section>';
+}
 async function reschedProposalsHtml(soft){
   const rows=await soft(sb('agent_proposals?agent=eq.dispatcher&action_type=eq.reschedule_visit&order=created_at.desc&limit=8&select=id,created_at,summary,payload,status,decided_by'));
   const head='<section class="cr-tile"><div class="cr-th"><h2>Proposed visit moves (shadow)</h2><span>Nothing moves until you tap Apply</span></div>';
@@ -3469,6 +3500,7 @@ async function renderControlRoom(){
   if(!agents||!events){el.innerHTML='<div class="empty"><div class="empty-title">Could not load the activity log</div></div>';return;}
   const draftsHtml=await frontDeskDraftsHtml(soft);
   const reschedHtml=await reschedProposalsHtml(soft);
+  const salesHtml=await salesDraftsHtml(soft);
 
   const byAgent={};agents.forEach(a=>byAgent[a.code]={a,ev:[],today:0});
   events.forEach(e=>{const g=byAgent[e.agent];if(!g)return;g.ev.push(e);if(new Date(e.ts)>=sod)g.today++;});
@@ -3559,6 +3591,7 @@ async function renderControlRoom(){
   <section class="cr-tile"><div class="cr-th"><h2>Live activity</h2><span>Latest ${Math.min(14,events.length)}</span></div>${feed}</section>
   ${reschedHtml}
   ${draftsHtml}
+  ${salesHtml}
   </div>`;
 }
 async function renderDashboard(){
