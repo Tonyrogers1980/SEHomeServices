@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='266';
+const BUILD_VERSION='267';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3457,6 +3457,38 @@ async function salesDraftsHtml(soft){
   }).join('');
   return head+rows+'</section>';
 }
+// v1.0.267: Customer Service agent drafts (shadow) for existing customers, next to what was actually sent
+async function serviceDraftsHtml(soft){
+  const head='<section class="cr-tile"><div class="cr-th"><h2>Customer Service drafts (shadow)</h2><span>Existing customers. Nothing is sent or done.</span></div>';
+  const drafts=await soft(sb('agent_proposals?agent=eq.customer_service&action_type=eq.service_draft&order=created_at.desc&limit=12&select=id,created_at,summary,payload'));
+  if(!drafts||!drafts.length)return head+'<div class="cr-need-s">No drafts yet. One is written about 2 minutes after each message from an existing customer.</div></section>';
+  const convIds=[...new Set(drafts.map(d=>d.payload&&d.payload.conversation_id).filter(Boolean))];
+  const oldest=encodeURIComponent(new Date(new Date(drafts[drafts.length-1].created_at).getTime()-3*86400000).toISOString());
+  const inList=convIds.join(',');
+  const [msgs,convs]=await Promise.all([
+    soft(sb(`messages?conversation_id=in.(${inList})&created_at=gte.${oldest}&select=id,conversation_id,direction,sender_type,message_text,created_at&order=created_at.asc&limit=800`)),
+    soft(sb(`conversations?id=in.(${inList})&select=id,customer_name,customer_phone`))
+  ]);
+  const ms=msgs||[],cv={};(convs||[]).forEach(c=>cv[c.id]=c);
+  const clip=(t,n)=>{t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n)+'…':t;};
+  const tag=(t,bg,fg)=>`<span class="cr-f-tag" style="background:${bg};color:${fg}">${t}</span>`;
+  const rows=drafts.map(d=>{
+    const p=d.payload||{},inb=ms.find(m=>m.id===p.message_id);
+    const actual=inb?ms.find(m=>m.conversation_id===p.conversation_id&&m.direction==='outbound'&&new Date(m.created_at)>new Date(inb.created_at)):null;
+    const who=(cv[p.conversation_id]&&(cv[p.conversation_id].customer_name||cv[p.conversation_id].customer_phone))||'Customer';
+    const flag=p.no_reply_needed?tag('no reply needed','rgba(138,155,176,.16)','#8a9bb0'):p.hand_to_sales?tag('would pass to Sales','rgba(255,178,0,.14)','#ffb200'):p.escalate?tag('would hand to Tony'+(p.reason_code?' · '+esc(p.reason_code):''),'rgba(255,178,0,.14)','#ffb200'):tag('would reply','rgba(0,224,207,.14)','#00e0cf');
+    const bad=(p.checks_failed&&p.checks_failed.length)?tag('check failed: '+esc(p.checks_failed.join(', ')),'rgba(255,90,90,.16)','#ff5a5a'):'';
+    const act=p.action&&p.action.type==='skip_visit'?`<div class="cr-need-s">Would skip the ${esc(p.action.visit||'')} visit (next normal visit ${esc(p.action.next_normal_visit||'')})</div>`:p.action&&p.action.type==='save_access_note'?`<div class="cr-need-s">Would save access note: ${esc(clip(p.action.text,200))}</div>`:'';
+    const sent=actual?`<div class="cr-dr-l">Actually sent by ${actual.sender_type==='human'?'Tony':'Jarvis'}</div><div class="cr-dr-b">${esc(clip(actual.message_text,300))}</div>`:'<div class="cr-dr-l">Actually sent</div><div class="cr-need-s">Nothing yet</div>';
+    return `<div class="cr-dr"><div class="cr-dr-h"><b>${esc(who)}</b>${flag}${bad}<span class="cr-need-s">${esc(crRel(d.created_at))}</span></div>
+      <div class="cr-dr-l">Customer said</div><div class="cr-dr-b">${esc(inb?clip(inb.message_text,300):'(message not found)')}</div>
+      <div class="cr-dr-l">Customer Service draft${p.intent?' · '+esc(p.intent):''}${p.confidence!=null?' · confidence '+Math.round(p.confidence*100)+'%':''}</div><div class="cr-dr-b">${p.no_reply_needed?'<i>No reply needed</i>':esc(p.reply||'')}</div>
+      ${act}${p.escalate&&p.escalate_reason?`<div class="cr-need-s">Reason: ${esc(clip(p.escalate_reason,200))}</div>`:''}
+      ${p.suggested_for_tony?`<div class="cr-need-s">Suggested for you: ${esc(clip(p.suggested_for_tony,300))}</div>`:''}
+      ${sent}${draftLabelHtml(d)}</div>`;
+  }).join('');
+  return head+rows+'</section>';
+}
 function draftLabelHtml(d){
   const cur=(d.payload||{}).tony_label;
   const L=[['send_as_is','Send as is'],['minor_edit','Minor edit'],['rewritten','Rewrite'],['wrong','Wrong']];
@@ -3515,6 +3547,7 @@ async function renderControlRoom(){
   const draftsHtml=await frontDeskDraftsHtml(soft);
   const reschedHtml=await reschedProposalsHtml(soft);
   const salesHtml=await salesDraftsHtml(soft);
+  const serviceHtml=await serviceDraftsHtml(soft);
 
   const byAgent={};agents.forEach(a=>byAgent[a.code]={a,ev:[],today:0});
   events.forEach(e=>{const g=byAgent[e.agent];if(!g)return;g.ev.push(e);if(new Date(e.ts)>=sod)g.today++;});
@@ -3606,6 +3639,7 @@ async function renderControlRoom(){
   ${reschedHtml}
   ${draftsHtml}
   ${salesHtml}
+  ${serviceHtml}
   </div>`;
 }
 async function renderDashboard(){
