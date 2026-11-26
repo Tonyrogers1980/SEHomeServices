@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='265';
+const BUILD_VERSION='266';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -4751,9 +4751,23 @@ function renderCustomerTab(c){
     <div id="customerJobs"><div class="loading"><div class="spinner"></div></div></div>
     <div class="sq-sec"><span>Quotes<span class="n" id="custQuotesN">…</span></span></div>
     <div id="customerQuotes"></div>
+    <div class="sq-sec"><span>Automatic messages sent<span class="n" id="custTpN">…</span></span></div>
+    <div id="customerTouchpoints"></div>
     <div style="margin-top:26px"><button class="sq-btn danger sm" onclick="archiveCustomer('${c.id}')">Archive customer</button></div>`;
-  loadCustomerJobs(c.id);loadCustomerQuotes(c.id);
+  loadCustomerJobs(c.id);loadCustomerQuotes(c.id);loadCustomerTouchpoints(c.id);
   if(c.stripe_customer_id)loadPaymentMethod(c.stripe_customer_id);
+}
+// v1.0.266: everything the system sent this customer automatically (agents read the same ledger)
+const TP_LABEL={day_before_reminder:'Day-before reminder',quote_sent:'Quote sent',quote_followup:'Quote follow-up',enquiry_checkin:'Enquiry check-in',invoice_sent:'Invoice sent',overdue_reminder:'Overdue reminder',card_setup_link:'Card setup link',review_request:'Review request',job_rescheduled:'Visit moved',job_cant_attend:'Cannot attend notice',job_confirmed:'Booking confirmed',marketing:'Marketing'};
+async function loadCustomerTouchpoints(id){
+  const el=document.getElementById('customerTouchpoints'),n=document.getElementById('custTpN');
+  if(!el)return;
+  try{
+    const rows=await sb(`customer_touchpoints?customer_id=eq.${id}&order=sent_at.desc&limit=15&select=sent_at,kind,channel,summary`);
+    if(n)n.textContent=(rows||[]).length?String(rows.length):'';
+    if(!rows||!rows.length){el.innerHTML='<div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-v">Nothing recorded yet</div></div></div></div>';return;}
+    el.innerHTML='<div class="sq-list">'+rows.map(r=>`<div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t">${esc(TP_LABEL[r.kind]||r.kind)} <span style="opacity:.6;font-weight:400">· ${esc(r.channel||'')} · ${esc(crRel(r.sent_at))}</span></div><div class="sq-item-v">${esc(r.summary||'')}</div></div></div></div>`).join('')+'</div>';
+  }catch(e){el.innerHTML='';if(n)n.textContent='';}
 }
 async function renderFinanceTab(c){
   const body=document.getElementById('custTabBody');
