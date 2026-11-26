@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='267';
+const BUILD_VERSION='268';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3489,6 +3489,22 @@ async function serviceDraftsHtml(soft){
   }).join('');
   return head+rows+'</section>';
 }
+// v1.0.268: conversations closed by agents (tidy-up), with Reopen
+async function closedByAgentsHtml(soft){
+  const head='<section class="cr-tile"><div class="cr-th"><h2>Closed by agents</h2><span>Finished conversations tidied away. A new customer message reopens them.</span></div>';
+  const rows=await soft(sb('conversations?deleted_at=is.null&closed_at=not.is.null&order=closed_at.desc&limit=12&select=id,customer_name,customer_phone,closed_at,closed_by,closed_reason'));
+  if(!rows||!rows.length)return head+'<div class="cr-need-s">Nothing closed yet.</div></section>';
+  const total=await soft(sb('conversations?deleted_at=is.null&closed_at=not.is.null&select=id&limit=1000'));
+  const items=rows.map(r=>`<div class="cr-dr"><div class="cr-dr-h"><b>${esc(r.customer_name||r.customer_phone||'Customer')}</b><span class="cr-need-s">${esc(String(r.closed_reason||'').replace(/_/g,' '))} · ${esc(crRel(r.closed_at))}</span><button class="btn btn-ghost btn-sm" onclick="reopenClosedConv('${r.id}')">Reopen</button></div></div>`).join('');
+  return head+(total?`<div class="cr-need-s">${total.length} closed in total. Latest 12:</div>`:'')+items+'</section>';
+}
+async function reopenClosedConv(id){
+  try{
+    const r=await sb('rpc/cr_reopen_conversation',{method:'POST',body:JSON.stringify({p_token:crToken(),p_conv:id})});
+    if(r&&r.ok)showToast('Reopened','success');else showToast((r&&r.error)||'Could not reopen','error');
+  }catch(e){showToast(e.message,'error');}
+  renderControlRoom();
+}
 function draftLabelHtml(d){
   const cur=(d.payload||{}).tony_label;
   const L=[['send_as_is','Send as is'],['minor_edit','Minor edit'],['rewritten','Rewrite'],['wrong','Wrong']];
@@ -3548,6 +3564,7 @@ async function renderControlRoom(){
   const reschedHtml=await reschedProposalsHtml(soft);
   const salesHtml=await salesDraftsHtml(soft);
   const serviceHtml=await serviceDraftsHtml(soft);
+  const closedHtml=await closedByAgentsHtml(soft);
 
   const byAgent={};agents.forEach(a=>byAgent[a.code]={a,ev:[],today:0});
   events.forEach(e=>{const g=byAgent[e.agent];if(!g)return;g.ev.push(e);if(new Date(e.ts)>=sod)g.today++;});
@@ -3640,6 +3657,7 @@ async function renderControlRoom(){
   ${draftsHtml}
   ${salesHtml}
   ${serviceHtml}
+  ${closedHtml}
   </div>`;
 }
 async function renderDashboard(){
