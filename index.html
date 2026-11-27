@@ -916,6 +916,22 @@ button.sq-tile{font-family:inherit;color:var(--text);width:100%;display:block;}
 .af-dot{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font:700 10px 'DM Mono',monospace;color:#0a1420;}
 .af-dot-un{background:var(--navy-600);color:var(--text-soft);}
 .af-n{font:500 11px 'DM Mono',monospace;opacity:.65;}
+/* Round: weather forecast (v1.0.270) */
+.wx{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-soft);white-space:nowrap;min-width:0;}
+.wx .wx-i{font-size:16px;line-height:1;}
+.wx .wx-t{color:var(--white);font-weight:600;}
+.wx .wx-t i{font-style:normal;color:var(--text-muted);font-weight:500;}
+.wx .wx-r{color:var(--teal);font-weight:600;}
+.wx .wx-r.dry{color:var(--text-muted);font-weight:500;}
+.wx-day{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;margin:-2px 0 12px;padding:8px 12px;background:var(--navy-800);border:1px solid var(--border);border-radius:10px;min-height:38px;}
+.wx-day:empty{display:none;}
+.wx-day .wx{font-size:13.5px;}
+.wx-day .wx-l{color:var(--text);font-weight:600;}
+.wx-line{margin-top:3px;}
+.wx-line:empty{display:none;}
+.wk-wx{flex-basis:100%;margin-top:2px;}
+.wk-wx:empty{display:none;}
+.wk-wx .wx{flex-wrap:wrap;white-space:normal;gap:2px 6px;font-size:11.5px;}
 /* Round: selector + date stepper on one row (v1.0.238) */
 .rn-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
 .rn-row .sq-seg.fit{margin:0;flex:0 0 auto;}
@@ -1592,7 +1608,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='269';
+const BUILD_VERSION='270';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3810,6 +3826,68 @@ async function loadOwing(){
   catch(e){console.warn('loadOwing',e);owingJobsCache=null;owingByCust=null;showToast('Could not load owing figures','error');}
 }
 function owedBy(cid){return owingByCust?(owingByCust.get(cid)||0):0;}
+
+// ── ROUND: weather forecast (v1.0.270) ───────────────────────────────────────
+// Open-Meteo (free, no key). Eltham SE9. Daily forecast up to 16 days ahead; past days and
+// days beyond the forecast simply show nothing. Fetched after the page renders, so a slow or
+// failed weather call never delays or breaks the round. Cached 30 min in memory + localStorage.
+const WX_LAT=51.45,WX_LON=0.05,WX_TTL=30*60*1000,WX_LS='cr_wx_v1';
+let wxData=null,wxAt=0,wxInflight=null;
+const WX_CODES={0:['☀️','Clear'],1:['🌤️','Mostly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],45:['🌫️','Fog'],48:['🌫️','Freezing fog'],
+  51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy drizzle'],56:['🌧️','Freezing drizzle'],57:['🌧️','Freezing drizzle'],
+  61:['🌦️','Light rain'],63:['🌧️','Rain'],65:['🌧️','Heavy rain'],66:['🌧️','Freezing rain'],67:['🌧️','Freezing rain'],
+  71:['🌨️','Light snow'],73:['🌨️','Snow'],75:['❄️','Heavy snow'],77:['🌨️','Snow grains'],
+  80:['🌦️','Light showers'],81:['🌧️','Showers'],82:['⛈️','Heavy showers'],85:['🌨️','Snow showers'],86:['🌨️','Snow showers'],
+  95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm, hail'],99:['⛈️','Thunderstorm, hail']};
+function wxInfo(code){return WX_CODES[code]||['🌡️','Forecast'];}
+// Pure: turn an Open-Meteo `daily` block into {date:{code,hi,lo,pop}}.
+function wxParse(daily){
+  const out={};
+  if(!daily||!Array.isArray(daily.time))return out;
+  daily.time.forEach((d,i)=>{
+    const n=v=>(v===null||v===undefined||isNaN(v))?null:Number(v);
+    out[d]={code:n(daily.weather_code&&daily.weather_code[i]),hi:n(daily.temperature_2m_max&&daily.temperature_2m_max[i]),
+      lo:n(daily.temperature_2m_min&&daily.temperature_2m_min[i]),pop:n(daily.precipitation_probability_max&&daily.precipitation_probability_max[i])};
+  });
+  return out;
+}
+// Pure: the HTML for one day. mode 'day' (full label), 'line' (compact), 'head' (desktop week column).
+function wxHtml(w,mode){
+  if(!w||w.code===null||w.hi===null)return'';
+  const [icon,label]=wxInfo(w.code);
+  const t=`<span class="wx-t">${Math.round(w.hi)}°${w.lo!==null?` <i>/ ${Math.round(w.lo)}°</i>`:''}</span>`;
+  const r=w.pop===null?'':w.pop>=10?`<span class="wx-r" title="Chance of rain">💧 ${Math.round(w.pop)}%</span>`:`<span class="wx-r dry" title="Chance of rain">💧 ${Math.round(w.pop)}%</span>`;
+  return`<span class="wx" title="${esc(label)}"><span class="wx-i">${icon}</span>${mode==='day'?`<span class="wx-l">${esc(label)}</span>`:''}${t}${r}</span>`;
+}
+async function loadWeather(){
+  const now=Date.now();
+  if(wxData&&now-wxAt<WX_TTL)return wxData;
+  if(!wxData){try{const c=JSON.parse(localStorage.getItem(WX_LS)||'null');if(c&&c.data&&now-c.at<WX_TTL){wxData=c.data;wxAt=c.at;return wxData;}}catch(e){}}
+  if(wxInflight)return wxInflight;
+  wxInflight=(async()=>{
+    try{
+      const ctl=typeof AbortController==='function'?new AbortController():null;
+      const to=ctl?setTimeout(()=>ctl.abort(),6000):null;
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FLondon&forecast_days=16`,ctl?{signal:ctl.signal}:{});
+      if(to)clearTimeout(to);
+      if(!r.ok)throw new Error('weather '+r.status);
+      const j=await r.json();
+      const data=wxParse(j.daily);
+      if(Object.keys(data).length){wxData=data;wxAt=Date.now();try{localStorage.setItem(WX_LS,JSON.stringify({at:wxAt,data}));}catch(e){}}
+    }catch(e){console.warn('weather',e);}
+    finally{wxInflight=null;}
+    return wxData;   // stale data (if any) beats nothing when a refresh fails
+  })();
+  return wxInflight;
+}
+// Fill every [data-wx] placeholder under `root` once the forecast is in.
+async function wxMount(root){
+  try{
+    const data=await loadWeather();
+    if(!data||!root||!root.isConnected)return;
+    root.querySelectorAll('[data-wx]').forEach(n=>{n.innerHTML=wxHtml(data[n.dataset.wx],n.dataset.wxMode||'line');});
+  }catch(e){console.warn('wxMount',e);}
+}
 async function renderRound(){
   document.getElementById('topbarPage').textContent="Today's Round";
   document.getElementById('topbarAction').innerHTML='';
@@ -3879,6 +3957,7 @@ async function renderRound(){
 
   el.innerHTML=`
     ${roundNavRow('changeRoundDate(-1)','changeRoundDate(1)',fmtDate(roundDate),fmtDayShort(roundDate),!isToday)}
+    <div class="wx-day" data-wx="${roundDate}" data-wx-mode="day"></div>
     ${crewAlertBar(jobs)}
     ${unassignedJobs.length&&roundAssignees.has('unassigned')?`<button type="button" class="sq-banner" onclick="navigate('jobs')"><span class="n">${unassignedJobs.length}</span><span style="flex:1;min-width:0"><b>${unassignedJobs.length===1?'job needs':'jobs need'} someone assigned</b><span class="s">Tap to review in Jobs</span></span>${ic('go')}</button>`:''}
     <div class="rd-split"><div class="rd-left">
@@ -3903,6 +3982,7 @@ async function renderRound(){
     }
     </div>${calHtml}</div>`;
   if(ROUND_DRAG_MQ.matches)el.querySelectorAll('.job-card-wrap[draggable] a').forEach(a=>{a.draggable=false;});
+  wxMount(el);
 }
 
 // ── ROUND: desktop month calendar beside the day view (v1.0.215) ─────────────
@@ -4420,7 +4500,7 @@ async function renderRoundWeek(el){
         const rounds=[...new Set(dayJobs.map(j=>j.round_name).filter(Boolean))];
         return`<div class="sq-block"><div class="sq-row" style="--accent:${isToday?'var(--gold)':isPast&&dayJobs.length&&dayDone<dayJobs.length?'var(--warn)':'transparent'}" onclick="roundDate='${date}';roundView='day';renderRound()">
           <div style="width:42px;text-align:center;flex-shrink:0"><div class="sq-lbl" style="${isToday?'color:var(--gold)':''}">${DAYS[i]}</div><div style="font-size:22px;font-weight:600;color:${isToday?'var(--gold)':'var(--white)'}">${new Date(date+'T12:00:00').getDate()}</div></div>
-          <div class="sq-body">${dayJobs.length===0?`<div class="sq-sub" style="margin-top:10px">No jobs</div>`:`<div class="sq-name">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div><div class="sq-chips">${rounds.map(sqRoundChip).join('')}</div>`}</div>
+          <div class="sq-body">${dayJobs.length===0?`<div class="sq-sub" style="margin-top:10px">No jobs</div>`:`<div class="sq-name">${dayJobs.length} job${dayJobs.length!==1?'s':''}</div><div class="sq-chips">${rounds.map(sqRoundChip).join('')}</div>`}<div class="wx-line" data-wx="${date}"></div></div>
           <div class="sq-right">${dayJobs.length?`${hidePrices()?'':sqMoney(dayTotal)}<span class="sq-lbl">${dayDone}/${dayJobs.length} done</span>`:''}</div>
         </div></div>`;
       }).join('')}</div>
@@ -4431,10 +4511,11 @@ async function renderRoundWeek(el){
         const dn=dj.filter(j=>j.status==='done').length;
         const isT=date===today;
         return`<div class="wk-day${isT?' today':''}">
-          <div class="wk-head" onclick="roundDate='${date}';roundView='day';renderRound()"><span class="wk-dow">${DAYS[i]}</span><span class="wk-num">${new Date(date+'T12:00:00').getDate()}</span><span class="wk-meta">${dj.length?`${dn}/${dj.length} done${hidePrices()?'':' · £'+tot.toFixed(0)}`:'No jobs'}</span></div>
+          <div class="wk-head" onclick="roundDate='${date}';roundView='day';renderRound()"><span class="wk-dow">${DAYS[i]}</span><span class="wk-num">${new Date(date+'T12:00:00').getDate()}</span><span class="wk-meta">${dj.length?`${dn}/${dj.length} done${hidePrices()?'':' · £'+tot.toFixed(0)}`:'No jobs'}</span><span class="wk-wx" data-wx="${date}"></span></div>
           <div class="wk-jobs">${dj.map(j=>{const cu=j.wc_customers||{};const col=j.assigned_to?userColor(String(j.assigned_to)):'#d6455d';const un=(wcUsers.find(u=>u.id===j.assigned_to)||{}).name||'Unassigned';return`<div class="wk-job st-${esc(j.status||'')}" title="${esc(un)}" onclick="roundDate='${date}';roundView='day';renderRound()"><span class="wk-dot" style="background:${col}"></span><span class="wk-name">${esc(cu.name||'Customer')}</span>${hidePrices()?'':`<span class="wk-price">£${parseFloat(j.price||0).toFixed(0)}</span>`}</div>`;}).join('')}</div>
         </div>`;
       }).join('')}</div>`;
+  wxMount(el);
 }
 
 async function renderRoundMonth(el){

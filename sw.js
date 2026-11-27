@@ -1,4 +1,4 @@
-const CACHE = 'clearround-v104';
+const CACHE = 'clearround-v105';
 const PRECACHE = ['/SEHomeServices/', '/SEHomeServices/index.html', '/SEHomeServices/badge.png', '/SEHomeServices/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -30,7 +30,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   // Network-first for Supabase/n8n API calls — never cache
-  if (e.request.url.includes('supabase.co') || e.request.url.includes('n8n.cloud')) {
+  if (e.request.url.includes('supabase.co') || e.request.url.includes('n8n.cloud') || e.request.url.includes('open-meteo.com')) {
     return;
   }
   // Cache-first for static assets (logo, manifest)
