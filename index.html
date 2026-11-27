@@ -1592,7 +1592,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='268';
+const BUILD_VERSION='269';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -1610,9 +1610,8 @@ let invoices=[],invoiceFilter='all',editingInvoiceId=null;
 // getFullYear/getMonth/getDate instead.
 function localDateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function todayStr(){return localDateStr(new Date());}
-const MIN_LEAD_DAYS=2; // No same-day or next-day jobs — planning required. Keep in sync with the Quote Accept workflow's Check Ready To Schedule node.
+const MIN_LEAD_DAYS=0; // v1.0.269: same-day and next-day jobs allowed in the UI (was 2). Only sets the earliest pickable date (today).
 function minLeadDateStr(){const d=new Date();d.setDate(d.getDate()+MIN_LEAD_DAYS);return localDateStr(d);}
-function isDateTooSoon(dateStr){if(!dateStr)return false;return dateStr<minLeadDateStr();}
 function shiftDay(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return localDateStr(d);}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});}
 function fmtShort(s){if(!s)return'—';return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
@@ -3937,7 +3936,6 @@ document.addEventListener('drop',e=>{
 document.addEventListener('dragend',rdClearDrag);
 async function roundDropReschedule(job,d){
   if(d===roundDate)return;
-  if(isDateTooSoon(d)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   await openReschedule(job.id,job.series);      // same dialog as the Reschedule button: pick this job / whole series, and whether to notify
   document.getElementById('reschedule-date').value=d;
 }
@@ -4613,7 +4611,6 @@ async function openReschedule(jobId, seriesId){
 async function confirmReschedule(){
   const newDate=document.getElementById('reschedule-date').value;
   if(!newDate){showToast('Select a new date','error');return;}
-  if(isDateTooSoon(newDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const scope=document.querySelector('input[name="reschedule-scope"]:checked').value;
   const notify=document.getElementById('rs-notify').checked;
   const reason=document.getElementById('rs-reason').value.trim();
@@ -5852,7 +5849,6 @@ async function submitConversationQuote(){
   const price=parseFloat(document.getElementById('q-price').value);
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   const startDate=document.getElementById('q-start-date').value||null;
-  if(isDateTooSoon(startDate)){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const inlineOpen=document.getElementById('inlineCustomerForm').style.display!=='none';
   let customerId=null,name,address,postcode,email,phone;
   if(inlineOpen){
@@ -5911,7 +5907,6 @@ async function saveQuote(status){
   if(!customerId){showToast('Select a customer','error');return;}
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
   const startDate=document.getElementById('q-start-date').value||null;
-  if(isDateTooSoon(startDate)&&startDate!==editingQuoteOriginalDate){showToast(`No same-day or next-day jobs — earliest is ${minLeadDateStr()}`,'error');return;}
   const isEditingExisting=!!editingQuoteId;
   const basePayload={customer_id:customerId,business_id:BUSINESS_ID,price,
     frequency:document.getElementById('q-frequency').value||'one-off',
