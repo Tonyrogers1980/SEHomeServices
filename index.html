@@ -1618,7 +1618,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='271';
+const BUILD_VERSION='272';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3888,7 +3888,12 @@ function wxHtml(w,mode){
   if(!w||w.code===null||w.hi===null)return'';
   const [icon,label]=wxInfo(w.code);
   const t=`<span class="wx-t">${Math.round(w.hi)}°${w.lo!==null?` <i>/ ${Math.round(w.lo)}°</i>`:''}</span>`;
-  const r=w.pop===null?'':w.pop>=10?`<span class="wx-r" title="Chance of rain">💧 ${Math.round(w.pop)}%</span>`:`<span class="wx-r dry" title="Chance of rain">💧 ${Math.round(w.pop)}%</span>`;
+  // pop is Open-Meteo's HIGHEST HOURLY chance of rain in the day (not the chance of any rain all day), so it is
+  // labelled "peak" on the day view and paired with the expected total in mm (v1.0.272).
+  const mm=w.rain!==null&&w.rain>=0.1?(w.rain<10?w.rain.toFixed(1):String(Math.round(w.rain)))+' mm':'';
+  const pk=w.pop===null?'':Math.round(w.pop)+'%'+(mode==='day'?' peak':'');
+  const rtxt=[pk,mm].filter(Boolean).join(' · ');
+  const r=rtxt?`<span class="wx-r${(w.pop===null||w.pop<10)&&!mm?' dry':''}" title="${esc('Highest hourly chance of rain today'+(mm?'; expected total '+mm:''))}">💧 ${esc(rtxt)}</span>`:'';
   const sv=wxSevere(w);
   const full=sv.reasons.join(' · ');
   const sevIcon=sv.level==='red'?'⛔':'⚠️';
