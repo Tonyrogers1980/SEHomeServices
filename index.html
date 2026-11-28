@@ -1618,7 +1618,7 @@ const N8N_PAYMENT_METHOD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/c
 const N8N_JOB_RESCHEDULED_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-rescheduled';
 const N8N_CANT_ATTEND_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-job-cant-attend';
 const N8N_CHARGE_SAVED_CARD_WEBHOOK='https://sehomeservices.app.n8n.cloud/webhook/clearround-charge-saved-card';
-const BUILD_VERSION='272';
+const BUILD_VERSION='273';
 const BUILD_DATE='15 Nov 2026 14:06';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -3297,7 +3297,10 @@ async function loadOpsToday(allConvs){
   actionsByConv={};
   live.forEach(a=>{if(a.conversation_id)(actionsByConv[a.conversation_id]=actionsByConv[a.conversation_id]||[]).push(a);});
   const needsConvs=allConvs.filter(c=>convBucket(c)==='action').sort((a,b)=>String(a.last_message_at||'').localeCompare(String(b.last_message_at||'')));
-  return {live,mine,needsConvs,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById,quotes};
+  // v1.0.273: customers whose last card payment failed (set by trg_ev_invoices, cleared when an invoice is paid)
+  let payFails=[];
+  try{payFails=(await sb(`wc_customers?business_id=eq.${BUSINESS_ID}&last_payment_failed_at=not.is.null&select=id,name,last_payment_failed_at,last_payment_failure_reason,last_payment_failed_amount&order=last_payment_failed_at.asc&limit=20`))||[];}catch(e){console.warn('payFails',e);}
+  return {live,mine,needsConvs,crewUnacked,answered,passed,sentToday,acceptedToday,pending,needSlot,nameById,convById,quotes,payFails};
 }
 async function doneAction(id){
   try{await sb(`conversation_actions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'done',resolved_at:new Date().toISOString(),resolved_by:currentUser?.name||'tony'}),prefer:'return=minimal'});showToast('Done','success');renderDashboard();}
@@ -3363,6 +3366,11 @@ function dxBadge(txt,kind){return sqBadge(txt,kind);}
 function opsTodayHtml(o){
   if(!o)return {needs:'',jarvis:''};
   const rows=[];
+  // v1.0.273: failed card payments come first so money problems are never pushed below the 8-row cut-off
+  const payFails=o.payFails||[];
+  payFails.forEach(p=>{
+    rows.push(dRow(`${sqBadge('Payment failed','due')}<div class="sq-item-body"><div class="sq-item-t">${esc(p.name||'Customer')}</div><div class="sq-item-v">${p.last_payment_failed_amount!=null?'£'+parseFloat(p.last_payment_failed_amount).toFixed(2)+' · ':''}${esc(p.last_payment_failure_reason||'Charge failed')}</div></div>${ic('go','sq-go')}`,`showCustomer('${p.id}','customer')`));
+  });
   o.needsConvs.forEach(c=>{
     const acts=(actionsByConv[c.id]||[]).filter(a=>a.owner!=='crew'||(a.requires_approval&&!a.approved_at));
     const apr=acts.find(a=>a.requires_approval&&!a.approved_at);
@@ -3387,7 +3395,7 @@ function opsTodayHtml(o){
     const names=[...new Set(o.crewUnacked.map(a=>(o.convById[a.conversation_id]||{}).customer_name).filter(Boolean))].slice(0,3).join(', ');
     rows.push(dRow(`<div class="sq-item-body"><div class="sq-item-t" style="color:var(--danger)">⚠ ${o.crewUnacked.length} change${o.crewUnacked.length===1?'':'s'} not yet acknowledged by crew</div><div class="sq-item-v">${esc(names)}</div></div>${ic('go','sq-go')}`,"navigate('round')"));
   }
-  const needsCount=o.needsConvs.length+o.needSlot.length+(emails?1:0);
+  const needsCount=o.needsConvs.length+o.needSlot.length+payFails.length+(emails?1:0);
   const shown=rows.slice(0,8),more=rows.length-shown.length;
   const jarvis=`<div class="dash-card dash-o6">${dSec('Jarvis today')}
     <div class="dx-box"><div class="dx-two">
@@ -3574,7 +3582,7 @@ async function renderControlRoom(){
   const sod=new Date();sod.setHours(0,0,0,0);
   const since=encodeURIComponent(new Date(Date.now()-14*86400000).toISOString());
   const soft=p=>p.catch(e=>{console.warn('control room',e);return null;});
-  const [agents,events,quotes,openJobs,todayJobs,owing,esc5,convsToday]=await Promise.all([
+  const [agents,events,quotes,openJobs,todayJobs,owing,esc5,convsToday,payFails]=await Promise.all([
     soft(sb('agents?select=*&order=sort_order.asc')),
     soft(sb(`agent_events?ts=gte.${since}&select=id,ts,agent,summary,outcome&order=ts.desc&limit=1000`)),
     soft(sb(`wc_quotes?business_id=eq.${BUSINESS_ID}&status=eq.sent&select=price,sent_at`)),
@@ -3583,6 +3591,7 @@ async function renderControlRoom(){
     soft(fetchOwingJobs()),
     soft(sb(`escalations?business_id=eq.${BUSINESS_ID}&status=eq.OPEN&select=id,reason_code,created_at,conversations(customer_name)&order=created_at.asc&limit=5`)),
     soft(sb(`conversations?business_id=eq.${BUSINESS_ID}&created_at=gte.${encodeURIComponent(sod.toISOString())}&select=id`)),
+    soft(sb(`wc_customers?business_id=eq.${BUSINESS_ID}&last_payment_failed_at=not.is.null&select=id,name,last_payment_failed_at,last_payment_failure_reason,last_payment_failed_amount&order=last_payment_failed_at.asc&limit=20`)),
   ]);
   if(!agents||!events){el.innerHTML='<div class="empty"><div class="empty-title">Could not load the activity log</div></div>';return;}
   const draftsHtml=await frontDeskDraftsHtml(soft);
@@ -3596,7 +3605,8 @@ async function renderControlRoom(){
   const last=code=>byAgent[code]&&byAgent[code].ev[0];
   const working=code=>{const l=last(code);return !!l&&Date.now()-new Date(l.ts).getTime()<30*60000;};
   const handled=crMetrics(events);
-  const needsN=(esc5||[]).length;
+  const payFailN=(payFails||[]).length;
+  const needsN=(esc5||[]).length+payFailN;
   const silent=agents.filter(a=>a.enabled&&a.expected_every_minutes&&last(a.code)&&Date.now()-new Date(last(a.code).ts).getTime()>a.expected_every_minutes*60000*1.5).length;
   const notReporting=agents.filter(a=>!last(a.code)).length;
 
@@ -3637,7 +3647,8 @@ async function renderControlRoom(){
 
   // Needs you
   const reasonText=c=>String(c||'needs a decision').replace(/_/g,' ');
-  const needs=(esc5||[]).map(e=>`<div class="cr-need"><div class="cr-need-t">${esc(((e.conversations&&e.conversations.customer_name)||'A customer'))}</div><div class="cr-need-s">${esc(reasonText(e.reason_code))} · waiting ${esc(crRel(e.created_at).replace(' ago',''))}</div></div>`).join('')||'<div class="cr-need-s">Nothing is waiting on you.</div>';
+  const payNeeds=(payFails||[]).map(p=>`<div class="cr-need" style="cursor:pointer" onclick="showCustomer('${p.id}','customer')"><div class="cr-need-t">${esc(p.name||'A customer')}</div><div class="cr-need-s">Card payment failed${p.last_payment_failed_amount!=null?' · £'+parseFloat(p.last_payment_failed_amount).toFixed(2):''} · ${esc(p.last_payment_failure_reason||'Charge failed')} · ${esc(crRel(p.last_payment_failed_at))}</div></div>`).join('');
+  const needs=payNeeds+(esc5||[]).map(e=>`<div class="cr-need"><div class="cr-need-t">${esc(((e.conversations&&e.conversations.customer_name)||'A customer'))}</div><div class="cr-need-s">${esc(reasonText(e.reason_code))} · waiting ${esc(crRel(e.created_at).replace(' ago',''))}</div></div>`).join('')||'<div class="cr-need-s">Nothing is waiting on you.</div>';
 
   // Crew today
   const crew=(wcUsers||[]).filter(u=>tj.some(j=>j.assigned_to===u.id)).map(u=>{
@@ -3673,7 +3684,7 @@ async function renderControlRoom(){
   <section class="cr-tile"><div class="cr-th"><h2>Where the work is, and who has it</h2><span>Dots are work moving. Rings are agents working in the last 30 minutes.</span></div>
    <svg viewBox="0 40 1000 300" class="cr-svg" role="img" aria-label="Pipeline of stages with the agent responsible under each" font-family="Inter,sans-serif">${paths}<g>${dots}</g>${nodeSvg}</svg></section>
   <div class="cr-row">
-   <section class="cr-tile cr-need-tile"><div class="cr-th"><h2 style="color:#f0b429">Needs you</h2><span>${needsN?needsN+(needsN===5?'+':'')+' open':''}</span></div>${needs}<button class="cr-btn" onclick="navigate('messaging')">Open conversations</button></section>
+   <section class="cr-tile cr-need-tile"><div class="cr-th"><h2 style="color:#f0b429">Needs you</h2><span>${needsN?needsN+((esc5||[]).length===5?'+':'')+' open':''}</span></div>${needs}<button class="cr-btn" onclick="navigate('messaging')">Open conversations</button></section>
    <section class="cr-tile"><div class="cr-th"><h2>Crew today</h2><span>${tj.length} jobs on the round</span></div>${crew}</section>
   </div>
   <section class="cr-tile"><div class="cr-th"><h2>Heartbeat, last 14 days</h2><span>Silence stands out. Backfilled from existing records.</span></div>${hb}</section>
@@ -4653,11 +4664,19 @@ async function autoInvoiceJob(jobId){
     if(already)return; // never double-invoice a job
     if(eff.autoCharge&&c.stripe_customer_id){
       const inv=await ensureInvoice(jobId,job.price,job.service_type);
-      const res=await fetch(N8N_CHARGE_SAVED_CARD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        stripe_customer_id:c.stripe_customer_id,amount:parseFloat(job.price),invoice_id:inv?.id,description:job.service_type||'Window Cleaning'
-      })});
-      const data=await res.json().catch(()=>({}));
-      showToast(data.ok?('Charged '+(c.name||'customer')+' ✓'):((c.name||'Customer')+': charge failed — still owing'),data.ok?'success':'error');
+      let data={};
+      try{
+        const res=await fetch(N8N_CHARGE_SAVED_CARD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          stripe_customer_id:c.stripe_customer_id,amount:parseFloat(job.price),invoice_id:inv?.id,description:job.service_type||'Window Cleaning'
+        })});
+        data=await res.json().catch(()=>({}));
+      }catch(e){data={ok:false,error:'Could not reach the payment service'};}
+      if(!data.ok){
+        // v1.0.273: a failed automatic charge is recorded (Money agent "needs you" + customer flag), not just toasted
+        const reason=chargeFailReason(data);
+        await recordChargeFailure(inv?.id,reason);
+        showToast((c.name||'Customer')+': charge failed ('+reason+') — still owing','error');
+      }else showToast('Charged '+(c.name||'customer')+' ✓','success');
       return;
     }
     if(!eff.sendOnCompletion)return;
@@ -4808,7 +4827,7 @@ async function renderCustomers(){
   }catch(e){el.innerHTML=`<div class="empty"><div class="empty-title">Could not load</div><div class="empty-sub">${esc(e.message)}</div></div>`;return;}
   const split=custSplit();
   const listShell=`
-    <div class="sq-top"><span class="sq-pill" id="custPill"></span><span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openAddCustomer()" aria-label="Add customer">${ic('plus')}</button></div>
+    <div class="sq-top"><span class="sq-pill" id="custPill"></span>${cardSyncCandidates().length?`<button class="sq-act" id="cardSyncBtn" onclick="syncStripeCards(this)">💳 Sync cards (${cardSyncCandidates().length})</button>`:''}<span class="sq-spacer"></span><button class="sq-ibtn gold" onclick="openAddCustomer()" aria-label="Add customer">${ic('plus')}</button></div>
     <div class="sq-search">${ic('search')}<input placeholder="Search name, address, postcode…" value="${esc(custQuery)}" oninput="filterCustomers(this.value)"></div>
     <div class="sq-filters" id="custChips"></div>
     <div id="customerList"></div>`;
@@ -4845,7 +4864,7 @@ function customerCards(list){
     return`<div class="sq-block${c.id===custSelectedId&&custSplit()?' cu-sel':''}" data-cid="${c.id}"><div class="sq-row" onclick="showCustomer('${c.id}')" style="--accent:${bal>0?'#d6455d':'transparent'}">
       ${sqAv(c.name,c.has_active_jobs&&rounds.length?sqColor(rounds[0]):c.has_active_jobs?'#4a6fa5':'#33475f')}
       <div class="sq-body"><div class="sq-name">${esc(c.name)}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-        <div class="sq-chips">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${bal>0?cardIcon(c):''}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
+        <div class="sq-chips">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${rounds.slice(0,2).map(sqRoundChip).join('')}${payerBadge(c)}${payFailBadge(c)}${bal>0?cardIcon(c):''}${c.customer_reference?sqChip(c.customer_reference,'','mono'):''}</div></div>
       <div class="sq-right">${sqMoney(bal,bal===0?'zero':'')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
     </div></div>`;}).join('')}</div>`;
 }
@@ -4880,7 +4899,7 @@ async function showCustomer(id,tab){
         <div style="min-width:0"><div class="sq-hero-name">${esc(c.name)}</div>${c.customer_reference?`<div class="sq-hero-ref">${esc(c.customer_reference)}</div>`:''}</div>
         <div class="sq-hero-amt">${sqMoney(bal,bal===0?'zero lg':'lg')}<span class="sq-lbl">${bal>0?'Owed':'Balance'}</span></div>
       </div>
-      <div class="sq-chips" style="margin-top:12px">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${payerBadge(c)}${rounds.map(sqRoundChip).join('')}${c.cash_payer&&c.payer_type!=='cash'?sqBadge('Cash','cash'):''}</div>
+      <div class="sq-chips" style="margin-top:12px">${c.has_active_jobs?sqBadge('Active','sent'):sqChip('No active jobs','#52667d','ghost')}${payerBadge(c)}${payFailBadge(c)}${rounds.map(sqRoundChip).join('')}${c.cash_payer&&c.payer_type!=='cash'?sqBadge('Cash','cash'):''}</div>
       <div class="sq-hero-links">
         <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.address||'')+' '+(c.postcode||''))}" target="_blank">${ic('pin')}<span>${esc(c.address||'No address')}${c.postcode?', '+esc(c.postcode):''}</span></a>
         ${c.phone?`<a href="tel:${esc(c.phone)}">${ic('phone')}<span>${esc(c.phone)}</span></a>`:''}
@@ -4906,6 +4925,7 @@ function renderCustomerTab(c){
   const item=(t,v,click,warn)=>`<div class="sq-block"><div class="sq-item" ${click?`onclick="${click}"`:''}><div class="sq-item-body"><div class="sq-item-t">${t}</div>${v?`<div class="sq-item-v${warn?' warn':''}">${v}</div>`:''}</div>${click?ic('go','sq-go'):''}</div></div>`;
   body.innerHTML=`
     <div class="sq-list">
+      ${c.last_payment_failed_at?`<div class="sq-block"><div class="sq-item" style="cursor:default"><div class="sq-item-body"><div class="sq-item-t" style="color:var(--danger)">⚠ Last payment failed</div><div class="sq-item-v warn">${c.last_payment_failed_amount!=null?'£'+parseFloat(c.last_payment_failed_amount).toFixed(2)+' · ':''}${esc(c.last_payment_failure_reason||'Charge failed')} · ${fmtShort(String(c.last_payment_failed_at).split('T')[0])}</div><div class="sq-acts" style="padding:10px 0 0"><button class="sq-act primary" onclick="sendPaymentSetup('${c.id}','update')">💳 Send card update link</button><button class="sq-act" onclick="dismissPaymentFailure('${c.id}')">Dismiss</button></div></div></div></div>`:''}
       ${item('Payment',esc(payerSummary(c)),`openEditCustomer('${c.id}')`)}
       ${item('Access',esc(accessSummary(c)),`openEditCustomer('${c.id}')`,accessMissing(c))}
       ${c.notes?item('Notes',esc(c.notes),`openEditCustomer('${c.id}')`,true):''}
@@ -6488,7 +6508,7 @@ function sqTriVal(id){const v=sqSegVal(id);return v==='yes'?true:v==='no'?false:
 
 // Done-but-unpaid jobs (optionally for one customer). A job counts as paid if ANY invoice for it is paid.
 async function fetchOwingJobs(customerId){
-  const sel='id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,stripe_card_attached,stripe_card_exp_month,stripe_card_exp_year,stripe_card_last4,stripe_card_brand,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes,balance';
+  const sel='id,name,address,postcode,email,phone,whatsapp_number,stripe_customer_id,stripe_card_attached,stripe_card_exp_month,stripe_card_exp_year,stripe_card_last4,stripe_card_brand,cash_payer,payer_type,po_reference,send_invoice_on_completion,auto_charge_on_completion,payment_terms_days,invoice_notes,balance,last_payment_failed_at,last_payment_failure_reason,last_payment_failed_amount';
   const jobs=await sb(`wc_jobs?business_id=eq.${BUSINESS_ID}&status=eq.done&legacy_billed=eq.false${customerId?`&customer_id=eq.${customerId}`:''}&select=*,wc_customers(${sel})&order=last_done.asc`)||[];
   const ids=jobs.map(j=>j.id);const byJob={},paid=new Set();
   for(let i=0;i<ids.length;i+=40){
@@ -6535,7 +6555,7 @@ function owingRow(j){
   return`<div class="sq-block"><div class="sq-row" style="--accent:${days>=30?'#d6455d':days>=14?'#d9741a':'transparent'}" onclick="showCustomer('${c.id}')">
     ${sqAv(c.name,color)}
     <div class="sq-body"><div class="sq-name">${esc(c.name||'Unknown')}</div><div class="sq-sub">${esc(c.address||'')}${c.postcode?', '+esc(c.postcode):''}</div>
-      <div class="sq-chips">${payerBadge(c)}${cardIcon(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqChip(invRef(inv.id),'','ref')+sqBadge('Invoice sent','info'):''}</div></div>
+      <div class="sq-chips">${payerBadge(c)}${payFailBadge(c)}${cardIcon(c)}${c.po_reference?sqChip(c.po_reference,'','mono'):''}${alreadySent?sqChip(invRef(inv.id),'','ref')+sqBadge('Invoice sent','info'):''}</div></div>
     <div class="sq-right">${sqMoney(j.price)}${days!=null?sqBadge(days===0?'Done today':`Owed (${days} day${days!==1?'s':''})`,days===0?'info':ageKind):sqBadge('Owed','age')}</div>
   </div>${acts}</div>`;
 }
@@ -6695,6 +6715,96 @@ async function sendOwingInvoice(jobId){
   }catch(e){showToast(e.message,'error');}
 }
 
+// ── v1.0.273 failed card payments ───────────────────────────────────────────
+// A failed charge (automatic or manual) is written to the invoice. A database trigger (trg_ev_invoices) turns that into a
+// Money agent "needs you" event and flags the customer (wc_customers.last_payment_failed_*). The flag clears when any
+// invoice for that customer is paid (card retry, payment link, cash, bank transfer) or when it is dismissed here.
+function chargeFailReason(data){return data&&data.error==='no_payment_method'?'No card on file':((data&&data.error)||'Charge failed');}
+async function recordChargeFailure(invoiceId,reason){
+  if(!invoiceId)return;
+  try{
+    const [cur]=(await sb(`wc_invoices?id=eq.${invoiceId}&select=status`))||[];
+    if(cur&&cur.status==='paid')return; // the charge actually went through: never flag a paid invoice
+    await sb(`wc_invoices?id=eq.${invoiceId}`,{method:'PATCH',body:JSON.stringify({charge_failed_at:new Date().toISOString(),charge_failure_reason:String(reason||'Charge failed').slice(0,300)}),prefer:'return=minimal'});
+    const [r]=(await sb(`wc_invoices?id=eq.${invoiceId}&select=customer_id,wc_customers(last_payment_failed_at,last_payment_failure_reason,last_payment_failed_amount)`))||[];
+    const cc=r&&(customers||[]).find(x=>x.id===r.customer_id);
+    if(cc&&r.wc_customers)Object.assign(cc,r.wc_customers);
+  }catch(e){console.warn('recordChargeFailure',e);}
+}
+function payFailBadge(c){
+  if(!c||!c.last_payment_failed_at)return'';
+  const tip='Last card payment failed '+fmtShort(String(c.last_payment_failed_at).split('T')[0])+(c.last_payment_failure_reason?' · '+c.last_payment_failure_reason:'');
+  return`<span class="sq-badge sb-due" title="${esc(tip)}">Payment failed</span>`;
+}
+async function dismissPaymentFailure(customerId){
+  try{
+    await sb(`wc_customers?id=eq.${customerId}`,{method:'PATCH',body:JSON.stringify({last_payment_failed_at:null,last_payment_failure_reason:null,last_payment_failed_amount:null}),prefer:'return=minimal'});
+    const c=(customers||[]).find(x=>x.id===customerId);
+    if(c){c.last_payment_failed_at=null;c.last_payment_failure_reason=null;c.last_payment_failed_amount=null;}
+    showToast('Payment failure cleared','success');
+    showCustomer(customerId,'customer');
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ── v1.0.273 sync saved cards from Stripe ───────────────────────────────────
+// For card customers who have a Stripe customer ID but no card saved in ClearRound. A card is only saved when the Stripe
+// customer's email equals the ClearRound customer's email; everything else is listed and left alone.
+const normEmail=s=>String(s||'').trim().toLowerCase();
+function planCardSync(c,resp,now){
+  now=now||new Date();
+  if(!resp||resp.ok!==true)return{action:'skip',reason:'Stripe customer not found'};
+  const mine=normEmail(c.email),theirs=normEmail(resp.customer_email);
+  if(!mine)return{action:'skip',reason:'no email on the ClearRound record'};
+  if(!theirs)return{action:'skip',reason:'no email on the Stripe customer'};
+  if(mine!==theirs)return{action:'skip',reason:'email differs (ClearRound '+c.email+', Stripe '+resp.customer_email+')'};
+  const cards=(resp.payment_methods||[]).filter(m=>m&&m.card);
+  if(!cards.length)return{action:'skip',reason:'no card saved in Stripe'};
+  const pm=cards.find(m=>m.id===resp.default_payment_method)||cards[0];
+  const cc=pm.card,m=parseInt(cc.exp_month,10),y=parseInt(cc.exp_year,10);
+  if(m&&y&&new Date(y,m,0,23,59,59)<now)return{action:'skip',reason:'card expired '+String(m).padStart(2,'0')+'/'+String(y).slice(-2)};
+  return{action:'save',fields:{stripe_payment_method_id:pm.id,stripe_card_attached:true,stripe_card_exp_month:m||null,stripe_card_exp_year:y||null,stripe_card_last4:cc.last4||null,stripe_card_brand:cc.brand||null}};
+}
+function cardSyncCandidates(){
+  return(customers||[]).filter(c=>c.stripe_customer_id&&!c.stripe_card_attached&&c.payer_type==='stripe'&&c.active!==false&&!c.is_test);
+}
+async function syncStripeCards(btn){
+  const cands=cardSyncCandidates();
+  if(!cands.length){showToast('Every card customer already has their card saved','success');return;}
+  if(!confirm(`Check Stripe for ${cands.length} card customer${cands.length===1?'':'s'} with no card saved?\n\nA card is only saved when the Stripe email matches the ClearRound email. Anything else is listed and left alone.`))return;
+  if(btn)btn.disabled=true;
+  const saved=[],skipped=[];
+  for(let i=0;i<cands.length;i++){
+    const c=cands[i];
+    if(btn)btn.textContent='Checking '+(i+1)+' of '+cands.length+'…';
+    let resp=null;
+    try{
+      const res=await Promise.race([
+        fetch(N8N_PAYMENT_METHOD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_customer_id:c.stripe_customer_id})}),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('timed out')),15000))
+      ]);
+      resp=await res.json();
+    }catch(e){skipped.push(c.name+': could not check ('+(e.message||'error')+')');continue;}
+    const plan=planCardSync(c,resp);
+    if(plan.action!=='save'){skipped.push(c.name+': '+plan.reason);continue;}
+    try{
+      await sb(`wc_customers?id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify(plan.fields),prefer:'return=minimal'});
+      Object.assign(c,plan.fields);saved.push(c);
+    }catch(e){skipped.push(c.name+': could not save ('+e.message+')');}
+  }
+  let msg=`Card saved for ${saved.length}:\n${saved.map(c=>'• '+c.name+' ('+(c.stripe_card_brand||'card')+' ••'+(c.stripe_card_last4||'')+')').join('\n')||'—'}`;
+  msg+=`\n\nLeft alone (${skipped.length}):\n${skipped.map(s=>'• '+s).join('\n')||'—'}`;
+  alert(msg);
+  const needAuto=saved.filter(c=>c.auto_charge_on_completion!==true);
+  if(needAuto.length&&confirm(`Also charge these ${needAuto.length} automatically when their job is done?\n\n${needAuto.map(c=>c.name).join(', ')}`)){
+    try{
+      await sb(`wc_customers?id=in.(${needAuto.map(c=>c.id).join(',')})`,{method:'PATCH',body:JSON.stringify({auto_charge_on_completion:true}),prefer:'return=minimal'});
+      needAuto.forEach(c=>{c.auto_charge_on_completion=true;});
+      showToast('Automatic charging on for '+needAuto.length,'success');
+    }catch(e){showToast(e.message,'error');}
+  }
+  renderCustomers();
+}
+
 async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone,stripeCustomerId){
   if(stripeCustomerId){
     showToast('Charging saved card…');
@@ -6708,7 +6818,8 @@ async function chargeJobStripe(jobId,customerName,amount,serviceType,email,phone
         showToast('Charged ✓','success');
         refreshCurrentPage();
       }else{
-        const reason=data.error==='no_payment_method'?'No card on file':(data.error||'Charge failed');
+        const reason=chargeFailReason(data);
+        await recordChargeFailure(inv?.id,reason); // v1.0.273: manual failures are logged and flagged too
         showToast(reason+' — choose another option','error');
         openPaymentChoice(jobId,customerName,amount,reason);
       }
